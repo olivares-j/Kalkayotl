@@ -1,0 +1,7 @@
+Analysis/
+docs/
+*.pyc
+*.pdf
+*.csv
+*.pkl
+Tests/
