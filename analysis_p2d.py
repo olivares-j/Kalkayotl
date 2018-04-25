@@ -1,3 +1,4 @@
+#! /opt/anaconda2-4.3.1/envs/idp/bin/python
 import sys
 import os
 import numpy as np
@@ -8,26 +9,31 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib import gridspec
 
-import seaborn as sns 
 import pandas as pn
 
 from astroML.decorators import pickle_results
+import progressbar
+from matplotlib.ticker import NullFormatter
 
-from p2d import p2d
+from p2d import parallax2distance
 
 dir_  = os.path.expanduser('~') +"/parallax2distance/"
 dir_out = dir_ + "Analysis/"
 
 #---------------- Reads the data --------------------
 random_state = 1234
-mu,sigma  = 100,10
-N_samples = 100
+
+data_loc,data_scale    = 0,500
+
+N_samples = 1000
 N_iter    = 2000
-prior     = str(sys.argv[1]) #"EDBJ2015", "Gaussian", "Uniform" o "Cauchy"
-sg_scale  = int(sys.argv[2]) # Scale of the prior variance
+
+prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" o "Cauchy"
+prior_loc    = int(sys.argv[2]) # Location of the prior
+prior_scale  = int(sys.argv[3]) # Scale of the prior
 
 #------ creates directories --------
-dir_graphs = dir_out+prior+"/"+str(sg_scale)+"/"
+dir_graphs = dir_out+prior+"/"+str(prior_scale)+"/"
 if not os.path.isdir(dir_out+prior):
 	os.mkdir(dir_out+prior)
 if not os.path.isdir(dir_graphs):
@@ -36,11 +42,14 @@ if not os.path.isdir(dir_graphs):
 
 data_file = dir_graphs+"data.pkl"
 
+p2d = parallax2distance(N_iter=N_iter,prior=prior,prior_loc=prior_loc,prior_scale=prior_scale)
+
 
 @pickle_results(data_file)
-def syn_validation(prior,N_samples,N_iter,mu,sigma,sg_scale):
+def syn_validation(N_samples,data_loc,data_scale,random_state=1234):
 	#---------- careate synthetic data --------
-	true_dst = st.norm.rvs(loc=mu, scale=sigma, size=N_samples,random_state=random_state)
+	# true_dst = st.norm.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
+	true_dst = st.uniform.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
 	pax      = map(lambda x: 1/x, true_dst)
 	u_pax    = st.chi2.rvs(df=2.54,loc=0.21e-3, scale=0.069e-3, size=N_samples,random_state=random_state) #Values from fit to TGAS data
 	ru_pax   = u_pax/pax
@@ -59,11 +68,23 @@ def syn_validation(prior,N_samples,N_iter,mu,sigma,sg_scale):
 	rect_histy = [left_h, bottom, 0.1, height]
 
 	rel_error = np.ones_like(true_dst)
+	maps      = np.zeros_like(true_dst)
+	times     = np.zeros_like(true_dst)
+	sds       = np.zeros_like(true_dst)
+	cis       = np.zeros((N_samples,2))
+
+	bar = progressbar.ProgressBar(max_value=N_samples)
 	
 	for d,(plx,u_plx,tdst) in enumerate(zip(pax,u_pax,true_dst)):
 		#------- run the p2d function ----------------------------
-		MAP,Mean,SD,CI,int_time,sample = p2d(plx,u_plx,N_iter=N_iter,prior=prior,mu_prior=mu,sigma_prior=sigma,sg_prior_scale=sg_scale)
+		MAP,Mean,SD,CI,int_time,sample = p2d.run(plx,u_plx)
+		
+		#---- populate arrays----
 		rel_error[d] = (Mean - tdst)/tdst
+		maps[d]  = MAP
+		times[d] = int_time
+		sds[d]   = SD
+		cis[d,:] = CI
 
 		#---- plot just random sample
 
@@ -99,31 +120,81 @@ def syn_validation(prior,N_samples,N_iter,mu,sigma,sg_scale):
 			ax1.yaxis.set_major_formatter(nullfmt)
 			ax1.yaxis.set_minor_formatter(nullfmt)
 
-			ax1.hist(sample.flatten(),bins=100,normed=True, 
+			ax1.hist(sample.flatten(),bins=100,density=True, 
 				color="k",orientation='horizontal', fc='none', histtype='step',lw=0.5)
 			pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
 			plt.close()
+
+		# ---- update progress bas ----
+		bar.update(d) 
 	pdf.close()
 
 	#---------- return data frame with errors and fractiona uncertainties----
-	data = pn.DataFrame(np.column_stack((ru_pax,rel_error)),columns=['Fractional uncertainty','Fractional error'])
+	data = pn.DataFrame(np.column_stack((true_dst,pax,u_pax,ru_pax,maps,rel_error,sds,cis[:,0],cis[:,1],times)),
+		columns=['True distance','Parallax','Parallax,uncertainty','Fractional uncertainty',
+		         'Observed distance','Fractional error','Standard deviation','p2.5%','p97.5%','Autocorrelation time'])
 	return data
 
-data = syn_validation(prior,N_samples,N_iter,mu,sigma,sg_scale)
+data = syn_validation(N_samples,data_loc=data_loc,data_scale=data_scale)
+data.sort_values('Fractional uncertainty',inplace=True)
 
-sns.set(style="ticks", color_codes=True)
 pdf = PdfPages(filename=dir_graphs+"Errors.pdf")
-g = sns.JointGrid(x="Fractional error",y="Fractional uncertainty",data=data)
-g = g.plot_joint(plt.scatter,s=1)
-c,b,_ = g.ax_marg_x.hist(data["Fractional error"], color="b", alpha=.6,bins=100,normed=True)
-_ = g.ax_marg_x.text(b[100],0.9*np.max(c),s="MAD "+'{0:.3f}'.format(np.mean(np.abs(data["Fractional error"]))),fontsize=8)
-_ = g.ax_marg_x.text(b[100],0.6*np.max(c),s="Mode "+'{0:.3f}'.format(b[np.argmax(c)]+0.5*(b[2]-b[1])),fontsize=8)
-_ = g.ax_marg_x.text(b[100],0.3*np.max(c),s="Mean "+'{0:.3f}'.format(np.mean(data["Fractional error"])),fontsize=8)
-_ = g.ax_marg_x.text(b[100],0.1*np.max(c),s="SD "+'{0:.3f}'.format(np.std(data["Fractional error"])),fontsize=8)
-_ = g.ax_marg_y.hist(data["Fractional uncertainty"], color="b", alpha=.6,orientation="horizontal",bins=100,normed=True)
+nullfmt = NullFormatter()         # no labels
+
+# definitions for the axes
+left, width = 0.1, 0.7
+bottom, height = 0.1, 0.7
+bottom_h = left_h = left + width + 0.01
+
+rect_scatter = [left, bottom, width, height]
+rect_histx = [left, bottom_h, width, 0.2]
+rect_histy = [left_h, bottom, 0.2, height]
+
+# start with a rectangular Figure
+plt.figure(1, figsize=(8, 8))
+
+axScatter = plt.axes(rect_scatter)
+axHistx   = plt.axes(rect_histx)
+axHisty   = plt.axes(rect_histy)
+
+# no labels
+axHistx.xaxis.set_major_formatter(nullfmt)
+axHisty.yaxis.set_major_formatter(nullfmt)
+
+asymetric_uncert = [np.abs(data['Observed distance']-data['p2.5%'])/data['True distance'],np.abs(data['p97.5%']-data['Observed distance'])/data['True distance']]
+
+# the scatter plot:
+axScatter.errorbar(x=data["Fractional uncertainty"],y=data["Fractional error"],yerr=asymetric_uncert,
+	elinewidth=0.1,alpha=0.1,fmt=".",ecolor="grey",color="blue",ms=0.1)
+axScatter.scatter(x=data["Fractional uncertainty"],y=data["Fractional error"],color="blue",s=0.5)
+axScatter.set_xlabel("Fractional uncertainty")
+axScatter.set_ylabel("Fractional error")
+
+axHistx.hist(data["Fractional uncertainty"], color="blue",bins=100,density=True)
+axHisty.hist(data["Fractional error"], color="blue",bins=100,density=True,orientation="horizontal")
+
+axHistx.set_xlim(axScatter.get_xlim())
+axHisty.set_ylim(axScatter.get_ylim())
+
+plt.text(1.2,0.9,s="MAD "+'{0:.3f}'.format(np.mean(np.abs(data["Fractional error"]))),fontsize=8,
+	horizontalalignment='center',verticalalignment='center', transform=axHistx.transAxes)
+plt.text(1.2,0.7,s="Mean "+'{0:.3f}'.format(np.mean(data["Fractional error"])),fontsize=8,
+	horizontalalignment='center',verticalalignment='center', transform=axHistx.transAxes)
+plt.text(1.2,0.5,s="SD "+'{0:.3f}'.format(np.std(data["Fractional error"])),fontsize=8,
+	horizontalalignment='center',verticalalignment='center', transform=axHistx.transAxes)
 pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
 plt.close()
 pdf.close()
+
+pdf = PdfPages(filename=dir_graphs+"AutoTimes.pdf")
+plt.hist(data["Autocorrelation time"], bins=100)
+pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
+plt.close()
+pdf.close()
+
+
+# ids = np.where(data["Fractional error"]< 0)
+# print data.iloc[ids]
 
 
 
