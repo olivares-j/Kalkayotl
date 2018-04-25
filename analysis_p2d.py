@@ -18,7 +18,7 @@ from matplotlib.ticker import NullFormatter
 from p2d import parallax2distance
 
 dir_    = os.getcwd()
-dir_out = dir_ + "Analysis/"
+dir_out = dir_ + "/Analysis/"
 os.mkdir(dir_out)
 
 #---------------- Reads the data --------------------
