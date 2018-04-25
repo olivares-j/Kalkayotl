@@ -1,0 +1,160 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Analysis of prior distributions &#8212; p2d 0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Open cluster" href="open_cluster.html" />
+    <link rel="prev" title="Usage" href="Usage.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="analysis-of-prior-distributions">
+<span id="analyse-priors"></span><h1>Analysis of prior distributions<a class="headerlink" href="#analysis-of-prior-distributions" title="Permalink to this headline">¶</a></h1>
+<p>This section presents an example of the influence the prior distribution may have on the inferred posterior distribution of the distance.</p>
+<p>We will examine the influence that four types of <a class="reference internal" href="Priors.html#priors"><span class="std std-ref">Priors</span></a> have in the inferred posterior distribution of the distances of synthetic samples generated from three different scenarios: the <a class="reference internal" href="open_cluster.html#open-cluster"><span class="std std-ref">Open cluster</span></a> scenario, the <a class="reference internal" href="young_association.html#young-association"><span class="std std-ref">Young association</span></a> scenario, and the <a class="reference internal" href="solar_neighbourhood.html#solar-neighbourhood"><span class="std std-ref">Solar neighbourhood</span></a> scenario. In each of them, we generate a synthetic sample of objects with known distances, and therefore true parallaxes, then we add some noise in the form of uncertainties. To generate realisitc uncertainties, we use a Chi-square distribution whose parameters were found by fitting the TGAS distribution of parallax uncertainties. The parameters we found are
+<span class="math">\(df=2.54,loc=0.21\ \ mas, scale=0.069\ \ mas\)</span>.</p>
+<p>Once the synthetic samples were generated, we applyed the p2d code to infer the individual distances. We run the MCMC sampler by 2000 iteration and discarded the first 20% to avoid biases due to initialization parameters. This number of iterations ensures that the integrated autocorrelation time, which was aleays less than 40, was always considerably smaller than the total runing time.</p>
+<p>As an example of the recovered distances, Figure <a class="reference internal" href="#figure-example"><span class="std std-ref">Example of inferred distance</span></a> shows the inferred distance of one object from the <a class="reference internal" href="open_cluster.html#open-cluster"><span class="std std-ref">Open cluster</span></a> synthetic data set. In this case, a uniform prior with scale of 500 pc was used. The figure shows, in the left panel, the MCMC chain and in the right one the posterior distance distribution. Both panels show the <em>true</em> distance and the MAP and 95% confidence interval (CI) of the distribution.</p>
+<blockquote>
+<div><div class="figure align-left" id="id1">
+<span id="figure-example"></span><img alt="_images/Sample_of_distance.png" src="_images/Sample_of_distance.png" />
+<p class="caption"><span class="caption-text">Example of inferred distance</span></p>
+</div>
+</div></blockquote>
+<p>To asses the performance of the estimators and the influence of the <a class="reference internal" href="Priors.html#priors"><span class="std std-ref">Priors</span></a>, we use several statistics of the relative error (RE). We define the later as :</p>
+<div class="math">
+\begin{equation}
+        RE = \frac{MAP\{\hat{d}\}-d}{d},
+\end{equation}</div><p>where the <span class="math">\(MAP\{\hat{d}\}\)</span> is the Maximum-a-Posteriori of the inferred distance distribution, and <span class="math">\(d\)</span> is the true distance.</p>
+<p>The statistics we use to sumarise the relative error are the following.</p>
+<ul>
+<li><p class="first">The Mean Absolute Deviation (MAD) defined as:</p>
+<blockquote>
+<div><div class="math">
+\begin{equation}
+        MAD = \frac{1}{n}\sum_i^n |RE|,
+\end{equation}</div></div></blockquote>
+</li>
+<li><p class="first">The Mode of the RE distribution</p>
+</li>
+<li><p class="first">The Mean of the RE dsitribution.</p>
+</li>
+<li><p class="first">The Standard Deviation (SD) of the RE dsitribution</p>
+</li>
+</ul>
+<p>The <em>best</em> prior may be that which minimises the above statistics.</p>
+<p>The following cases provide some insight of the priors influence on the posterior distributions.</p>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Cases</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="open_cluster.html">Open cluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="young_association.html">Young association</a></li>
+<li class="toctree-l1"><a class="reference internal" href="solar_neighbourhood.html">Solar neighbourhood</a></li>
+</ul>
+</div>
+<p>The results of those sections show that …</p>
+<p>In your particular case, test the different priors provided with p2d, and find the most suitable for your particular data set.</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">p2d</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Priors.html">Priors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Analysis of prior distributions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="open_cluster.html">Open cluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="young_association.html">Young association</a></li>
+<li class="toctree-l2"><a class="reference internal" href="solar_neighbourhood.html">Solar neighbourhood</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="Usage.html" title="previous chapter">Usage</a></li>
+      <li>Next: <a href="open_cluster.html" title="next chapter">Open cluster</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Javier OLIVARES.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/analyse_priors.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

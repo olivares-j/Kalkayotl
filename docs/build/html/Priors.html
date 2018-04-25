@@ -1,0 +1,133 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Priors &#8212; p2d 0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Usage" href="Usage.html" />
+    <link rel="prev" title="Installation" href="Installation.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="priors">
+<span id="id1"></span><h1>Priors<a class="headerlink" href="#priors" title="Permalink to this headline">¶</a></h1>
+<p>As you may already know, in the Bayesian formalism, to estimate the posterior distribution a prior is required. These later, fromally is a probability distribution function on the parameters. However, since the posterior is noramlised by the evidence, the prior can be an improper one. Nevertheless, the prior implemented (so far) in p2d, are all of them probability distribution functions.</p>
+<p>As you also may know, the prior is intended to probide whatever <em>a priori</em> information that you might have concerning the distribution of parameter values. Some times, this <em>a priori</em> information is negligible or even null. In the particular case of distance estimation, this <em>a priori</em> information is not null.</p>
+<p>We know <em>a priori</em> that there are no negative distances. This very simple and even obvious information has already reduced to halve the search space! ([0,+infinity) instad of (-infitity,+infitnity)). Another useful <em>a priori</em> information is the finite scale distance of our problem. For practical cases, our distance inference has an upper limit, that of the observable universe. In most of the practical cases of distance determination, we have a rough idea of the upper limit of our search (e.g. the solar system, the solar neighbourhood, the galaxy or the local group). This very simple lower and upper limits can be used to set a <a class="reference internal" href="#uniform"><span class="std std-ref">Uniform</span></a> prior.</p>
+<p>If we are in posession of more <em>a priori</em> information on the actual distribution of distances, we can set more complex priors. In the p2d, we provide at least three more priors which convey different degrees of information. These are given by the following distributions: <a class="reference internal" href="#gaussian"><span class="std std-ref">Gaussian</span></a>, <a class="reference internal" href="#cauchy"><span class="std std-ref">Cauchy</span></a>, and the exponentially decreasing one provided by Bailer-Jones 2015 (called <a class="reference internal" href="#edbj2015"><span class="std std-ref">EDBJ2015</span></a> for simplicity).</p>
+<div class="section" id="uniform">
+<span id="id2"></span><h2>Uniform<a class="headerlink" href="#uniform" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="gaussian">
+<span id="id3"></span><h2>Gaussian<a class="headerlink" href="#gaussian" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="cauchy">
+<span id="id4"></span><h2>Cauchy<a class="headerlink" href="#cauchy" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="edbj2015">
+<span id="id5"></span><h2>EDBJ2015<a class="headerlink" href="#edbj2015" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">p2d</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Priors</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#uniform">Uniform</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gaussian">Gaussian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cauchy">Cauchy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#edbj2015">EDBJ2015</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="analyse_priors.html">Analysis of prior distributions</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="Installation.html" title="previous chapter">Installation</a></li>
+      <li>Next: <a href="Usage.html" title="next chapter">Usage</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Javier OLIVARES.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/Priors.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

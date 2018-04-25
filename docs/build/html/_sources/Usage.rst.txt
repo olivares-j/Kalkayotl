@@ -1,0 +1,6 @@
+.. _Usage:
+
+Usage
+--------------
+
+Once installed, to run the code you need to specify
