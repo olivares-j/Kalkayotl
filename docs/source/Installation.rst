@@ -21,4 +21,3 @@ If you want to generate the graphics to analyse the different types of priors yo
 	progressbar
 	astroML
 
-the

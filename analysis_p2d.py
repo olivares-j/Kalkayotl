@@ -25,8 +25,8 @@ random_state = 1234              # Random state fo rht synthetic data
 
 data_loc,data_scale    = 0,500   # Location and scale of the distribution for the mock data
 
-N_samples = 100                  # Number of mock distances
-N_iter    = 3000                 # Number of iterations for the MCMC 
+N_samples = 10                 # Number of mock distances
+N_iter    = 2000                 # Number of iterations for the MCMC 
 
 prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" o "Cauchy"
 prior_loc    = int(sys.argv[2]) # Location of the prior

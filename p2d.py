@@ -102,5 +102,5 @@ class parallax2distance:
 		#---- CI 95%
 		CI  = np.percentile(sample.flatten(),q=[2.5,97.5])
 		#------ autocorrelation time
-		int_time = emcee.autocorr.integrated_time(sample.flatten(),axis=0)
+		int_time = emcee.autocorr.integrated_time(sample.flatten(),axis=0,c=5)
 		return MAP,Mean,SD,CI,int_time,sample
