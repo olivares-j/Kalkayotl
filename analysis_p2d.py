@@ -17,8 +17,9 @@ from matplotlib.ticker import NullFormatter
 
 from p2d import parallax2distance
 
-dir_  = os.path.expanduser('~') +"/kalkayotl/"
+dir_    = os.getcwd()
 dir_out = dir_ + "Analysis/"
+os.mkdir(dir_out)
 
 #---------------- Reads the data --------------------
 random_state = 1234              # Random state fo rht synthetic data
