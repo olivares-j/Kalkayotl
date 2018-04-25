@@ -5,3 +5,4 @@ docs/
 *.csv
 *.pkl
 Tests/
+TGAS_uncertainties
