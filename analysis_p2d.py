@@ -1,4 +1,23 @@
-#! /opt/anaconda2-4.3.1/envs/idp/bin/python
+#!/opt/anaconda2-4.3.1/envs/idp/bin/python
+'''
+Copyright 2018 Javier Olivares Romero
+
+This file is part of Kalkayotl.
+
+    Kalkayotl is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    PyAspidistra is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with PyAspidistra.  If not, see <http://www.gnu.org/licenses/>.
+'''
+#------------ LOAD LIBRARIES -------------------
 import sys
 import os
 import numpy as np
@@ -17,46 +36,53 @@ from matplotlib.ticker import NullFormatter
 
 from p2d import parallax2distance
 
+#------- creates Analysis directory -------
 dir_    = os.getcwd()
 dir_out = dir_ + "/Analysis/"
 os.mkdir(dir_out)
 
 #---------------- Reads the data --------------------
-random_state = 1234              # Random state fo rht synthetic data
+random_state = 1234              # Random state for the synthetic data
 
 data_loc,data_scale    = 0,500   # Location and scale of the distribution for the mock data
 
 N_samples = 10                 # Number of mock distances
 N_iter    = 2000                 # Number of iterations for the MCMC 
 
-prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" o "Cauchy"
+prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" or "Cauchy"
 prior_loc    = int(sys.argv[2]) # Location of the prior
 prior_scale  = int(sys.argv[3]) # Scale of the prior
 
-#------ creates directories --------
+#------ creates prior directories --------
 dir_graphs = dir_out+prior+"/"+str(prior_scale)+"/"
 if not os.path.isdir(dir_out+prior):
 	os.mkdir(dir_out+prior)
 if not os.path.isdir(dir_graphs):
 	os.mkdir(dir_graphs)
 #-----------------------------------
-
-data_file = dir_graphs+"data.pkl"
+###################### Initialise the parallax2distance class ################################
 
 p2d = parallax2distance(N_iter=N_iter,prior=prior,prior_loc=prior_loc,prior_scale=prior_scale)
 
+###############################################################################################
 
+#---- calls the syn_validation function with the astroML decorator to save results
+data_file = dir_graphs+"data.pkl"
 @pickle_results(data_file)
 def syn_validation(N_samples,data_loc,data_scale,random_state=1234):
-	#---------- careate synthetic data --------
+	#---------- create synthetic data --------
+	#----- here you can chose the kind of distribution that resembles the most your case or implement a new one.
 	# true_dst = st.norm.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
 	true_dst = st.uniform.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
+
+	#---- obtains the parallax -------
 	pax      = map(lambda x: 1/x, true_dst)
+	#----- assigns an uncertainty similar to those present in TGAS data ------- 
 	u_pax    = st.chi2.rvs(df=2.54,loc=0.21e-3, scale=0.069e-3, size=N_samples,random_state=random_state) #Values from fit to TGAS data
 	ru_pax   = u_pax/pax
 	#----------------------------------------------------
 
-	# ------- Preapare plots --------------------
+	# ------- Prepare plots --------------------
 	pdf = PdfPages(filename=dir_graphs+"Sample_of_distances.pdf")
 	random_sample = np.random.randint(0,N_samples,size=10) #Only ten plots
 
@@ -130,16 +156,18 @@ def syn_validation(N_samples,data_loc,data_scale,random_state=1234):
 		bar.update(d) 
 	pdf.close()
 
-	#---------- return data frame with errors and fractiona uncertainties----
+	#---------- return data frame----
 	data = pn.DataFrame(np.column_stack((true_dst,pax,u_pax,ru_pax,maps,rel_error,sds,cis[:,0],cis[:,1],times)),
 		columns=['True distance','Parallax','Parallax,uncertainty','Fractional uncertainty',
 		         'Observed distance','Fractional error','Standard deviation','p2.5%','p97.5%','Autocorrelation time'])
 	return data
 
 data = syn_validation(N_samples,data_loc=data_loc,data_scale=data_scale)
+
 data.sort_values('Fractional uncertainty',inplace=True)
 
 pdf = PdfPages(filename=dir_graphs+"Errors.pdf")
+
 nullfmt = NullFormatter()         # no labels
 
 # definitions for the axes
@@ -187,15 +215,12 @@ pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
 plt.close()
 pdf.close()
 
+#----- Plots the distribution of integrated autocorrelation times ------------
 pdf = PdfPages(filename=dir_graphs+"AutoTimes.pdf")
 plt.hist(data["Autocorrelation time"], bins=100)
 pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
 plt.close()
 pdf.close()
-
-
-# ids = np.where(data["Fractional error"]< 0)
-# print data.iloc[ids]
 
 
 
