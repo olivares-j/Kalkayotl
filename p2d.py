@@ -1,6 +1,6 @@
 
-import myemcee as emcee
-# import emcee
+# import myemcee as emcee
+import emcee
 import numpy as np
 import scipy.stats as st
 
