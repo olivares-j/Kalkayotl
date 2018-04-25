@@ -17,16 +17,16 @@ from matplotlib.ticker import NullFormatter
 
 from p2d import parallax2distance
 
-dir_  = os.path.expanduser('~') +"/parallax2distance/"
+dir_  = os.path.expanduser('~') +"/kalkayotl/"
 dir_out = dir_ + "Analysis/"
 
 #---------------- Reads the data --------------------
-random_state = 1234
+random_state = 1234              # Random state fo rht synthetic data
 
-data_loc,data_scale    = 0,500
+data_loc,data_scale    = 0,500   # Location and scale of the distribution for the mock data
 
-N_samples = 1000
-N_iter    = 2000
+N_samples = 100                  # Number of mock distances
+N_iter    = 2000                 # Number of iterations for the MCMC 
 
 prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" o "Cauchy"
 prior_loc    = int(sys.argv[2]) # Location of the prior
