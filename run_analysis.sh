@@ -11,4 +11,4 @@
 # python analysis_p2d.py EDSD 0 500 &
 # python analysis_p2d.py EDSD 0 1000 &
 # python analysis_p2d.py EDSD 0 1350 &
-python analysis_p2d.py EDSD 0 1500 &
+python analysis_p2d.py EDSD 0 1500 

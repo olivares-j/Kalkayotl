@@ -18,6 +18,7 @@ If you want to generate the graphics to analyse the different types of priors yo
 
 	matplotlib
 	pandas
+	progressbar
 	astroML
 
 the
