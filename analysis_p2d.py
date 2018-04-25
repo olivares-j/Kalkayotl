@@ -26,7 +26,7 @@ random_state = 1234              # Random state fo rht synthetic data
 data_loc,data_scale    = 0,500   # Location and scale of the distribution for the mock data
 
 N_samples = 100                  # Number of mock distances
-N_iter    = 2000                 # Number of iterations for the MCMC 
+N_iter    = 3000                 # Number of iterations for the MCMC 
 
 prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" o "Cauchy"
 prior_loc    = int(sys.argv[2]) # Location of the prior
@@ -73,7 +73,7 @@ def syn_validation(N_samples,data_loc,data_scale,random_state=1234):
 	sds       = np.zeros_like(true_dst)
 	cis       = np.zeros((N_samples,2))
 
-	bar = progressbar.ProgressBar(max_value=N_samples)
+	bar = progressbar.ProgressBar(maxval=N_samples).start()
 	
 	for d,(plx,u_plx,tdst) in enumerate(zip(pax,u_pax,true_dst)):
 		#------- run the p2d function ----------------------------
