@@ -23,7 +23,7 @@ import scipy.stats as st
 
 class parallax2distance:
 	"""
-	This class provides flexibility to infer the distance duistribution gien the parallax and its uncertainty
+	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
 	"""
 	def __init__(self,N_iter=1000,nwalkers=10,prior="Uniform",prior_loc=0,prior_scale=100,burnin_frac=0.2):
 

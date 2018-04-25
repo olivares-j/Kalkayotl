@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# p2d documentation build configuration file, created by
+# Kalkayotl  documentation build configuration file, created by
 # sphinx-quickstart on Mon Apr 16 12:20:28 2018.
 #
 # This file is execfile()d with the current directory set to its
@@ -47,7 +47,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'p2d'
+project = u'Kalkayotl'
 copyright = u'2018, Javier OLIVARES'
 author = u'Javier OLIVARES'
 
@@ -116,7 +116,7 @@ html_sidebars = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'p2ddoc'
+htmlhelp_basename = 'kalkayotldoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -143,7 +143,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'p2d.tex', u'p2d Documentation',
+    (master_doc, 'kalkayotl.tex', u'Kalkayotl Documentation',
      u'Javier OLIVARES', 'manual'),
 ]
 
@@ -153,7 +153,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'p2d', u'p2d Documentation',
+    (master_doc, 'kalkayotl', u'Kalkayotl Documentation',
      [author], 1)
 ]
 
@@ -164,8 +164,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'p2d', u'p2d Documentation',
-     author, 'p2d', 'One line description of project.',
+    (master_doc, 'kalkayotl', u'Kalkayotl Documentation',
+     author, 'kalkayotl', 'One line description of project.',
      'Miscellaneous'),
 ]
 

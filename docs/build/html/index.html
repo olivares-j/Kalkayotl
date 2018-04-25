@@ -5,7 +5,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Welcome to p2d’s documentation! &#8212; p2d 0 documentation</title>
+    <title>Welcome to Kalkayotl’s documentation! &#8212; Kalkayotl 0 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <script type="text/javascript">
@@ -40,9 +40,9 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="welcome-to-p2d-s-documentation">
-<h1>Welcome to p2d’s documentation!<a class="headerlink" href="#welcome-to-p2d-s-documentation" title="Permalink to this headline">¶</a></h1>
-<p>This document will help you through the installation and runing of the parallax-to-distance (p2d.py) code.</p>
+  <div class="section" id="welcome-to-kalkayotl-s-documentation">
+<h1>Welcome to Kalkayotl’s documentation!<a class="headerlink" href="#welcome-to-kalkayotl-s-documentation" title="Permalink to this headline">¶</a></h1>
+<p>This document will help you through the installation and running of the parallax-to-distance Kalkayotl code.</p>
 <p>The main documentation is organised in the following sections:</p>
 <ul class="simple">
 <li><a class="reference internal" href="Installation.html#installation"><span class="std std-ref">Installation</span></a></li>
@@ -51,39 +51,39 @@
 </ul>
 <div class="section" id="introduction">
 <h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
-<p>As you may already know, measuring distances to the objects in the sky is one of the main goals of astronomy since its
-origins. To obtain distances, astronomers usually measure the parallax. However, transforming parallaxes into distances is not always
-as straight forward as inverting them (see Coryn and Xavi papers).</p>
-<p>Formally and briefely, obtaining distances from parallaxes demands probabilistic inference. We are faced with the problem of inferring the distribution
-of distance given that of the observed parallax. In the Bayesian approach, the one used by p2d code, the inference of the posterior distribution of the distance
+<p>As you may already know, measuring the distance (kalkayotl in nahuatl) to the objects in the sky is one of the main goals of astronomy.
+To measure  distances, astronomers usually rely on the <a class="reference external" href="https://en.wikipedia.org/wiki/Parallax">parallax</a>. However, transforming parallaxes into distances is not always
+as straight forward as inverting them (see for example <a class="reference external" href="http://adsabs.harvard.edu/abs/2015PASP..127..994B">2015PASP..127..994B</a>. ).</p>
+<p>Formally and briefly, obtaining distances from parallaxes demands probabilistic inference. We are faced with the problem of inferring the PDF
+of distance given that of the observed parallax. In the Bayesian approach, the one used by kalkayotl code, the inference of the posterior distribution of the distance
 needs the specification of <a class="reference internal" href="Priors.html#priors"><span class="std std-ref">Priors</span></a> and the <em>Likelihood</em>. Therefore,</p>
 <div class="math">
 \begin{equation}
    p(d | \omega, \sigma_{\omega}) = \frac{p(\omega | d,\sigma_{\omega})\cdot p(d|\sigma_{\omega})}{p(\omega |\sigma_{\omega}) }
 \end{equation}</div><p>where <span class="math">\(\omega\)</span> and <span class="math">\(\sigma_{\omega}\)</span>, are the observed parallax and its uncertainty, and <span class="math">\(d\)</span> is the true distance (i.e. the one we want to infer).
-In general, our prior believes do not depend on the parallax uncertainties,thus <span class="math">\(p(d|\sigma_{\omega})=p(d)\)</span>, and the denominator is a normalisation constant of no interest in the present case.</p>
+In general, our prior believes do not depend on the parallax uncertainties,thus <span class="math">\(p(d|\sigma_{\omega})=p(d)\)</span>. The denominator is a normalisation constant of no interest in the present case.</p>
 </div>
 <div class="section" id="likelihood">
 <h2>Likelihood<a class="headerlink" href="#likelihood" title="Permalink to this headline">¶</a></h2>
-<p>The p2d code assumes that the observed parallax is normally distributed with median and standar deviation given by the observed value and its uncertainty, respectively.
-It means that the Likelihood of the data, given the true distance, is assumed to be normal, without any systematic bias nor extra terms for underestimated uncertainties. Thus, the Likelihood is defined as,</p>
+<p>The kalkayotl code assumes that the observed parallax is normally distributed with median and standard deviation given by the observed value and its uncertainty, respectively.
+This means that the Likelihood of the data, given the true distance, is assumed to be normal, without any systematic bias nor extra terms for underestimated uncertainties. Thus, the Likelihood is defined as,</p>
 <div class="math">
 \begin{equation}
    p(\omega | d,\sigma_{\omega})=\frac{1}{\sqrt{2\cdot \pi \cdot \sigma_{\omega}^2}}\cdot e^{-\frac{(\omega-1/d)^2}{2\cdot \sigma_{\omega}^2}}
 \end{equation}</div></div>
 <div class="section" id="posterior-of-the-distance">
 <h2>Posterior of the distance<a class="headerlink" href="#posterior-of-the-distance" title="Permalink to this headline">¶</a></h2>
-<p>The prosterior distribution of the distance is sampled by the <em>emcee</em> package (Daniel Foreman-Mckey reference), which is an affine invariante MCMC sampler.
-The logarithm of the posterior distribution for each distance value is computed and passed to <em>emcee</em>. This later runs for a certain number of iterations, a number specified by you. You are responsible to verify that the samples have converged to the target distribution (the posterior). To help you asses this convergence, the p2d returns the integrated autocorrelation time of the Markov Chain. In a nutshell, if this time (actually mesured in iterations) is far lower than the total number of iterations, then you can be pretty sure your sample has converged.</p>
-<p>Since it is well known that the posterior distribution can be biased by the prior, the function <a class="reference internal" href="analyse_priors.html#analyse-priors"><span class="std std-ref">Analysis of prior distributions</span></a> will help you to decide which prior distribution provides the less biased estimate of the distance distribution. The p2d comes with several informative and non-informative priors that you can test, according to your specific needs.</p>
+<p>The posterior distribution of the distance is sampled by the <a class="reference external" href="http://dfm.io/emcee/current/">emcee</a>. package (see <a class="reference external" href="http://adsabs.harvard.edu/abs/2013PASP..125..306F">2013PASP..125..306F</a>.), which is an <em>affine invariant</em> MCMC sampler.
+The logarithm of the posterior distribution for each distance value is computed and passed to <em>emcee</em>. This later runs for a certain number of iterations, a number specified by you. You are responsible to verify that the samples have converged to the target distribution (the posterior). To help you asses this convergence, kalkayotl returns the integrated autocorrelation time of the Markov Chain. In a nutshell, if this time (actually measured in iterations) is far lower than the total number of iterations, then you can be pretty sure your sample has converged. In most of the cases, if you are running with too few iterations the integrated autocorrelation time cannot be measured and the emcee code complains.</p>
+<p>Since it is well known that the posterior distribution can be biased by the prior (<a class="reference external" href="http://adsabs.harvard.edu/abs/2015PASP..127..994B">2015PASP..127..994B</a>.), the function <a class="reference internal" href="analyse_priors.html#analyse-priors"><span class="std std-ref">Analysis of prior distributions</span></a> will help you to decide which prior distribution provides the less biased estimate of the distance distribution. Kalkayotl comes with several informative and non-informative priors that you can test, according to your specific needs.</p>
 <p>Before rushing to obtain distance estimates, run some simulations with the <a class="reference internal" href="analyse_priors.html#analyse-priors"><span class="std std-ref">Analysis of prior distributions</span></a> code and decide the best values for:</p>
 <blockquote>
 <div><ul class="simple">
-<li>The prior distribution and its scale parameter.</li>
+<li>The prior distribution and its location and scale parameters.</li>
 <li>The number of <em>emcee</em> iterations.</li>
 </ul>
 </div></blockquote>
-<p>Go ahead and remember Bayes’ words, “with great power comes great responsability” (or it was Laplace who said it? taken from Anrew Gelman’s paper “Bayes: Radical, Liberal or Conservative?”)</p>
+<p>Go ahead and remember Bayes’ words, “with great power comes great responsibility” (or it was Laplace who said it?. I took from Anrew Gelman’s paper <a class="reference external" href="http://www.stat.columbia.edu/~gelman/research/published/radical.pdf">Bayes: Radical, Liberal or Conservative?</a>.)</p>
 <div class="toctree-wrapper compound">
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
@@ -121,7 +121,7 @@ The logarithm of the posterior distribution for each distance value is computed 
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-<h1 class="logo"><a href="#">p2d</a></h1>
+<h1 class="logo"><a href="#">Kalkayotl</a></h1>
 
 
 

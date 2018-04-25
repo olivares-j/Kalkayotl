@@ -5,7 +5,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Usage &#8212; p2d 0 documentation</title>
+    <title>Usage &#8212; Kalkayotl 0 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <script type="text/javascript">
@@ -43,7 +43,38 @@
             
   <div class="section" id="usage">
 <span id="id1"></span><h1>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h1>
-<p>Once installed, to run the code you need to specify</p>
+<p>Once installed, to run the code you need to first import the parallax2distance function from the p2d file</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">p2d</span> <span class="kn">import</span> <span class="n">parallax2distance</span>
+</pre></div>
+</div>
+<p>then, you will have to initialise the module with the information concerning the prior, the the number of MCMC iteration, and the burning fraction to discard (by default the initial 20% of the chain). For example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">p2d</span> <span class="o">=</span> <span class="n">parallax2distance</span><span class="p">(</span><span class="n">N_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span><span class="n">prior</span><span class="o">=</span><span class="s2">&quot;Uniform&quot;</span><span class="p">,</span><span class="n">prior_loc</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">prior_scale</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Notice that the units for the prior location and scale are in parsecs.</p>
+<p>Finally, to obtain the distance you need to call the run function with your datum:</p>
+<div class="highlight-Python"><div class="highlight"><pre><span></span><span class="n">MAP</span><span class="p">,</span><span class="n">Mean</span><span class="p">,</span><span class="n">SD</span><span class="p">,</span><span class="n">CI</span><span class="p">,</span><span class="n">int_time</span><span class="p">,</span><span class="n">sample</span> <span class="o">=</span> <span class="n">p2d</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">plx</span><span class="p">,</span><span class="n">u_plx</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where plx and u_plx, are the parallax and its uncertainty in arcseconds.
+The function returns the following statistics of the posterior distribution:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Maximum-A-Posteriori</li>
+<li>Mean</li>
+<li>Standard deviation</li>
+<li>Confidence interval (95%)</li>
+</ul>
+</div></blockquote>
+<dl class="docutils">
+<dt>Since these are not always enough, it also returns the:</dt>
+<dd><ul class="first last simple">
+<li>Integrated autocorrelation time</li>
+<li>The entire MCMC sample without the burning phase.</li>
+</ul>
+</dd>
+</dl>
+<p>In practice this is all the information you might need to analyse the posterior distribution.</p>
 </div>
 
 
@@ -52,7 +83,7 @@
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-<h1 class="logo"><a href="index.html">p2d</a></h1>
+<h1 class="logo"><a href="index.html">Kalkayotl</a></h1>
 
 
 
