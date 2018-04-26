@@ -3,9 +3,9 @@ setup.py
 Kalkayotl.egg-info/PKG-INFO
 Kalkayotl.egg-info/SOURCES.txt
 Kalkayotl.egg-info/dependency_links.txt
-Kalkayotl.egg-info/not-zip-safe
 Kalkayotl.egg-info/requires.txt
 Kalkayotl.egg-info/top_level.txt
+Kalkayotl.egg-info/zip-safe
 kalkayotl/__init__.py
 kalkayotl/analysis_p2d.py
 kalkayotl/fit_TGAS_uncertainties.py

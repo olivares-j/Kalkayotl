@@ -20,5 +20,5 @@ setup(
         'progressbar>=2.3',
         'astroML>=0.3'
     ],
-    zip_safe=False
+    zip_safe=True
 )
