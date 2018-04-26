@@ -1,0 +1,14 @@
+Metadata-Version: 1.0
+Name: Kalkayotl
+Version: 0.1.0
+Summary: Simple parallax to distance converter
+Home-page: http://perso.astrophy.u-bordeaux.fr/JOlivares/kalkayotl/index.html
+Author: Javier Olivares
+Author-email: javier.olivares-romero@u-bordeaux.fr
+License: COPYING
+Description: # kalkayotl
+        This repository contains a simple code to infer distances from parallaxes.
+        
+        The documentation can be found at http://perso.astrophy.u-bordeaux.fr/JOlivares/kalkayotl/index.html
+        
+Platform: UNKNOWN

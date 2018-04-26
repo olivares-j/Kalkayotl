@@ -1,0 +1,8 @@
+emcee>=2.2.1
+numpy>=1.14
+scipy>=1.0
+numpy>=1.14
+matplotlib>=2.1.1
+pandas>=0.22
+progressbar>=2.3
+astroML>=0.3
