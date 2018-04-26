@@ -44,9 +44,9 @@ if not os.path.isdir(dir_out):
 #---------------- Reads the data --------------------
 random_state = 1234              # Random state for the synthetic data
 
-data_loc,data_scale    = 135,20   # Location and scale of the distribution for the mock data
+data_loc,data_scale    = 0, 500   # Location and scale of the distribution for the mock data
 
-N_samples = 1000              # Number of mock distances
+N_samples = 10                # Number of mock distances
 N_iter    = 2000              # Number of iterations for the MCMC 
 
 prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" or "Cauchy"
@@ -72,8 +72,8 @@ data_file = dir_graphs+"data.pkl"
 def syn_validation(N_samples,data_loc,data_scale,random_state=1234):
 	#---------- create synthetic data --------
 	#----- here you can chose the kind of distribution that resembles the most your case, or implement a new one.
-	true_dst = st.norm.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
-	# true_dst = st.uniform.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
+	# true_dst = st.norm.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
+	true_dst = st.uniform.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
 
 	#---- obtains the parallax -------
 	pax      = map(lambda x: 1/x, true_dst)
