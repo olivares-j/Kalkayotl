@@ -1,7 +1,8 @@
-Analysis/
+Analysis/*
 docs/
+dist/
+TGAS_uncertainties/
 *.pyc
 *.pdf
 *.csv
 *.pkl
-Tests/
