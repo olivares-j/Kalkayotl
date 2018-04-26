@@ -35,23 +35,26 @@ from matplotlib.ticker import NullFormatter
 
 from p2d import parallax2distance
 
-#------- creates Analysis directory -------
-dir_    = os.getcwd()
-dir_out = dir_ + "/Analysis/"
-if not os.path.isdir(dir_out):
-	os.mkdir(dir_out)
 
-#---------------- Reads the data --------------------
+
+#----------------Mock data and MCMC parameters  --------------------
 random_state = 1234              # Random state for the synthetic data
 
 data_loc,data_scale    = 0, 500   # Location and scale of the distribution for the mock data
+data_distribution      = st.uniform # Change it according to your needs
 
 N_samples = 10                # Number of mock distances
 N_iter    = 2000              # Number of iterations for the MCMC 
 
+#----------- prior parameters --------
 prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" or "Cauchy"
 prior_loc    = int(sys.argv[2]) # Location of the prior
 prior_scale  = int(sys.argv[3]) # Scale of the prior
+
+#------- creates Analysis directory -------
+dir_out = os.getcwd() + "/Analysis/"
+if not os.path.isdir(dir_out):
+	os.mkdir(dir_out)
 
 #------ creates prior directories --------
 dir_graphs = dir_out+prior+"/"+str(prior_scale)+"/"
@@ -70,10 +73,8 @@ p2d = parallax2distance(N_iter=N_iter,prior=prior,prior_loc=prior_loc,prior_scal
 data_file = dir_graphs+"data.pkl"
 @pickle_results(data_file)
 def syn_validation(N_samples,data_loc,data_scale,random_state=1234):
-	#---------- create synthetic data --------
-	#----- here you can chose the kind of distribution that resembles the most your case, or implement a new one.
-	# true_dst = st.norm.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
-	true_dst = st.uniform.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
+	#---------- create synthetic data -------------------------------------------------------------------------
+	true_dst = data_distribution.rvs(loc=data_loc, scale=data_scale, size=N_samples,random_state=random_state)
 
 	#---- obtains the parallax -------
 	pax      = map(lambda x: 1/x, true_dst)
