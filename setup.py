@@ -15,7 +15,7 @@ setup(
         'numpy>=1.14',
         'scipy>=1.0',
         'numpy>=1.14',
-        'matplotlib>=2.1.1',
+        'matplotlib>=2.2.2',
         'pandas>=0.22',
         'progressbar>=2.3',
         'astroML>=0.3'
