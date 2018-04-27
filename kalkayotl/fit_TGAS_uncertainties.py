@@ -9,7 +9,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 u = np.array(pn.read_csv("TGAS_parallax_uncertainty.csv"))
 
 param = st.chi2.fit(u)
-print param
 
 x = np.arange(min(u),max(u),(max(u)-min(u))/100)
 
