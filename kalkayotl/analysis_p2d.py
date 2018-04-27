@@ -40,7 +40,7 @@ from p2d import parallax2distance
 #----------------Mock data and MCMC parameters  --------------------
 random_state = 1234              # Random state for the synthetic data
 
-data_loc,data_scale    = 135, 20   # Location and scale of the distribution for the mock data
+data_loc,data_scale    = 50, 10   # Location and scale of the distribution for the mock data
 data_distribution      = st.norm # Change it according to your needs
 
 N_samples = 1000                # Number of mock distances
