@@ -10,6 +10,7 @@ setup(
     license='COPYING',
     description='Simple parallax to distance converter',
     long_description=open('README.md').read(),
+    python_requires='>=2.6, <3',
     install_requires=[
         'emcee>=2.2.1',
         'numpy>=1.14',
