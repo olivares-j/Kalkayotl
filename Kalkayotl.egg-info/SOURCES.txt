@@ -8,5 +8,6 @@ Kalkayotl.egg-info/top_level.txt
 Kalkayotl.egg-info/zip-safe
 kalkayotl/__init__.py
 kalkayotl/analysis_p2d.py
-kalkayotl/fit_TGAS_uncertainties.py
+kalkayotl/example.py
+kalkayotl/example_p2d.py
 kalkayotl/p2d.py
