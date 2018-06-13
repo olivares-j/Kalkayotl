@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='Kalkayotl',
-    version='0.1.0',
+    version='0.2.0',
     author='Javier Olivares',
     author_email='javier.olivares-romero@u-bordeaux.fr',
     packages=['kalkayotl'],
@@ -10,6 +10,7 @@ setup(
     license='COPYING',
     description='Simple parallax to distance converter',
     long_description=open('README.md').read(),
+    python_requires='>=2.6, <3',
     install_requires=[
         'emcee>=2.2.1',
         'numpy>=1.14',

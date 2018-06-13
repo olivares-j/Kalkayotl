@@ -17,6 +17,7 @@ This file is part of Kalkayotl.
     along with PyAspidistra.  If not, see <http://www.gnu.org/licenses/>.
 '''
 #------------ LOAD LIBRARIES -------------------
+from __future__ import absolute_import, unicode_literals, print_function
 import sys
 import os
 import numpy as np
@@ -40,11 +41,11 @@ from p2d import parallax2distance
 #----------------Mock data and MCMC parameters  --------------------
 random_state = 1234              # Random state for the synthetic data
 
-data_loc,data_scale    = 50, 10   # Location and scale of the distribution for the mock data
-data_distribution      = st.norm # Change it according to your needs
+data_loc,data_scale    = 100, 100   # Location and scale of the distribution for the mock data
+data_distribution      = st.uniform # Change it according to your needs
 
-N_samples = 1000                # Number of mock distances
-N_iter    = 2000              # Number of iterations for the MCMC 
+N_samples = 1000              # Number of mock distances
+N_iter    = 1000              # Number of iterations for the MCMC 
 
 #----------- prior parameters --------
 prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" or "Cauchy"
@@ -105,10 +106,10 @@ def syn_validation(N_samples,data_loc,data_scale,random_state=1234):
 	
 	for d,(plx,u_plx,tdst) in enumerate(zip(pax,u_pax,true_dst)):
 		#------- run the p2d function ----------------------------
-		MAP,Mean,SD,CI,int_time,sample = p2d.run(plx,u_plx)
+		MAP,Median,SD,CI,int_time,sample = p2d.run(plx,u_plx)
 		
 		#---- populate arrays----
-		rel_error[d] = (Mean - tdst)/tdst
+		rel_error[d] = (Median - tdst)/tdst
 		maps[d]  = MAP
 		times[d] = int_time
 		sds[d]   = SD

@@ -16,7 +16,7 @@ This file is part of Kalkayotl.
     You should have received a copy of the GNU General Public License
     along with PyAspidistra.  If not, see <http://www.gnu.org/licenses/>.
 '''
-# import myemcee as emcee
+from __future__ import absolute_import, unicode_literals, print_function
 import emcee
 import numpy as np
 import scipy.stats as st
@@ -25,13 +25,14 @@ class parallax2distance:
 	"""
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
 	"""
-	def __init__(self,N_iter=1000,nwalkers=10,prior="Uniform",prior_loc=0,prior_scale=100,burnin_frac=0.2):
+	def __init__(self,N_iter=1000,nwalkers=10,prior="Uniform",prior_loc=0,prior_scale=100,burnin_frac=0.2,quantiles=[2.5,97.5]):
 
 		self.N_iter      = N_iter
 		self.nwalkers    = nwalkers
 		self.prior_loc   = prior_loc
 		self.prior_scale = prior_scale
 		self.burnin_frac = burnin_frac
+		self.quantiles   = quantiles
 		########### PRIORS #####################
 		if prior=="Uniform" :
 			def lnprior(theta):
@@ -96,11 +97,11 @@ class parallax2distance:
 		gkde = st.gaussian_kde(sample.flatten())
 		MAP = x[np.argmax(gkde(x))]
 		#-----------
-		Mean = np.mean(sample.flatten())
+		Median = np.median(sample.flatten())
 		#----- SD ------
 		SD  = np.std(sample.flatten())
 		#---- CI 95%
-		CI  = np.percentile(sample.flatten(),q=[2.5,97.5])
+		CI  = np.percentile(sample.flatten(),q=self.quantiles)
 		#------ autocorrelation time
 		int_time = emcee.autocorr.integrated_time(sample.flatten(),axis=0,c=5)
-		return MAP,Mean,SD,CI,int_time,sample
+		return MAP,Median,SD,CI,int_time,sample
