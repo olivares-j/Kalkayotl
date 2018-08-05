@@ -29,10 +29,13 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib import gridspec
 
 import pandas as pn
+import h5py
 
 from astroML.decorators import pickle_results
 import progressbar
 from matplotlib.ticker import NullFormatter
+
+import progressbar
 
 from p2d import parallax2distance
 
@@ -47,22 +50,28 @@ prior_scale  = int(sys.argv[3]) # Scale of the prior
 
 
 ################################ DATA SET ##################################################
-# Put here your data and its uncertainty in units of arcseconds.
-# You can read a file
-fdata = "example.csv"
-data  = pn.read_csv(fdata)*1e-3 # Include the appropriate keywords according to  your file, check pandas documentation.
-pax   = data["parallax"]
-u_pax = data["parallax_error"]
-# print(pax)
-# print(u_pax)
-# sys.exit()
-# Or if you have few objects you can just comment the previous lines and paste their parallaxes and uncertainties here (in arcseconds).
-#---- parallax -------
-# pax      = np.array([9.59,6.0906])*1e-3
-#----- uncertainty ------- 
-# u_pax    = np.array([1.12,0.8161])*1e-3
+# Reds the data set.
+# Keep the order of observables, uncertainties and correlations
+# IMPORTANT put the identifier first
+fdata = "/home/javier/Desktop/Rup147/members_run_7_filtered.csv"
+list_observables = ["source_id","parallax","parallax_error"]
 
-N_samples = np.shape(pax)[0]
+#------- reads the data and orders it
+data  = pn.read_csv(fdata,usecols=list_observables,nrows=2) 
+data  = data.reindex(columns=list_observables)
+
+#------- index as string ------
+data[list_observables[0]] = data[list_observables[0]].astype('str')
+
+#------- Correct units ------
+data["parallax"]       = data["parallax"]*1e-3
+data["parallax_error"] = data["parallax_error"]*1e-3
+
+
+#----- put ID as row name-----
+data.set_index(list_observables[0],inplace=True)
+
+N_samples,D = np.shape(data)
 #----------------------------------------------------
 ############################################################################################
 
@@ -79,16 +88,17 @@ if not os.path.isdir(dir_graphs):
 	os.mkdir(dir_graphs)
 #-----------------------------------
 
-file_out     = dir_graphs + "out_"+str(prior)+"_"+str(prior_loc)+"_"+str(prior_scale)+".csv"        # file where the statistics will be written.
-
+file_out_csv= dir_graphs + "out_"+str(prior)+"_"+str(prior_loc)+"_"+str(prior_scale)+".csv"        # file where the statistics will be written.
+file_out_h5 = dir_graphs + "out_"+str(prior)+"_"+str(prior_loc)+"_"+str(prior_scale)+".hdf5"
 ###################### Initialise the parallax2distance class ################################
 
 p2d = parallax2distance(N_iter=N_iter,nwalkers=50,prior=prior,prior_loc=prior_loc,prior_scale=prior_scale,quantiles=[2.3,97.7])
 
 ###############################################################################################
 
-# ------- Prepare plots --------------------
+#------- Open plots and H5 files 
 pdf = PdfPages(filename=dir_graphs+"Distances.pdf")
+fh5 = h5py.File(file_out_h5,'w')
 
 nullfmt = plt.NullFormatter()
 left, width = 0.1, 0.4
@@ -98,24 +108,30 @@ rect_scatter = [left, bottom, width, height]
 rect_histx = [left, bottom_h, width, 0.4]
 rect_histy = [left_h, bottom, 0.1, height]
 
-maps      = np.zeros_like(pax)
-medians   = np.zeros_like(pax)
-sds       = np.zeros_like(pax)
+#------ initialise arrays ---------
+maps      = np.zeros(N_samples)
+medians   = np.zeros(N_samples)
+sds       = np.zeros(N_samples)
 cis       = np.zeros((N_samples,2))
-times     = np.zeros_like(pax)
+times     = np.zeros(N_samples)
 
 bar = progressbar.ProgressBar(maxval=N_samples).start()
 
-for d,(plx,u_plx) in enumerate(zip(pax,u_pax)):
+i=0
+for ID,datum in data.iterrows():
 	#------- run the p2d function ----------------------------
-	MAP,Median,SD,CI,int_time,sample = p2d.run(plx,u_plx)
+	MAP,Median,SD,CI,int_time,sample = p2d.run(datum["parallax"],datum["parallax_error"])
+
+	#------- Save sample -----
+	dset = fh5.create_dataset(str(ID), data=sample)
+	fh5.flush()
 
 	#---- populate arrays----
-	maps[d]     = MAP
-	medians[d]  = Median
-	times[d]    = int_time
-	sds[d]      = SD
-	cis[d,:]    = CI
+	maps[i]     = MAP
+	medians[i]  = Median
+	times[i]    = int_time
+	sds[i]      = SD
+	cis[i,:]    = CI
 
 	#---- plot posterior distance sample
 
@@ -124,12 +140,13 @@ for d,(plx,u_plx) in enumerate(zip(pax,u_pax)):
 
 	fig = plt.figure(221, figsize=(6.3, 6.3))
 	ax0 = fig.add_subplot(223, position=rect_scatter)
+	ax0.set_title(list_observables[0]+" : "+str(ID),pad=15)
 	ax0.set_xlabel("Iteration")
 	ax0.set_ylabel("Distance [pc]")
 	ax0.set_ylim(y_min,y_max)
 	ax0.plot(sample.T, '-', color='k', alpha=0.3,linewidth=0.3)
 	ax0.axhline(MAP,   color='blue',ls="--",linewidth=0.5,label="MAP")
-	ax0.axhline(CI[0], color='blue',ls=":",linewidth=0.5,label="CI 95%")
+	ax0.axhline(CI[0], color='blue',ls=":",linewidth=0.5,label="CI")
 	ax0.axhline(CI[1], color='blue',ls=":",linewidth=0.5)
 	ax0.legend(loc="upper left",ncol=4,fontsize=4)
 
@@ -155,14 +172,21 @@ for d,(plx,u_plx) in enumerate(zip(pax,u_pax)):
 	plt.close()
 
 	# ---- update progress bas ----
-	bar.update(d) 
+	bar.update(i+1)
+	i += 1 
 pdf.close()
+fh5.close()
 
 #---------- return data frame----
-data = pn.DataFrame(np.column_stack((pax,u_pax,maps,medians,sds,cis[:,0],cis[:,1],times)),
-		columns=['parallax','parallax_uncertainty','distance_map','distance_median','distance_sd','distance_ci_low','distance_ci_up','integrated_autocorr_time'])
+data_out = pn.DataFrame(np.column_stack((data.index,maps,medians,sds,
+	cis[:,0],cis[:,1],times)),
+		columns=[list_observables[0],'map_parallax',
+		'median_parallax',
+		'sd_parallax',
+		'ci_low_parallax','ci_up_parallax',
+		'integrated_autocorr_time'])
 
-data.to_csv(path_or_buf=file_out,index=False)
+data_out.to_csv(path_or_buf=file_out_csv,index=False)
 
 
 
