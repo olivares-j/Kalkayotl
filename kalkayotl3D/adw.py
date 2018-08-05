@@ -83,7 +83,7 @@ class posterior_adw:
 				# Exponentialy decreasing space density prior
 				# Bailer-Jones 2015
 				L = prior_scale # Scale distance in parsecs
-				pri = (1.0/(2.0*(L**3)))*(theta[2]**2)*np.exp(-(theta[2]/L))
+				pri = (1.0/(2.0*(L**3)))*(theta[2]**2)*np.exp(-(theta[2]/L)) + 1e-100
 				return np.log(pri)+log_prior_ad
 
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
@@ -92,45 +92,89 @@ class posterior_adw:
 
 		self.lnprior = lnprior
 
+		############ COVARIANCE ##########
+		ra,dec,pax,u_ra,u_dec,u_pax,corr_ra_dec,corr_ra_pax,corr_dec_pax = datum
+		corr      = np.zeros((self.ndim,self.ndim))
+		corr[0,1] = corr_ra_dec
+		corr[0,2] = corr_ra_pax
+		corr[1,2] = corr_dec_pax
+
+		corr      = corr + corr.T + np.eye(self.ndim)
+
+		cov       = np.diag([u_ra,u_dec,u_pax]).dot(corr.dot(np.diag([u_ra,u_dec,u_pax])))
+
+		observed  = np.array([ra,dec,pax])
+
+
+		try:
+			inv = np.linalg.inv(cov)
+		except Exception as e:
+			sys.exit(e)
+		else:
+			pass
+		finally:
+			pass
+
+		try:
+			s,logdet = np.linalg.slogdet(cov)
+		except Exception as e:
+			sys.exit(e)
+		else:
+			pass
+		finally:
+			pass
+
+		if s <= 0:
+			sys.exit("Negative determinant!")
+
+		log_den = -0.5*(3.0*np.log(2.0*np.pi) + logdet)
+
 		#-----------------------------------------------------------
 		def lmn(mu):
-			ra,dec,pax,u_ra,u_dec,u_pax,corr_ra_dec,corr_ra_pax,corr_dec_pax = datum
-			corr      = np.zeros((self.ndim,self.ndim))
-			corr[0,1] = corr_ra_dec
-			corr[0,2] = corr_ra_pax
-			corr[1,2] = corr_dec_pax
+			# ra,dec,pax,u_ra,u_dec,u_pax,corr_ra_dec,corr_ra_pax,corr_dec_pax = datum
+			# corr      = np.zeros((self.ndim,self.ndim))
+			# corr[0,1] = corr_ra_dec
+			# corr[0,2] = corr_ra_pax
+			# corr[1,2] = corr_dec_pax
 
-			corr      = corr + corr.T + np.eye(self.ndim)
+			# corr      = corr + corr.T + np.eye(self.ndim)
 
-			cov       = np.diag([u_ra,u_dec,u_pax]).dot(corr.dot(np.diag([u_ra,u_dec,u_pax])))
+			# cov       = np.diag([u_ra,u_dec,u_pax]).dot(corr.dot(np.diag([u_ra,u_dec,u_pax])))
 
-			observed  = np.array([ra,dec,pax])
+			# observed  = np.array([ra,dec,pax])
 
-			x = observed - mu
 
-			try:
-				inv = np.linalg.inv(cov)
-			except Exception as e:
-				sys.exit(e)
-			else:
-				pass
-			finally:
-				pass
+			# try:
+			# 	inv = np.linalg.inv(cov)
+			# except Exception as e:
+			# 	sys.exit(e)
+			# else:
+			# 	pass
+			# finally:
+			# 	pass
 
-			try:
-				s,logdet = np.linalg.slogdet(cov)
-			except Exception as e:
-				sys.exit(e)
-			else:
-				pass
-			finally:
-				pass
+			# try:
+			# 	s,logdet = np.linalg.slogdet(cov)
+			# except Exception as e:
+			# 	sys.exit(e)
+			# else:
+			# 	pass
+			# finally:
+			# 	pass
 
-			if s <= 0:
-				sys.exit("Negative determinant!")
+			# if s <= 0:
+			# 	sys.exit("Negative determinant!")
 
+
+			x       = observed - mu
 			arg     = -0.5*np.dot(x.T,inv.dot(x))
-			log_den = -0.5*(3.0*np.log(2.0*np.pi) + logdet)
+			# log_den = -0.5*(3.0*np.log(2.0*np.pi) + logdet)
+
+			# res = arg + log_den
+
+			# res2 = st.multivariate_normal.logpdf(mu,mean=observed,cov=cov)
+
+			# print(res-res2)
 
 			return arg + log_den
 
@@ -138,7 +182,9 @@ class posterior_adw:
 
 	################ POSTERIOR#######################
 	def lnprob(self,theta):
-		if theta[2] <= 0.0:
+		if (theta[0] <   0.0 or theta[0] >= 360.0 or
+		    theta[1] < -90.0 or theta[1] >   90.0 or
+		    theta[2] <=  0.0):
 			return -np.inf
 		else:
 			true      = np.array([theta[0],theta[1],1.0/theta[2]])
