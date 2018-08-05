@@ -41,8 +41,8 @@ from p2d import parallax2distance
 #----------------Mock data and MCMC parameters  --------------------
 random_state = 1234              # Random state for the synthetic data
 
-data_loc,data_scale    = 100, 100   # Location and scale of the distribution for the mock data
-data_distribution      = st.uniform # Change it according to your needs
+data_loc,data_scale    = 308, 16   # Location and scale of the distribution for the mock data
+data_distribution      = st.norm # Change it according to your needs
 
 N_samples = 1000              # Number of mock distances
 N_iter    = 1000              # Number of iterations for the MCMC 
@@ -109,7 +109,7 @@ def syn_validation(N_samples,data_loc,data_scale,random_state=1234):
 		MAP,Median,SD,CI,int_time,sample = p2d.run(plx,u_plx)
 		
 		#---- populate arrays----
-		rel_error[d] = (Median - tdst)/tdst
+		rel_error[d] = (MAP - tdst)/tdst
 		maps[d]  = MAP
 		times[d] = int_time
 		sds[d]   = SD
@@ -207,11 +207,11 @@ axHisty.hist(data["Fractional error"], color="blue",bins=100,density=True,orient
 axHistx.set_xlim(axScatter.get_xlim())
 axHisty.set_ylim(axScatter.get_ylim())
 
-plt.text(1.2,0.9,s="MAD "+'{0:.3f}'.format(np.mean(np.abs(data["Fractional error"]))),fontsize=8,
+plt.text(1.2,0.9,s="MAD "+'{0:.34f}'.format(np.mean(np.abs(data["Fractional error"]))),fontsize=8,
 	horizontalalignment='center',verticalalignment='center', transform=axHistx.transAxes)
-plt.text(1.2,0.7,s="Mean "+'{0:.3f}'.format(np.mean(data["Fractional error"])),fontsize=8,
+plt.text(1.2,0.7,s="Mean "+'{0:.4f}'.format(np.mean(data["Fractional error"])),fontsize=8,
 	horizontalalignment='center',verticalalignment='center', transform=axHistx.transAxes)
-plt.text(1.2,0.5,s="SD "+'{0:.3f}'.format(np.std(data["Fractional error"])),fontsize=8,
+plt.text(1.2,0.5,s="SD "+'{0:.4f}'.format(np.std(data["Fractional error"])),fontsize=8,
 	horizontalalignment='center',verticalalignment='center', transform=axHistx.transAxes)
 pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
 plt.close()
