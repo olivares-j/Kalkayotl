@@ -113,7 +113,6 @@ bar = progressbar.ProgressBar(maxval=N).start()
 
 i = 0
 for ID,datum in data.iterrows():
-	print(datum)
 
 	#------ Initialise the posterior adw function -----------
 
