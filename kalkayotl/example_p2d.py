@@ -21,12 +21,16 @@ from __future__ import absolute_import, unicode_literals, print_function
 import sys
 import os
 import numpy as np
-import scipy.stats as st
-import random
 
+import matplotlib
+matplotlib.use('PDF')
 import matplotlib.pyplot as plt
+
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib import gridspec
+
+import scipy.stats as st
+import random
 
 import pandas as pn
 import h5py
@@ -53,11 +57,13 @@ prior_scale  = int(sys.argv[3]) # Scale of the prior
 # Reds the data set.
 # Keep the order of observables, uncertainties and correlations
 # IMPORTANT put the identifier first
-fdata = "/home/javier/Desktop/Rup147/members_run_7_filtered.csv"
-list_observables = ["source_id","parallax","parallax_error"]
+fdata = "/home/jromero/Desktop/Rup147/Members/members_ALL.csv"
+list_observables = ["ID_member","parallax","parallax_error"]
 
 #------- reads the data and orders it
-data  = pn.read_csv(fdata,usecols=list_observables,nrows=2) 
+data  = pn.read_csv(fdata,usecols=list_observables,na_values=99.0) 
+#---------- drop na values ------------
+data  = data.dropna(thresh=2)
 data  = data.reindex(columns=list_observables)
 
 #------- index as string ------
@@ -66,7 +72,6 @@ data[list_observables[0]] = data[list_observables[0]].astype('str')
 #------- Correct units ------
 data["parallax"]       = data["parallax"]*1e-3
 data["parallax_error"] = data["parallax_error"]*1e-3
-
 
 #----- put ID as row name-----
 data.set_index(list_observables[0],inplace=True)
@@ -180,10 +185,10 @@ fh5.close()
 #---------- return data frame----
 data_out = pn.DataFrame(np.column_stack((data.index,maps,medians,sds,
 	cis[:,0],cis[:,1],times)),
-		columns=[list_observables[0],'map_parallax',
-		'median_parallax',
-		'sd_parallax',
-		'ci_low_parallax','ci_up_parallax',
+		columns=[list_observables[0],'map_distance',
+		'median_distance',
+		'sd_distance',
+		'ci_low_distance','ci_up_distance',
 		'integrated_autocorr_time'])
 
 data_out.to_csv(path_or_buf=file_out_csv,index=False)
