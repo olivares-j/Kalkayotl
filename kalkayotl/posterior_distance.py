@@ -28,6 +28,7 @@ class Posterior(object):
 	float  'prior_loc':   Location of the prior distribution in pc
 						  Assumed zero for Half-Gaussian, Half-Cauchy and EDSD
 	float  'prior_scale': Scale of the prior distribution in pc
+	float  'zero_point':  Parallax zero point
 	"""
 
 	def __init__(self,prior="Uniform",prior_loc=0,prior_scale=100,zero_point=0.0):
@@ -36,45 +37,30 @@ class Posterior(object):
 		self.prior_scl   = prior_scale
 		self.zero_point  = zero_point
 
-
-		######################### PRIORS #######################################
-		#================ Cluster specific priors ==============================
+		#================ Prior choosing and initial positions ==============================
 		if prior == "Uniform" :
 			self.lnprior = self.Uniform
 
-			self.pos0 = [st.uniform.rvs(loc=self.prior_loc,scale=self.prior_scl,
-						size=(1)) for i in range(self.nwalkers)]
-
-		if prior == "Gaussian" :
+		elif prior == "Gaussian" :
 			self.lnprior = self.Gaussian		
-
-			self.pos0 = [st.norm.rvs(loc=self.prior_loc,scale=self.prior_scl,
-						size=(1)) for i in range(self.nwalkers)]
 		
-		if prior == "Cauchy" :
+		elif prior == "Cauchy" :
 			self.lnprior = self.Cauchy
-			self.pos0 = [st.cauchy.rvs(loc=self.prior_loc,scale=self.prior_scl,
-						size=(1)) for i in range(self.nwalkers)]
 
-		if prior == "Half-Gaussian" :
+		elif prior == "Half-Gaussian" :
 			self.lnprior = self.HalfGaussian		
-
-			self.pos0 = [st.halfnorm.rvs(loc=0.0,scale=self.prior_scl,
-						size=(1)) for i in range(self.nwalkers)]
 		
-		if prior == "Half-Cauchy" :
+		elif prior == "Half-Cauchy" :
 			self.lnprior = self.HalfCauchy
 
-			self.pos0 = [st.halfcauchy.rvs(loc=0.0,scale=self.prior_scl,
-						size=(1)) for i in range(self.nwalkers)]
-
-		if prior == "EDSD" :
+		elif prior == "EDSD" :
 			self.lnprior = self.EDSD
 
-			self.pos0 = [st.uniform.rvs(loc=0.0,scale=self.prior_scl,
-						size=(1)) for i in range(self.nwalkers)]
+		else:
+			RuntimeError("Incorrect prior name")
 
-
+	######################### PRIORS #######################################
+	#================ Cluster specific priors ==============================
 	def Uniform(self,theta):
 		""" 
 		Uniform prior
@@ -95,6 +81,8 @@ class Posterior(object):
 		Cauchy prior
 		"""
 		return st.cauchy.logpdf(theta,loc=self.prior_loc,scale=self.prior_scl)
+
+	#======================== Galactic priors ============================================
 
 	def HalfGaussian(self,theta):
 		"""
@@ -123,4 +111,5 @@ class Posterior(object):
 			return -np.inf
 		else:
 			corrected_pllx = pllx + self.zero_point
-			return self.lnprior(theta) + st.norm.logpdf(corrected_pllx,loc=1.0/theta,scale=u_pllx)
+			likelihood    = st.norm.logpdf(corrected_pllx,loc=1.0/theta,scale=u_pllx)
+			return self.lnprior(theta) + likelihood
