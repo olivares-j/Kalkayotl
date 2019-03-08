@@ -27,52 +27,58 @@ from inference import Inference
 from posterior_1d import Posterior as Posterior_1d
 from posterior_3d import Posterior as Posterior_3d
 
-#----------------MCMC parameters  --------------------
-n_iter    = 2000         # Number of iterations for the MCMC 
+#-------------- Chain analyser -------------
+from chain_analyser import Analysis
+
+#---------------- MCMC parameters  --------------------
+n_iter    = 1000         # Number of iterations for the MCMC 
 n_walkers = 10           # Number of walkers
 
 #----------- prior parameters --------
-prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" or "Cauchy"
-prior_loc    = int(sys.argv[2]) # Location of the prior
-prior_scale  = int(sys.argv[3]) # Scale of the prior
+prior        = "Uniform"#str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" or "Cauchy"
+prior_loc    = 0.#float(sys.argv[2]) # Location of the prior
+prior_scale  = 500.#float(sys.argv[3]) # Scale of the prior
 
 #============ Directories and data =================
-dir_current = os.getcwd()
-file_data = dir_current+ "/Data/members_ALL.csv"
+dir_main  = os.getcwd()[:-4]
+dir_data  = dir_main + "Data/"
+dir_expl  = dir_main + "Example/"
+dir_chains= dir_expl + "Chains/"
+dir_plots = dir_expl + "Plots/"
+file_data = dir_data + "example.csv"
 
 #------- Create directories -------
-dir_main   = dir_current + "/Example/"
-dir_chains = dir_main +"Chains/"
-dir_plots  = dir_main +"Plots/"
-if not os.path.isdir(dir_main):
-	os.mkdir(dir_main)
-if not os.path.isdir(dir_main):
+if not os.path.isdir(dir_expl):
+	os.mkdir(dir_expl)
+if not os.path.isdir(dir_chains):
     os.mkdir(dir_chains)
-if not os.path.isdir(dir_main):
+if not os.path.isdir(dir_plots):
     os.mkdir(dir_plots)
 #==================================================
 
-
 #======================= 1D Version =====================================================
-name_chains_1d   = "Chains_1D_"+str(prior)+"_"+str(prior_loc)+"_"+str(prior_scale)+".h5"
-list_observables = ["ID_member","parallax","parallax_error"]
+list_observables = ["source_id","parallax","parallax_error"]
+name_chains = "Chains_1D_"+str(prior)+"_loc="+str(int(prior_loc))+"_scl="+str(int(prior_scale))+".h5"
+file_chains = dir_chains+name_chains
 
-p1d = Inference(Posterior_1d(prior=prior,
-                            prior_loc=prior_loc,
-                            prior_scale=prior_scale))
+# p1d = Inference(posterior=Posterior_1d,prior=prior,prior_loc=prior_loc,prior_scale=prior_scale)
+# p1d.load_data(file_data,list_observables,nrows=2)
+# p1d.run(n_iter,n_walkers,file_chains=file_chains,tol_convergence=100)
 
-p1d.load_data(fdata,list_observables)
-p1d.infer(n_iter,n_walkers,file_chains=dir_chains+name_chains_1d)
-p1d.analyse()
+a1d = Analysis(file_name=file_chains)
+
+sys.exit()
 #=======================================================================================
 
 #===================== 3D Version ====================================================
-name_chains_3d   = "Chains_1D_"+str(prior)+"_"+str(prior_loc)+"_"+str(prior_scale)+".h5"
-list_observables = ["ID_member","parallax","parallax_error"]
-p3d = Inference(Pos3d(prior=prior,prior_loc=prior_loc,prior_scale=prior_scale))
-p3d.load_data(fdata,list_observables)
-p3d.infer(n_iter,n_walkers)
-p3d.analyse()
+list_observables = ["source_id","ra","dec","parallax",
+                    "ra_error","dec_error","parallax_error",
+                    "ra_dec_corr","ra_parallax_corr","dec_parallax_corr"]
+name_chains = "Chains_3D_"+str(prior)+"_loc="+str(int(prior_loc))+"_scl="+str(int(prior_scale))+".h5"
+file_chains = dir_chains+name_chains
+p3d = Inference(posterior=Posterior_3d,prior=prior,prior_loc=prior_loc,prior_scale=prior_scale)
+p3d.load_data(file_data,list_observables,nrows=2)
+p3d.run(n_iter,n_walkers,file_chains=file_chains)
 #===================================================================================
         
 

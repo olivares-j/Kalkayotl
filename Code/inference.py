@@ -1,5 +1,5 @@
 '''
-Copyright 2018 Javier Olivares Romero
+Copyright 2019 Javier Olivares Romero
 
 This file is part of Kalkayotl.
 
@@ -23,24 +23,27 @@ import pandas as pn
 import scipy.stats as st
 import tqdm
 
-class Inference(object):
+class Inference:
 	"""
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
 	"""
-	def __init__(self,prior,prior_loc,prior_scale,*args,**kwargs):
+	def __init__(self,posterior,prior,prior_loc,prior_scale,**kwargs):
 
-		self.Posterior    = super.__init__(prior,prior_loc,prior_scale,*args,**kwargs)
+		self.Posterior  = posterior(prior=prior,
+									prior_loc=prior_loc,
+									prior_scale=prior_scale,
+									**kwargs)
 
-		self.frozen_uniform = st.uniform.rvs(loc=prior_loc,scale=prior_scale)
+		self.frozen_uniform = st.uniform(loc=prior_loc,scale=prior_scale)
 
 	def load_data(self,file_data,list_observables,*args,**kwargs):
 		"""
 		This function reads the data.
-		string  file_data: Must be a CSV file with identifier, parallax and uncertainty
-				UNITS in miliarcseconds.
 
-		strings list_observables: Names of columns containing in order:
-					IDENTIFIER, PARALLAX, and PARALLAX uncertainties
+		Arguments:
+		file_data (string): The path to a CSV file.
+
+		list_observables (array string): Names of columns.
 
 		Other arguments are passed to pandas.read_csv function
 
@@ -66,26 +69,76 @@ class Inference(object):
 			RuntimeError("Data have incorrect shape!")
 
 		self.Data = data
+		print("Data correctly loaded")
 		
-	def run(self,n_iter,n_walkers,file_chains="chains.h5",progress=True):
+	def run(self,n_iter,n_walkers,file_chains="chains.h5",tol_convergence=100,progress=True):
 		"""
-		Performs the MCMC run
+		Performs the MCMC run.
+		Arguments:
+		n_iter (integer):          Number of MCMC iterations.
+		n_walkers (integer):       Number of ensamble particles.
+		file_chains (string):      Path to storage file.
+		tol_convergence (integer): Number of autocorr times needed to ensure convergence
+		progress (boolean):        Show or not a progress bar
 		"""
-		pos0 = self.frozen_uniform.rvs(size=(n_walkers,self.ndim))
-		pbar = tqdm.tqdm(total=self.n_stars,unit="stars",disable=!progress)
-		for ID,datum in data.iterrows():
+		print("Computing posterior")
+		pos0 = self.frozen_uniform.rvs(size=(n_walkers,self.Posterior.ndim))
+		pbar = tqdm.tqdm(total=self.n_stars,unit="stars",disable= not progress)
+		for ID,datum in self.Data.iterrows():
 			self.Posterior.setup(datum)
 			backend = emcee.backends.HDFBackend(file_chains,name=ID)
-			sampler = emcee.EnsembleSampler(n_walkers,self.ndim, self.Posterior,
-						backend=backend,store=True,progress=False)
-			sampler.run_mcmc(pos0,n_iter)
+			sampler = emcee.EnsembleSampler(n_walkers,self.Posterior.ndim, 
+						self.Posterior,
+						backend=backend)
+			#==========================================================================
+			#-- The following follows the example provided in emcee 3.0 documentation
+			#-- See https://emcee.readthedocs.io/en/latest/tutorials/monitor/
+			#-- Copyright 2010-2017 Dan Foreman-Mackey and contributors.
+			old_tau = np.inf
+			for sample in sampler.sample(pos0,iterations=n_iter,store=True,progress=False):
+				# Only check convergence every 100 steps
+				if sampler.iteration % 100:
+					continue
+
+				# Compute the autocorrelation time so far
+				# Using tol=0 means that we'll always get an estimate even
+				# if it isn't trustworthy
+				tau = sampler.get_autocorr_time(tol=0)
+
+				# Check convergence
+				converged = np.all(tau * tol_convergence < sampler.iteration)
+				converged &= np.all(np.abs(old_tau - tau) / tau < (1.0/tol_convergence))
+				if converged:
+					break
+				old_tau = tau
+			#=======================================================================
+
+
+			if not converged:
+				print("Object: {0} did not converged!".format(ID))
+
 			pbar.update(1)
+
 		pbar.close()
 
-	def analyse(self):
+	def analyse(self,name=None):
 		"""
-		Analyse the chains
+		Analyse the chains.
+
+		Arguments:
+		name (string): Name of mcmc chain to analyse. 
+					   Default None on which all ID names are analysed.
 		"""
+		reader = emcee.backends.HDFBackend(filename)
+
+		tau = reader.get_autocorr_time()
+		burnin = int(2*np.max(tau))
+		thin = int(0.5*np.min(tau))
+		samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
+		log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
+		log_prior_samples = reader.get_blobs(discard=burnin, flat=True, thin=thin)
+		print("Not yet implemented")
+		pass
 		######################### TO BE INCLUDED ###########################
 
 

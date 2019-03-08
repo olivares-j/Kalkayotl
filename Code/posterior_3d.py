@@ -47,11 +47,12 @@ class Posterior:
 		prior_de   = 1.0/180
 
 		self.log_prior_2d = np.log(prior_ra) + np.log(prior_de)
+		print("Posterior 3D initialized")
 
 	#======== 3D prior ====================
 	def log_prior_3d(self,theta):
-		a = self.prior_2d
-		b = self.prior_1d(theta[2])
+		a = self.log_prior_2d
+		b = self.log_prior_1d(theta[2])
 		return a+b
 	#======================================
 
@@ -64,7 +65,7 @@ class Posterior:
 		else:
 			return True
 
-	def Setup(self,datum):
+	def setup(self,datum):
 		ra,dec,pax,u_ra,u_dec,u_pax,corr_ra_dec,corr_ra_pax,corr_dec_pax = datum
 		corr      = np.zeros((self.ndim,self.ndim))
 		corr[0,1] = corr_ra_dec
@@ -79,7 +80,7 @@ class Posterior:
 	
 
 		try:
-			self.inv = np.linalg.inv(cov)
+			self.inv = np.linalg.inv(Sigma)
 		except Exception as e:
 			sys.exit(e)
 		else:
@@ -88,7 +89,7 @@ class Posterior:
 			pass
 
 		try:
-			s,logdet = np.linalg.slogdet(cov)
+			s,logdet = np.linalg.slogdet(Sigma)
 		except Exception as e:
 			sys.exit(e)
 		else:
@@ -103,9 +104,8 @@ class Posterior:
 
 
 
-	__call__(self,theta):
-
-		if not Support(theta):
+	def __call__(self,theta):
+		if not self.Support(theta):
 			return -np.inf
 
 		true_Mu   = np.array([theta[0],theta[1],1.0/theta[2]])
@@ -113,7 +113,8 @@ class Posterior:
 		x        = self.corr_Mu - true_Mu
 		arg      = -0.5*np.dot(x.T,self.inv.dot(x))
 		log_like = self.cte + arg
+		log_posterior = self.log_prior_3d(theta) + log_like
 
-		return self.log_prior_3d(theta) + log_like
+		return log_posterior
 
 

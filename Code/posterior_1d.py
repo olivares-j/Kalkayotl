@@ -60,6 +60,8 @@ class Posterior:
 		else:
 			RuntimeError("Incorrect prior name")
 
+		print("Posterior 1D initialized")
+
 	######################### PRIORS #######################################
 	#================ Cluster specific priors ==============================
 	def Uniform(self,theta):
@@ -107,7 +109,7 @@ class Posterior:
 		return log_prior
 
 	############### SUPPORT #################
-	def Support(theta):
+	def Support(self,theta):
 		if theta <= 0.0 :
 			return False
 		else: 
@@ -115,7 +117,7 @@ class Posterior:
 	#########################################
 
 	############# SETUP###################
-	def Setup(self,datum):
+	def setup(self,datum):
 
 		self.corr_Mu = datum[0] + self.zero_point
 		self.sigma   = datum[1]
@@ -125,11 +127,12 @@ class Posterior:
 
 	################ POSTERIOR#######################
 	def __call__(self,theta):
-		if not Support(theta):
+		if not self.Support(theta[0]):
 			return -np.inf
 			
-		x        = self.corr_Mu -(1.0/theta)
+		x        = self.corr_Mu -(1.0/theta[0])
 		arg      = -0.5*(x/self.sigma)**2
 		log_like = self.cte + arg
 
-		return self.log_prior_1d(theta) + log_like
+		log_posterior = self.log_prior_1d(theta[0]) + log_like
+		return log_posterior
