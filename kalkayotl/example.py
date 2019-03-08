@@ -22,43 +22,57 @@ import sys
 import os
 import numpy as np
 
-from parallax2distance import parallax2distance
+#--------------- Posteriors and inferer -------------------
+from inference import Inference
+from posterior_1d import Posterior as Posterior_1d
+from posterior_3d import Posterior as Posterior_3d
 
 #----------------MCMC parameters  --------------------
-
-n_iter    = 2000              # Number of iterations for the MCMC 
-n_walkers = 10
+n_iter    = 2000         # Number of iterations for the MCMC 
+n_walkers = 10           # Number of walkers
 
 #----------- prior parameters --------
 prior        = str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" or "Cauchy"
 prior_loc    = int(sys.argv[2]) # Location of the prior
 prior_scale  = int(sys.argv[3]) # Scale of the prior
 
+#============ Directories and data =================
+dir_current = os.getcwd()
+file_data = dir_current+ "/Data/members_ALL.csv"
 
-################################ DATA SET ##################################################
-# Reds the data set.
-# Keep the order of observables, uncertainties and correlations
-# IMPORTANT put the identifier first
-fdata = "/home/jromero/Desktop/Rup147/Members/members_ALL.csv"
+#------- Create directories -------
+dir_main   = dir_current + "/Example/"
+dir_chains = dir_main +"Chains/"
+dir_plots  = dir_main +"Plots/"
+if not os.path.isdir(dir_main):
+	os.mkdir(dir_main)
+if not os.path.isdir(dir_main):
+    os.mkdir(dir_chains)
+if not os.path.isdir(dir_main):
+    os.mkdir(dir_plots)
+#==================================================
+
+
+#======================= 1D Version =====================================================
+name_chains_1d   = "Chains_1D_"+str(prior)+"_"+str(prior_loc)+"_"+str(prior_scale)+".h5"
 list_observables = ["ID_member","parallax","parallax_error"]
 
-#------- creates Analysis directory -------
-dir_out = os.getcwd() + "/Example/"
-if not os.path.isdir(dir_out):
-	os.mkdir(dir_out)
+p1d = Inference(Posterior_1d(prior=prior,
+                            prior_loc=prior_loc,
+                            prior_scale=prior_scale))
 
-#------ creates prior directories --------
-dir_graphs = dir_out+prior+"/"+str(prior_scale)+"/"
-if not os.path.isdir(dir_out+prior):
-	os.mkdir(dir_out+prior)
-if not os.path.isdir(dir_graphs):
-	os.mkdir(dir_graphs)
-#-----------------------------------
+p1d.load_data(fdata,list_observables)
+p1d.infer(n_iter,n_walkers,file_chains=dir_chains+name_chains_1d)
+p1d.analyse()
+#=======================================================================================
 
-p2d = parallax2distance(prior=prior,prior_loc=prior_loc,prior_scale=prior_scale)
-p2d.load_data(fdata,list_observables)
-p2d.infer(n_iter,n_walkers)
-p2d.analyse()
-
+#===================== 3D Version ====================================================
+name_chains_3d   = "Chains_1D_"+str(prior)+"_"+str(prior_loc)+"_"+str(prior_scale)+".h5"
+list_observables = ["ID_member","parallax","parallax_error"]
+p3d = Inference(Pos3d(prior=prior,prior_loc=prior_loc,prior_scale=prior_scale))
+p3d.load_data(fdata,list_observables)
+p3d.infer(n_iter,n_walkers)
+p3d.analyse()
+#===================================================================================
         
 
