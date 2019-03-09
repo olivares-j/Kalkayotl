@@ -106,8 +106,8 @@ class Inference:
 				tau = sampler.get_autocorr_time(tol=0)
 
 				# Check convergence
-				converged = np.all(tau * tol_convergence < sampler.iteration)
-				converged &= np.all(np.abs(old_tau - tau) / tau < (1.0/tol_convergence))
+				converged  = np.all(tau * tol_convergence < sampler.iteration)
+				converged &= np.all(np.abs(1.0 - (tau/old_tau)) < (1.0/tol_convergence))
 				if converged:
 					break
 				old_tau = tau

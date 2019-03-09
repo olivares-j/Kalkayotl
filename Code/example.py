@@ -31,13 +31,13 @@ from posterior_3d import Posterior as Posterior_3d
 from chain_analyser import Analysis
 
 #---------------- MCMC parameters  --------------------
-n_iter    = 1000         # Number of iterations for the MCMC 
+n_iter    = 3000         # Number of iterations for the MCMC 
 n_walkers = 10           # Number of walkers
 
 #----------- prior parameters --------
-prior        = "Uniform"#str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" or "Cauchy"
+prior        = "EDSD"#str(sys.argv[1]) #"EDSD", "Gaussian", "Uniform" or "Cauchy"
 prior_loc    = 0.#float(sys.argv[2]) # Location of the prior
-prior_scale  = 500.#float(sys.argv[3]) # Scale of the prior
+prior_scale  = 1500.#float(sys.argv[3]) # Scale of the prior
 
 #============ Directories and data =================
 dir_main  = os.getcwd()[:-4]
@@ -45,7 +45,7 @@ dir_data  = dir_main + "Data/"
 dir_expl  = dir_main + "Example/"
 dir_chains= dir_expl + "Chains/"
 dir_plots = dir_expl + "Plots/"
-file_data = dir_data + "example.csv"
+file_data = dir_data + "members_Rup147.csv"
 
 #------- Create directories -------
 if not os.path.isdir(dir_expl):
@@ -63,10 +63,10 @@ file_chains = dir_chains+name_chains
 
 # p1d = Inference(posterior=Posterior_1d,prior=prior,prior_loc=prior_loc,prior_scale=prior_scale)
 # p1d.load_data(file_data,list_observables,nrows=2)
-# p1d.run(n_iter,n_walkers,file_chains=file_chains,tol_convergence=100)
+# p1d.run(n_iter,n_walkers,file_chains=file_chains)
 
-a1d = Analysis(file_name=file_chains)
-
+a1d = Analysis(file_name=file_chains,id_name=list_observables[0],dir_plots=dir_plots)
+a1d.plot_chains()
 sys.exit()
 #=======================================================================================
 
