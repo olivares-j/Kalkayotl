@@ -45,7 +45,7 @@ dir_data  = dir_main + "Data/"
 dir_expl  = dir_main + "Example/"
 dir_chains= dir_expl + "Chains/"
 dir_plots = dir_expl + "Plots/"
-file_data = dir_data + "members_Rup147.csv"
+file_data = dir_data + "example.csv"
 
 #------- Create directories -------
 if not os.path.isdir(dir_expl):
@@ -61,13 +61,17 @@ list_observables = ["source_id","parallax","parallax_error"]
 name_chains = "Chains_1D_"+str(prior)+"_loc="+str(int(prior_loc))+"_scl="+str(int(prior_scale))+".h5"
 file_chains = dir_chains+name_chains
 
-# p1d = Inference(posterior=Posterior_1d,prior=prior,prior_loc=prior_loc,prior_scale=prior_scale)
+# p1d = Inference(posterior=Posterior_1d,
+#                     prior=prior,
+#                     prior_loc=prior_loc,
+#                     prior_scale=prior_scale,
+#                     n_walkers=n_walkers)
 # p1d.load_data(file_data,list_observables,nrows=2)
-# p1d.run(n_iter,n_walkers,file_chains=file_chains)
+# p1d.run(n_iter,file_chains=file_chains)
 
-a1d = Analysis(file_name=file_chains,id_name=list_observables[0],dir_plots=dir_plots)
-a1d.plot_chains()
-sys.exit()
+# #----------------- Analysis ---------------
+# a1d = Analysis(file_name=file_chains,id_name=list_observables[0],dir_plots=dir_plots)
+# a1d.plot_chains()
 #=======================================================================================
 
 #===================== 3D Version ====================================================
@@ -76,9 +80,20 @@ list_observables = ["source_id","ra","dec","parallax",
                     "ra_dec_corr","ra_parallax_corr","dec_parallax_corr"]
 name_chains = "Chains_3D_"+str(prior)+"_loc="+str(int(prior_loc))+"_scl="+str(int(prior_scale))+".h5"
 file_chains = dir_chains+name_chains
-p3d = Inference(posterior=Posterior_3d,prior=prior,prior_loc=prior_loc,prior_scale=prior_scale)
-p3d.load_data(file_data,list_observables,nrows=2)
-p3d.run(n_iter,n_walkers,file_chains=file_chains)
+
+# p3d = Inference(posterior=Posterior_3d,
+#                     prior=prior,
+#                     prior_loc=prior_loc,
+#                     prior_scale=prior_scale,
+#                     n_walkers=n_walkers)
+# p3d.load_data(file_data,list_observables,nrows=2)
+# p3d.run(n_iter,file_chains=file_chains)
+
+#------------- Analysis -----------------------------
+a3d = Analysis(file_name=file_chains,id_name=list_observables[0],dir_plots=dir_plots)
+# a3d.plot_chains()
+stats = a3d.get_statistics()
+print(stats)
 #===================================================================================
         
 
