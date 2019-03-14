@@ -53,7 +53,7 @@ class Analysis:
 		if n_dim == 1:
 			self.labels     = ["Dist. [pc]"]
 			prefix          = "dist"
-			self.labesl_csv = [ prefix+su for su in suffix]
+			self.labels_csv = [ prefix+su for su in suffix]
 		elif n_dim == 3:
 			self.labels     = ["R.A. [deg]","Dec. [deg]","Dist. [pc]"]
 			prefix          = ["ra","dec","dist"]
@@ -72,7 +72,7 @@ class Analysis:
 			else:
 				names = list(hf.keys())
 
-		self.names = names
+		self.names = sorted(names,key=lambda x:int(x))
 		self.quantiles  = quantiles
 		
 		#---------- Plots -------------
@@ -107,15 +107,21 @@ class Analysis:
 
 		return converged
 
-	def plot_chains(self,names=None,burnin_tau=2.0):
+	def plot_chains(self,names=None,burnin_tau=2.0,true_values=None,use_map=False,title_fmt=".2f"):
 		"""
 		This function plots the chains and the marginals
 
 		Arguments:
 		burnin_tau (float): Number of autocorr times to discard as burnin.
+		true_values (float): Numpy array with true values.
 		"""
 		if names is None:
 			names = self.names
+
+		if true_values is not None:
+			n_t,d_t = true_values.shape
+			assert n_t == len(names), 'True values must be of same length as names'
+			assert d_t == self.n_dim, 'True values must be of same dimension as parameters'
 		#---------- Loop over names in file ---------------------------
 		for i,name in enumerate(names):
 			print("Plotting object: {0}".format(name))
@@ -123,6 +129,14 @@ class Analysis:
 			tau    = reader.get_autocorr_time(tol=0)
 			burnin = int(burnin_tau*np.max(tau))
 			sample = reader.get_chain(discard=burnin)
+
+			if use_map:
+				#--------- MAP -------------------------------------------
+				logpro  = reader.get_log_prob(discard=burnin)
+				idx_map = np.unravel_index(logpro.argmax(), logpro.shape)
+				MAP     = sample[idx_map]
+				#---------------------------------------------------------
+			
 
 			#-------------- Properties of chain -----------------
 			N,walkers,D = sample.shape
@@ -132,7 +146,7 @@ class Analysis:
 			#----------------------------------------------------------
 
 			pdf = PdfPages(filename=self.dir_plots+self.id+"_"+str(name)+".pdf")
-			
+			plt.figure(1)
 			#----------- Trace plots --------------------------
 			if self.n_dim == 1:
 				plt.plot(sample[:, :, 0], "k", alpha=0.3)
@@ -142,32 +156,54 @@ class Analysis:
 
 			else :
 				fig, axes = plt.subplots(self.n_dim, figsize=self.figure_size, sharex=True)
-				for i in range(self.n_dim):
-				    ax = axes[i]
-				    ax.plot(sample[:, :, i], "k", alpha=0.3)
+				for j in range(self.n_dim):
+				    ax = axes[j]
+				    ax.plot(sample[:, :, j], "k", alpha=0.3)
 				    ax.set_xlim(0,N)
-				    ax.set_ylabel(self.labels[i])
+				    ax.set_ylabel(self.labels[j])
 				    ax.yaxis.set_label_coords(-0.1, 0.5)
 
 				axes[-1].set_xlabel("Step")
 
 			#-------------- Save fig --------------------------
 			pdf.savefig(bbox_inches='tight')
-			plt.close()
-
+			plt.close(1)
+			
 			#----------- Corner plot --------------------------
 			sample = sample.reshape((N*walkers,self.n_dim))
+			plt.figure(1)
 			fig = corner.corner(sample, 
 						labels=self.labels,
-						# show_titles=True,
+						truths=true_values[i],
 						use_math_text=True)
+
+			#=========== Titles =========================================
+			# Extract the axes
+			axes = np.array(fig.axes).reshape((self.n_dim, self.n_dim))
+
+			# Loop over the diagonal
+			for i in range(self.n_dim):
+				ax = axes[i, i]
+				
+				q_low, q_ctr, q_max = self.statistics(sample[:,i])
+				if use_map:
+					q_ctr = MAP[i]
+				q_m, q_p = q_ctr-q_low, q_max-q_ctr
+
+				# Format the quantile display.
+				fmt = "{{0:{0}}}".format(title_fmt).format
+				title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+				title = title.format(fmt(q_ctr), fmt(q_m), fmt(q_p))
+				ax.set_title(title)
+			#===========================================================
+
 			fig.set_size_inches(self.figure_size)
 			#----------------------------------------------
 			pdf.savefig(bbox_inches='tight')
-			plt.close()
+			plt.close("all")
 			pdf.close()
 
-	def get_statistics(self,burnin_tau=3.0):
+	def get_statistics(self,burnin_tau=3.0,use_map=False):
 		"""
 		This function computes the chain statistics.
 
@@ -189,6 +225,14 @@ class Analysis:
 			
 			for d in range(self.n_dim):
 				stats[i,(3*d):(3*d + 3)] = self.statistics(sample[:,:,d])
+
+		if use_map:
+			if self.n_dim == 1:
+				stats[:,1]  = self.get_MAP(burnin_tau=burnin_tau)
+			elif self.n_dim == 3:
+				stats[:,[1,4,7]]  = self.get_MAP(burnin_tau=burnin_tau)
+			else:
+				print("Not yet implemented!")
 		
 		return stats
 
@@ -230,15 +274,17 @@ class Analysis:
 		return corner.quantile(sample,self.quantiles)
 
 
-	def save_statistics(self,file_csv,burnin_tau=3.0):
+	def save_statistics(self,file_csv,**kwargs):
 		'''
 		Saves the statistics to a csv file.
 		'''
 
-		stats = self.get_statistics(burnin_tau=burnin_tau)
+		stats = self.get_statistics(**kwargs)
 
-		df = pn.DataFrame(data=stats,columns=self.labels_csv)
+		df_stats = pn.DataFrame(data=stats,columns=self.labels_csv)
+		df_id    = pn.DataFrame(data=self.names,columns=[self.id])
 
+		df       = df_id.join(df_stats)
 		df.to_csv(path_or_buf=file_csv,index=False)
 		
 

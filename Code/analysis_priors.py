@@ -32,102 +32,80 @@ from chain_analyser import Analysis
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.lines as mlines
 
-#----------------Mock data and MCMC parameters  --------------------
-random_state        = 1234              # Random state for the synthetic data
-
-data_loc,data_scale = 300, 20   # Location and scale of the distribution for the mock data
-data_distribution   = st.norm # Change it according to your needs
-n_stars             = 1000         # Number of mock distances
-labels              = ["ID","dist","parallax","parallax_error"]
-n_iter              = 3000         # Number of iterations for the MCMC 
-n_walkers           = 10           # Number of walkers
+#------------------ MCMC parameters ---------------------------------------
+n_iter              = 2000         # Number of iterations for the MCMC 
+n_walkers           = 5           # Number of walkers
+tolerance           = 10
 #------------------------------------------------------------------------------
 
 #----------- prior parameters --------
 colors      = ["blue","green","red","black"]
 priors      = ["Uniform","Half-Gaussian","Half-Cauchy","EDSD"]
 locations   = [0]
-scales      = [500.,1000.,1350,1500.]
+scales      = [1000.,1350,1500.]
+styles      = ["-.","--","-"]
 
 #============ Directories and data =================
-dir_main  = os.getcwd()[:-4]
-dir_data  = dir_main + "Data/"
-dir_expl  = dir_main + "Analysis/"
-dir_chains= dir_expl + "Chains/"
-dir_plots = dir_expl + "Plots/"
-file_data = dir_data + "synthetic.csv"
+case      = "Uniform_0_500"
+dir_main   = os.getcwd()[:-4]
+dir_data   = dir_main  + "Data/"
+dir_ana    = dir_main  + "Analysis/"
+dir_chains = dir_ana   + "Chains/"+case+"/"
+dir_plots  = dir_ana   + "Plots/"
+file_data  = dir_data  + case + ".csv"
+file_plot  = dir_plots + case+"_error_vs_uncertainty_map.pdf"
 
 #------- Create directories -------
-if not os.path.isdir(dir_expl):
-	os.mkdir(dir_expl)
+if not os.path.isdir(dir_ana):
+	os.mkdir(dir_ana)
 if not os.path.isdir(dir_chains):
     os.mkdir(dir_chains)
 if not os.path.isdir(dir_plots):
     os.mkdir(dir_plots)
 #================================================
 
-
-#====================== Generate Synthetic Data ============================================================================
-if not os.path.isfile(file_data):
-	#---------- create synthetic data -------------------------------------------------------------------------
-	dst      = data_distribution.rvs(loc=data_loc, scale=data_scale, size=n_stars,random_state=random_state)
-	#---- obtains the parallax -------
-	pax      = 1.0/dst
-	#----- assigns an uncertainty similar to those present in TGAS data ------- 
-	u_pax    = st.chi2.rvs(df=2.54,loc=0.21e-3, scale=0.069e-3, size=n_stars,random_state=random_state) #Values from fit to TGAS data
-	#----------------------------------------------------
-	data = np.column_stack((dst,pax*1e3,u_pax*1e3))
-	df = pn.DataFrame(data=data,columns=labels[1:])
-	df.to_csv(path_or_buf=file_data,index_label=labels[0])
 #=======================================================================================================================
 data  = pn.read_csv(file_data) 
-pdf = PdfPages(filename=dir_plots+"Errors_vs_uncertainty.pdf")
-plt.figure()
-#================================== Inference ==========================================================================
-
+pdf = PdfPages(filename=file_plot)
+plt.figure(0)
+#================================== Compariosn ==========================================================================
 list_observables = ["ID","parallax","parallax_error"]
 for i,prior in enumerate(priors):
 	print("="*30,prior,"="*30)
-	for loc in locations:
+	for j,loc in enumerate(locations):
 		print("-"*30,"Location ",loc,"-"*30)
-		for scl in scales:
+		for k,scl in enumerate(scales):
 			print(" "*30,"Scale ",scl," "*30)
-			name_chains = "Chains_1D_"+str(prior)+"_loc="+str(int(loc))+"_scl="+str(int(scl))+".h5"
-			file_chains = dir_chains+name_chains
+			file_csv = dir_chains + "Chains_1D_"+str(prior)+"_loc="+str(int(loc))+"_scl="+str(int(scl))+".csv"
 
-			if not os.path.isfile(file_chains):
-				p1d = Inference(posterior=Posterior_1d,
-				                prior=prior,
-				                prior_loc=loc,
-				                prior_scale=scl,
-				                n_walkers=n_walkers)
-				p1d.load_data(file_data,list_observables)
-				p1d.run(n_iter,file_chains=file_chains,tol_convergence=20)
+			MAP  = pn.read_csv(file_csv,usecols=["ID","dist_ctr"]) 
+			df   = data.join(MAP,on="ID",lsuffix="_data",rsuffix="_MAP")
 
-			a1d = Analysis(n_dim=1,file_name=file_chains,id_name=labels[0],dir_plots=dir_plots)
-			# a1d.plot_chains(names="1")
-			MAP = a1d.get_MAP()
+			df["Diff"] = df.apply(lambda x: (x["dist_ctr"] - x["dist"])/x["dist"], axis = 1)
+			df["Frac"] = df.apply(lambda x: x["parallax_error"]/x["parallax"], axis = 1)
 
-			diff = (MAP[0] - data[labels[1]])/data[labels[1]]
-			frac = data[labels[3]]/data[labels[2]]
+			df = df.sort_values(by="Frac")
 
-			idx  = np.argsort(frac)
-			frac = frac[idx]
-			diff = diff[idx]
-
-			df   = pn.DataFrame(data=np.column_stack((frac,diff)),columns=["Frac","Diff"])
-			mean = df.rolling(3).mean()
+			mean = df.rolling(50).mean()
 			
 			#---------- Plot ----------------------
-			plt.scatter(frac,diff,s=0.1,marker=",",color=colors[i],label=None)
-			plt.plot(mean["Frac"],mean["Diff"],lw=0.1,color=colors[i],label=prior+" "+str(int(scl)))
-plt.legend()
-plt.title("Cluster at 300 pc")
+			# plt.scatter(df["Frac"],df["Diff"],s=0.1,marker=",",color=colors[i],label=None)
+			plt.plot(mean["Frac"],mean["Diff"],lw=1,color=colors[i],linestyle=styles[k],label=None)
+
+
+prior_lines = [mlines.Line2D([], [],color=colors[i],linestyle="-",label=prior) for i,prior in enumerate(priors)]
+scl_lines   = [mlines.Line2D([], [],color="black",linestyle=styles[i],label=str(int(scl))) for i,scl in enumerate(scales)]
+
+legend = plt.legend(handles=prior_lines,title="Priors",loc='lower left')
+plt.legend(handles=scl_lines,title="Scales",loc='lower center')
+plt.gca().add_artist(legend)
+plt.title("Uniform at 500 pc")
 plt.xlabel("Fractional uncertainty")
 plt.ylabel("Fractional error")
 pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
-plt.close()
+plt.close(0)
 pdf.close()
 
 			
