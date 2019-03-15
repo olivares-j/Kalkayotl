@@ -105,8 +105,9 @@ class Posterior:
 		Bailer-Jones 2015
 		"""
 
-		log_prior = -1.0*(theta/self.prior_scl) - np.log((2.0*(self.prior_scl**3))*(theta**2)) 
-		return log_prior
+		L = self.prior_scl # Scale distance in parsecs
+		pri = (1.0/(2.0*(L**3)))*(theta**2)*np.exp(-(theta/L))
+		return np.log(pri)
 
 	############### SUPPORT #################
 	def Support(self,theta):
@@ -121,7 +122,7 @@ class Posterior:
 
 		self.corr_Mu = datum[0] + self.zero_point
 		self.sigma   = datum[1]
-		self.cte     = np.log(1.0/np.sqrt((2.0*np.pi)*datum[1]**2))
+		self.cte     = np.log(1.0/np.sqrt(2.0*np.pi*(datum[1]**2)))
 
 	###################################
 

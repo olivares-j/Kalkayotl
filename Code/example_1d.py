@@ -36,9 +36,9 @@ n_walkers = 5           # Number of walkers
 tolerance = 10
 
 #----------- prior parameters --------
-priors    = ["Gaussian","Cauchy"]
-locations = [300.]
-scales    = [20.,40.,60.,80.,100.]
+priors    = ["Uniform","EDSD"]
+locations = [0.]
+scales    = [1000.,1350.,1500.]
 
 #============ Directories and data =================
 

@@ -22,33 +22,21 @@ import sys
 import os
 import numpy as np
 import pandas as pn
-import scipy.stats as st
-
-
-from inference import Inference
-from posterior_1d import Posterior as Posterior_1d
-from chain_analyser import Analysis
-
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
-#------------------ MCMC parameters ---------------------------------------
-n_iter              = 2000         # Number of iterations for the MCMC 
-n_walkers           = 5           # Number of walkers
-tolerance           = 10
-#------------------------------------------------------------------------------
 
 #----------- prior parameters --------
-colors      = ["blue","green","red","black"]
-priors      = ["Uniform","Half-Gaussian","Half-Cauchy","EDSD"]
-locations   = [0]
-scales      = [1000.,1350,1500.]
-styles      = ["-.","--","-"]
+colors      = ["blue","black"]
+priors      = ["Uniform","EDSD"]
+locations   = [0.]
+scales      = [1000.,1350.,1500.]
+styles      = [":","-.","--","-",":"]
 
 #============ Directories and data =================
-case      = "Uniform_0_500"
+case      = "Gaussian_300_20"
 dir_main   = os.getcwd()[:-4]
 dir_data   = dir_main  + "Data/"
 dir_ana    = dir_main  + "Analysis/"
@@ -88,11 +76,14 @@ for i,prior in enumerate(priors):
 
 			df = df.sort_values(by="Frac")
 
+			MAD = np.mean(np.abs(df["Diff"]))
+			print(MAD)
+
 			mean = df.rolling(50).mean()
 			
 			#---------- Plot ----------------------
-			# plt.scatter(df["Frac"],df["Diff"],s=0.1,marker=",",color=colors[i],label=None)
-			plt.plot(mean["Frac"],mean["Diff"],lw=1,color=colors[i],linestyle=styles[k],label=None)
+			plt.scatter(df["Frac"],df["Diff"],s=0.1,marker=",",color=colors[i],label=None)
+			# plt.plot(mean["Frac"],mean["Diff"],lw=1,color=colors[i],linestyle=styles[k],label=None)
 
 
 prior_lines = [mlines.Line2D([], [],color=colors[i],linestyle="-",label=prior) for i,prior in enumerate(priors)]
