@@ -35,11 +35,8 @@ import random
 import pandas as pn
 import h5py
 
-from astroML.decorators import pickle_results
-import progressbar
+# import progressbar
 from matplotlib.ticker import NullFormatter
-
-import progressbar
 
 from p2d import parallax2distance
 
@@ -57,8 +54,8 @@ prior_scale  = int(sys.argv[3]) # Scale of the prior
 # Reds the data set.
 # Keep the order of observables, uncertainties and correlations
 # IMPORTANT put the identifier first
-fdata = "/home/jromero/Desktop/Rup147/Members/members_ALL.csv"
-list_observables = ["ID_member","parallax","parallax_error"]
+fdata = "/home/javier/Repositories/Kalkayotl/Data/Star_300_0.csv"
+list_observables = ["ID","parallax","parallax_error"]
 
 #------- reads the data and orders it
 data  = pn.read_csv(fdata,usecols=list_observables,na_values=99.0) 
@@ -120,7 +117,7 @@ sds       = np.zeros(N_samples)
 cis       = np.zeros((N_samples,2))
 times     = np.zeros(N_samples)
 
-bar = progressbar.ProgressBar(maxval=N_samples).start()
+# bar = progressbar.ProgressBar(maxval=N_samples).start()
 
 i=0
 for ID,datum in data.iterrows():
@@ -177,7 +174,7 @@ for ID,datum in data.iterrows():
 	plt.close()
 
 	# ---- update progress bas ----
-	bar.update(i+1)
+	# bar.update(i+1)
 	i += 1 
 pdf.close()
 fh5.close()

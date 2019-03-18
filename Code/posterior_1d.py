@@ -122,7 +122,7 @@ class Posterior:
 
 		self.corr_Mu = datum[0] + self.zero_point
 		self.sigma   = datum[1]
-		self.cte     = np.log(1.0/np.sqrt(2.0*np.pi*(datum[1]**2)))
+		self.cte     = np.log(1.0/np.sqrt(2.0*np.pi*datum[1]**2))
 
 	###################################
 
@@ -134,6 +134,10 @@ class Posterior:
 		x        = self.corr_Mu -(1.0/theta[0])
 		arg      = -0.5*(x/self.sigma)**2
 		log_like = self.cte + arg
+
+		# log_like2 = st.norm.logpdf(self.corr_Mu,loc=1.0/theta[0],scale=self.sigma)
+
+		# print(log_like - log_like2)
 
 		log_posterior = self.log_prior_1d(theta[0]) + log_like
 		return log_posterior
