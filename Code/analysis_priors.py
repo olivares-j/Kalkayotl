@@ -29,14 +29,28 @@ import matplotlib.lines as mlines
 
 
 #----------- prior parameters --------
-colors      = ["blue","black"]
-priors      = ["Uniform","EDSD"]
-locations   = [0.]
-scales      = [1000.,1350.,1500.]
-styles      = [":","-.","--","-",":"]
 
+list_of_prior = [
+{"type":"Uniform",      "location":0.0,"scale":1000.0,"color":"blue",   "line_style":":"}
+# {"type":"Uniform",      "location":0.0,"scale":1350.0,"color":"blue",   "line_style":"-."},
+# {"type":"Uniform",      "location":0.0,"scale":1500.0,"color":"blue",   "line_style":"--"},
+# {"type":"Half-Gaussian","location":0.0,"scale":1000.0,"color":"orange", "line_style":":"},
+# {"type":"Half-Gaussian","location":0.0,"scale":1350.0,"color":"orange", "line_style":"-."},
+# {"type":"Half-Gaussian","location":0.0,"scale":1500.0,"color":"orange", "line_style":"--"},
+# {"type":"Half-Cauchy",  "location":0.0,"scale":1000.0,"color":"green",  "line_style":":"},
+# {"type":"Half-Cauchy",  "location":0.0,"scale":1350.0,"color":"green",  "line_style":"-."},
+# {"type":"Half-Cauchy",  "location":0.0,"scale":1500.0,"color":"green",  "line_style":"--"},
+# {"type":"EDSD",	        "location":0.0,"scale":1000.0,"color":"black",  "line_style":":"},
+# {"type":"EDSD",         "location":0.0,"scale":1350.0,"color":"black",  "line_style":"-."},
+# {"type":"EDSD",         "location":0.0,"scale":1500.0,"color":"black",  "line_style":"--"},
+]
+
+priors = ["Uniform","Half-Gaussian","Half-Cauchy","EDSD"]
+scales = [1000.,1350.,1500.]
+color_priors = ["blue","orange","green","black"]
+lsty_scales  = [":","-.","--"]
 #============ Directories and data =================
-case      = "Gaussian_300_20"
+case      = "Star_300_0"
 dir_main   = os.getcwd()[:-4]
 dir_data   = dir_main  + "Data/"
 dir_ana    = dir_main  + "Analysis/"
@@ -60,39 +74,34 @@ pdf = PdfPages(filename=file_plot)
 plt.figure(0)
 #================================== Compariosn ==========================================================================
 list_observables = ["ID","parallax","parallax_error"]
-for i,prior in enumerate(priors):
-	print("="*30,prior,"="*30)
-	for j,loc in enumerate(locations):
-		print("-"*30,"Location ",loc,"-"*30)
-		for k,scl in enumerate(scales):
-			print(" "*30,"Scale ",scl," "*30)
-			file_csv = dir_chains + "Chains_1D_"+str(prior)+"_loc="+str(int(loc))+"_scl="+str(int(scl))+".csv"
+for prior in list_of_prior:
+	file_csv = dir_chains + "Chains_1D_"+str(prior["type"])+"_loc="+str(int(prior["location"]))+"_scl="+str(int(prior["scale"]))+".csv"
 
-			MAP  = pn.read_csv(file_csv,usecols=["ID","dist_ctr"]) 
-			df   = data.join(MAP,on="ID",lsuffix="_data",rsuffix="_MAP")
+	MAP  = pn.read_csv(file_csv,usecols=["ID","dist_ctr"]) 
+	df   = data.join(MAP,on="ID",lsuffix="_data",rsuffix="_MAP")
 
-			df["Diff"] = df.apply(lambda x: (x["dist_ctr"] - x["dist"])/x["dist"], axis = 1)
-			df["Frac"] = df.apply(lambda x: x["parallax_error"]/x["parallax"], axis = 1)
+	df["Diff"] = df.apply(lambda x: (x["dist_ctr"] - x["dist"])/x["dist"], axis = 1)
+	df["Frac"] = df.apply(lambda x: x["parallax_error"]/x["parallax"], axis = 1)
 
-			df = df.sort_values(by="Frac")
+	df = df.sort_values(by="Frac")
 
-			MAD = np.mean(np.abs(df["Diff"]))
-			print(MAD)
+	MAD = np.mean(np.abs(df["Diff"]))
+	print(MAD)
 
-			mean = df.rolling(50).mean()
-			
-			#---------- Plot ----------------------
-			plt.scatter(df["Frac"],df["Diff"],s=0.1,marker=",",color=colors[i],label=None)
-			# plt.plot(mean["Frac"],mean["Diff"],lw=1,color=colors[i],linestyle=styles[k],label=None)
+	# mean = df.rolling(50).mean()
+	
+	#---------- Plot ----------------------
+	plt.plot(df["Frac"],df["Diff"],linestyle=prior["line_style"],color=prior["color"],label=None)
+	# plt.plot(mean["Frac"],mean["Diff"],lw=1,color=prior["color"],,label=None)
 
 
-prior_lines = [mlines.Line2D([], [],color=colors[i],linestyle="-",label=prior) for i,prior in enumerate(priors)]
-scl_lines   = [mlines.Line2D([], [],color="black",linestyle=styles[i],label=str(int(scl))) for i,scl in enumerate(scales)]
+prior_lines = [mlines.Line2D([], [],color=color_priors[i],linestyle="-",label=prior) for i,prior in enumerate(priors)]
+scl_lines   = [mlines.Line2D([], [],color="black",linestyle=lsty_scales[i],label=str(int(scl))) for i,scl in enumerate(scales)]
 
-legend = plt.legend(handles=prior_lines,title="Priors",loc='lower left')
-plt.legend(handles=scl_lines,title="Scales",loc='lower center')
+legend = plt.legend(handles=prior_lines,title="Priors",loc='upper left')
+plt.legend(handles=scl_lines,title="Scales",loc='upper center')
 plt.gca().add_artist(legend)
-plt.title("Uniform at 500 pc")
+plt.title("Star at 300 pc")
 plt.xlabel("Fractional uncertainty")
 plt.ylabel("Fractional error")
 pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
