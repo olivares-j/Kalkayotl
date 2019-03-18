@@ -26,6 +26,8 @@ import numpy as np
 import pandas as pn
 import h5py
 
+import scipy.stats as st
+
 import matplotlib
 matplotlib.use('PDF')
 import matplotlib.pyplot as plt
@@ -38,7 +40,8 @@ class Analysis:
 	"""
 	def __init__(self,file_name,n_dim=1,names=None,id_name="ID",dir_plots="Plots/",
 		figsize=(6.3,6.3),
-		quantiles=[0.159,0.5,0.841],
+		quantiles=[0.159,0.841],
+		statistic="median",
 		tol_convergence=100):
 		"""
 		Arguments:
@@ -74,6 +77,7 @@ class Analysis:
 
 		self.names = sorted(names,key=lambda x:int(x))
 		self.quantiles  = quantiles
+		self.statistic  = statistic
 		
 		#---------- Plots -------------
 		self.figure_size = figsize
@@ -107,7 +111,7 @@ class Analysis:
 
 		return converged
 
-	def plot_chains(self,names=None,burnin_tau=2.0,true_values=None,use_map=False,title_fmt=".2f"):
+	def plot_chains(self,names=None,burnin_tau=2.0,true_values=None,title_fmt=".2f"):
 		"""
 		This function plots the chains and the marginals
 
@@ -129,15 +133,12 @@ class Analysis:
 			tau    = reader.get_autocorr_time(tol=0)
 			burnin = int(burnin_tau*np.max(tau))
 			sample = reader.get_chain(discard=burnin)
-
-			if use_map:
-				#--------- MAP -------------------------------------------
-				logpro  = reader.get_log_prob(discard=burnin)
-				idx_map = np.unravel_index(logpro.argmax(), logpro.shape)
-				MAP     = sample[idx_map]
-				#---------------------------------------------------------
+			logpro = reader.get_log_prob(discard=burnin)
+			#--------- MLP -------------
+			idx_mlp  = np.unravel_index(logpro.argmax(), logpro.shape)
+			MLP      = sample[idx_mlp]
+			#-------------------------
 			
-
 			#-------------- Properties of chain -----------------
 			N,walkers,D = sample.shape
 
@@ -185,9 +186,9 @@ class Analysis:
 			for i in range(self.n_dim):
 				ax = axes[i, i]
 				
-				q_low, q_ctr, q_max = self.statistics(sample[:,i])
-				if use_map:
-					q_ctr = MAP[i]
+				q_low, q_ctr, q_max = self.statistics(sample[:,i],statistic=self.statistic)
+				if self.statistic is "MLP":
+					q_ctr = MLP[i]
 				q_m, q_p = q_ctr-q_low, q_max-q_ctr
 
 				# Format the quantile display.
@@ -203,12 +204,13 @@ class Analysis:
 			plt.close("all")
 			pdf.close()
 
-	def get_statistics(self,burnin_tau=3.0,use_map=False):
+	def get_statistics(self,statistic,burnin_tau=3.0):
 		"""
 		This function computes the chain statistics.
 
 		Arguments:
 		burnin_tau (float): Number of autocorr times to discard as burnin.
+		statistic (string): The type of statistic: "median","mean","MAP","MLP"
 
 		Returns (array):    For each parameter it contains min,central, and max. 
 		"""
@@ -219,67 +221,61 @@ class Analysis:
 			tau    = reader.get_autocorr_time(tol=0)
 			burnin = int(burnin_tau*np.max(tau))
 			sample = reader.get_chain(discard=burnin)
+			logpro = reader.get_log_prob(discard=burnin)
+			#--------- MLP -------------
+			idx_mlp  = np.unravel_index(logpro.argmax(), logpro.shape)
+			MLP      = sample[idx_mlp]
+			#-------------------------
 
 			N,walkers,D = sample.shape
 			assert self.n_dim == D, "The dimension in the chain differs from that specified!"
 			
 			for d in range(self.n_dim):
-				stats[i,(3*d):(3*d + 3)] = self.statistics(sample[:,:,d])
+				stats[i,(3*d):(3*d + 3)] = self.statistics(sample[:,:,d],statistic=statistic)
 
-		if use_map:
-			if self.n_dim == 1:
-				stats[:,1]  = self.get_MAP(burnin_tau=burnin_tau)
-			elif self.n_dim == 3:
-				stats[:,[1,4,7]]  = self.get_MAP(burnin_tau=burnin_tau)
-			else:
-				print("Not yet implemented!")
+			if statistic is "MLP":
+				if self.n_dim == 1:
+					stats[i,1]  = MLP[0]
+				elif self.n_dim == 3:
+					stats[i,[1,4,7]]  = MLP
+				else:
+					print("Not yet implemented!")
 		
 		return stats
 
-	def get_MAP(self,burnin_tau=3.0):
-		"""
-		This function computes the MAP of each parameter.
 
-		Arguments:
-		burnin_tau (float): Number of autocorr times to discard as burnin.
-
-		Returns (array):    For each parameter it returns the MAP. 
-		"""
-		stats = np.zeros((len(self.names),self.n_dim))
-		#---------- Loop over names in file ---------------------------
-		for i,name in enumerate(self.names):
-			reader = emcee.backends.HDFBackend(self.file_name,name=name)
-			tau    = reader.get_autocorr_time(tol=0)
-			burnin = int(burnin_tau*np.max(tau))
-			sample = reader.get_chain(discard=burnin)
-			logpro = reader.get_log_prob(discard=burnin)
-
-			N,walkers,D = sample.shape
-			assert self.n_dim == D, "The dimension in the chain differs from that specified!"
-
-			#--------- MAP -------------
-			idx_map  = np.unravel_index(logpro.argmax(), logpro.shape)
-			stats[i] = sample[idx_map]
-			#-------------------------
-
-		if self.n_dim == 1:
-			stats = stats.flatten()
-		return stats
-
-
-	def statistics(self,sample):
+	def statistics(self,sample,statistic):
 		'''
 		Computes the statistics of the parameter
 		'''
-		return corner.quantile(sample,self.quantiles)
+		sts = np.zeros(3)
+		sts[[0,2]] = np.quantile(sample,self.quantiles)
+		if   statistic is "median":
+			ctr = np.median(sample)
+		elif statistic is "mean":
+			ctr = np.mean(sample,axis=0)
+		elif statistic is "MAP":
+			mins,maxs = np.min(sample),np.max(sample)
+			x         = np.linspace(mins,maxs,num=100)
+			gkde      = st.gaussian_kde(sample.flatten())
+			ctr       = x[np.argmax(gkde(x))]
+		elif statistic is "MLP":
+			# This will be populated in the get_statistics function
+			ctr = 0.0
+		else:
+			sys.exit("method not defined")
+
+		sts[1] = ctr
+
+		return sts
 
 
-	def save_statistics(self,file_csv,**kwargs):
+	def save_statistics(self,file_csv):
 		'''
 		Saves the statistics to a csv file.
 		'''
 
-		stats = self.get_statistics(**kwargs)
+		stats = self.get_statistics(statistic=self.statistic)
 
 		df_stats = pn.DataFrame(data=stats,columns=self.labels_csv)
 		df_id    = pn.DataFrame(data=self.names,columns=[self.id])
