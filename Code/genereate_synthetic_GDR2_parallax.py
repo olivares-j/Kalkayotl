@@ -19,10 +19,10 @@ order by random_index
 
 #----------------Mock data and MCMC parameters  --------------------
 random_state        = 1234     # Random state for the synthetic data
-data_loc,data_scale = 300,20   # Location and scale of the distribution for the mock data
+data_loc,data_scale = 300.,0.0   # Location and scale of the distribution for the mock data
 data_distribution   = st.norm  # Change it according to your needs
-name_synthetic      = "Gaussian_300_20.csv"
-n_stars             = 1000         # Number of mock distances
+name_synthetic      = "Star_300_0.csv"
+n_stars             = 100         # Number of mock distances
 labels              = ["ID","dist","parallax","parallax_error"]
 #--------------------------------------------------------------------------------------
 
@@ -62,15 +62,16 @@ pdf.close()
 #====================== Generate Synthetic Data ============================================================================
 #---------- create synthetic data -------------------------------------------------------------------------
 dst      = data_distribution.rvs(loc=data_loc, scale=data_scale, size=n_stars,random_state=random_state)
-#---- obtains the parallax -------
-pax      = 1.0/dst
-#----- assigns an uncertainty similar to those present in Gaia DR2 data ------- 
-u_pax    = st.chi2.rvs(df=param[0],loc=param[1], scale=param[2], size=n_stars,random_state=random_state)
+#---- obtains the parallax in mas -------
+pax      = (1.0/dst)*1e3
+#----- assigns an uncertainty similar to those present in Gaia DR2 data, in mas ------- 
+u_pax    = st.chi2.rvs(df=param[0],loc=param[1], scale=param[2], size=n_stars,random_state=random_state)/10.
+u_pax    = np.linspace(np.min(u_pax),5.0, num=n_stars)
 #----------------------------------------------------
 
 #============================ Saves the synthetic data ===========================================================
 #---------- Parallax in mas ------------------------------------------------------------------------------------
-data = np.column_stack((dst,pax*1e3,u_pax/10.)) # Notice the factor 10 because of the fit to the uncertainties.
+data = np.column_stack((dst,pax,u_pax)) # Notice the factor 10 because of the fit to the uncertainties.
 df = pn.DataFrame(data=data,columns=labels[1:])
 df.to_csv(path_or_buf=file_syn,index_label=labels[0])
 
