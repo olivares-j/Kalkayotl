@@ -32,17 +32,28 @@ import matplotlib
 matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-import corner 
+import corner
+from tqdm import tqdm
+
+from pygaia.astrometry.coordinates import Transformations
+from pygaia.astrometry.coordinates import CoordinateTransformation
+from pygaia.astrometry.vectorastrometry import sphericalToCartesian
+
+def Identity(a,b,c):
+	return a,b,c
 
 class Analysis:
 	"""
-	This class provides flexibility to analyse the chains infered by emcee
+	This class provides flexibility to analyse the chains inferred by emcee
 	"""
 	def __init__(self,file_name,n_dim=1,names=None,id_name="ID",dir_plots="Plots/",
 		figsize=(6.3,6.3),
 		quantiles=[0.159,0.841],
 		statistic="median",
-		tol_convergence=100):
+		tol_convergence=100,
+		burnin_tau=3.0,
+		npts_mode=1000,
+		transformation=None):
 		"""
 		Arguments:
 		n_dim (int):          Number of parameter dimensions.
@@ -50,23 +61,48 @@ class Analysis:
 		labels (list of strings): Labels, starting from identifier and 
 		chain_name (string):  Name of mcmc chain to analyse. 
 					   		  Default None will loop over all names present in file_name.
+		transformation:       Either None or one of ["XYZ","ICRS2GAL","ICRS2ECL"]
 		"""
+		
+
+		self.transformation = transformation
+		self.n_dim          = n_dim
+		self.npts_mode      = npts_mode
+		self.file_name      = file_name
+		self.quantiles      = quantiles
+		self.statistic      = statistic
+		self.figure_size    = figsize
+		self.dir_plots      = dir_plots
+		self.id             = str(id_name)
+		self.burnin_tau     = burnin_tau
+
+
+		#===================== Labels ====================================================
+
 		suffix = ["_min","_ctr","_max"]
 
 		if n_dim == 1:
 			self.labels     = ["Dist. [pc]"]
 			prefix          = "dist"
 			self.labels_csv = [ prefix+su for su in suffix]
+			if self.transformation is not None :
+				print("For 1D version there is no transformation")
+
 		elif n_dim == 3:
-			self.labels     = ["R.A. [deg]","Dec. [deg]","Dist. [pc]"]
-			prefix          = ["ra","dec","dist"]
+			if self.transformation is not None:
+				self.labels = ["X [pc]","Y [pc]","Z [pc]"]
+				prefix      = ["X","Y","Z"]
+			else:
+				self.labels     = ["R.A. [deg]","Dec. [deg]","Dist. [pc]"]
+				prefix          = ["ra","dec","dist"]
+
 			self.labels_csv = sum([[pre+su for su in suffix] for pre in prefix],[])
 		else:
 			print("Error. Not yet implemented!")
 
-		self.n_dim = n_dim
+		#=================================================================================
 
-		self.file_name  = file_name
+		
 		with h5py.File(file_name, 'r') as hf:
 			if names is not None :
 				if names not in list(hf.keys()):
@@ -75,18 +111,11 @@ class Analysis:
 			else:
 				names = list(hf.keys())
 
-		self.names = sorted(names,key=lambda x:int(x))
-		self.quantiles  = quantiles
-		self.statistic  = statistic
-		
-		#---------- Plots -------------
-		self.figure_size = figsize
+			self.names = sorted(names,key=lambda x:int(x))
 
+		#---------- Plots -------------------
 		if not os.path.isdir(dir_plots):
 			os.mkdir(dir_plots)
-
-		self.dir_plots  = dir_plots
-		self.id         = str(id_name)
 
 		plt.rc('text', usetex=True)
 		plt.rc('font', family='serif')
@@ -97,6 +126,22 @@ class Analysis:
 		if np.logical_not(conv).any():
 			warnings.warn("File {0} contains unconverged chains".format(self.file_name),Warning)
 		#---------------------------------------------------------
+
+
+		#---------- Initialize the Rotation ----------
+		if self.transformation is not None:
+			if self.transformation is "ICRS2GAL":
+				CoordTrans = CoordinateTransformation(Transformations.ICRS2GAL)
+				self.Rotation = CoordTrans.transformCartesianCoordinates
+			elif self.transformation is "ICRS2ECL":
+				CoordTrans = CoordinateTransformation(Transformations.ICRS2ECL)
+				self.Rotation = CoordTrans.transformCartesianCoordinates
+			elif self.transformation is "XYZ":
+				self.Rotation = Identity
+			else:
+				sys.exit("Transformation not valid!")
+			
+
 		
 	def convergence(self,tol_convergence):
 		"""
@@ -111,12 +156,32 @@ class Analysis:
 
 		return converged
 
-	def plot_chains(self,names=None,burnin_tau=2.0,true_values=None,title_fmt=".2f"):
+	def Transform(self,sample):
+		#-------------- Properties of chain -----------------
+		N,walkers,D = sample.shape
+		assert self.n_dim == D, "The dimension in the chain differs from that specified!"
+		#----------------------------------------------------------
+
+		if self.transformation is None or self.n_dim == 1 :
+			return sample
+
+		sample = np.reshape(sample,(N*walkers,D))
+
+		if self.n_dim == 3:
+			sample[:,0] = np.radians(sample[:,0])
+			sample[:,1] = np.radians(sample[:,1])
+			X,Y,Z = sphericalToCartesian(sample[:,2],sample[:,0],sample[:,1])
+			X,Y,Z = self.Rotation(X,Y,Z)
+			sample = np.column_stack((X,Y,Z))
+
+		sample = np.reshape(sample,(N,walkers,D))
+		return sample
+
+	def plot_chains(self,names=None,true_values=None,title_fmt=".2f"):
 		"""
 		This function plots the chains and the marginals
 
 		Arguments:
-		burnin_tau (float): Number of autocorr times to discard as burnin.
 		true_values (float): Numpy array with true values.
 		"""
 		if names is None:
@@ -126,24 +191,25 @@ class Analysis:
 			n_t,d_t = true_values.shape
 			assert n_t == len(names), 'True values must be of same length as names'
 			assert d_t == self.n_dim, 'True values must be of same dimension as parameters'
+		else:
+			true_values = np.repeat(None,len(names))
+
 		#---------- Loop over names in file ---------------------------
+		tbar = tqdm(total=len(names),desc="Plotting: ")
 		for i,name in enumerate(names):
-			print("Plotting object: {0}".format(name))
 			reader = emcee.backends.HDFBackend(self.file_name,name=name)
 			tau    = reader.get_autocorr_time(tol=0)
-			burnin = int(burnin_tau*np.max(tau))
+			burnin = int(self.burnin_tau*np.max(tau))
 			sample = reader.get_chain(discard=burnin)
-			logpro = reader.get_log_prob(discard=burnin)
-			#--------- MLP -------------
-			idx_mlp  = np.unravel_index(logpro.argmax(), logpro.shape)
-			MLP      = sample[idx_mlp]
-			#-------------------------
-			
-			#-------------- Properties of chain -----------------
-			N,walkers,D = sample.shape
 
-			assert self.n_dim == D, "The dimension in the chain differs from that specified!"
-			
+			#------------- Transform ----------------------------------
+			sample = self.Transform(sample)	 
+			#----------------------------------------------------------
+
+			#--------- MAP --------------------------------------------
+			logpro   = reader.get_log_prob(discard=burnin)
+			idx_map  = np.unravel_index(logpro.argmax(), logpro.shape)
+			MAP      = sample[idx_map]
 			#----------------------------------------------------------
 
 			pdf = PdfPages(filename=self.dir_plots+self.id+"_"+str(name)+".pdf")
@@ -151,7 +217,6 @@ class Analysis:
 			#----------- Trace plots --------------------------
 			if self.n_dim == 1:
 				plt.plot(sample[:, :, 0], "k", alpha=0.3)
-				plt.xlim(0,N)
 				plt.ylabel(self.labels[0])
 				plt.xlabel("Step")
 
@@ -160,7 +225,6 @@ class Analysis:
 				for j in range(self.n_dim):
 				    ax = axes[j]
 				    ax.plot(sample[:, :, j], "k", alpha=0.3)
-				    ax.set_xlim(0,N)
 				    ax.set_ylabel(self.labels[j])
 				    ax.yaxis.set_label_coords(-0.1, 0.5)
 
@@ -171,7 +235,7 @@ class Analysis:
 			plt.close(1)
 			
 			#----------- Corner plot --------------------------
-			sample = sample.reshape((N*walkers,self.n_dim))
+			sample = sample.reshape((-1,self.n_dim))
 			plt.figure(1)
 			fig = corner.corner(sample, 
 						labels=self.labels,
@@ -186,9 +250,9 @@ class Analysis:
 			for i in range(self.n_dim):
 				ax = axes[i, i]
 				
-				q_low, q_ctr, q_max = self.statistics(sample[:,i],statistic=self.statistic)
-				if self.statistic is "MLP":
-					q_ctr = MLP[i]
+				q_low, q_ctr, q_max = self.statistics(sample[:,i])
+				if self.statistic is "map":
+					q_ctr = MAP[i]
 				q_m, q_p = q_ctr-q_low, q_max-q_ctr
 
 				# Format the quantile display.
@@ -196,6 +260,9 @@ class Analysis:
 				title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
 				title = title.format(fmt(q_ctr), fmt(q_m), fmt(q_p))
 				ax.set_title(title)
+				ax.axvline(q_low, color="k",linestyle=":")
+				ax.axvline(q_ctr, color="k",linestyle="--")
+				ax.axvline(q_max, color="k",linestyle=":")
 			#===========================================================
 
 			fig.set_size_inches(self.figure_size)
@@ -203,63 +270,69 @@ class Analysis:
 			pdf.savefig(bbox_inches='tight')
 			plt.close("all")
 			pdf.close()
+			tbar.update(1)
+		tbar.close()
 
-	def get_statistics(self,statistic,burnin_tau=3.0):
+	def get_statistics(self,names):
 		"""
 		This function computes the chain statistics.
 
 		Arguments:
-		burnin_tau (float): Number of autocorr times to discard as burnin.
-		statistic (string): The type of statistic: "median","mean","MAP","MLP"
-
 		Returns (array):    For each parameter it contains min,central, and max. 
 		"""
-		stats = np.zeros((len(self.names),self.n_dim*3))
+
+		stats = np.zeros((len(names),self.n_dim*3))
 		#---------- Loop over names in file ---------------------------
-		for i,name in enumerate(self.names):
+		tbar = tqdm(total=len(names),desc="Computing statistics: ")
+		for i,name in enumerate(names):
 			reader = emcee.backends.HDFBackend(self.file_name,name=name)
 			tau    = reader.get_autocorr_time(tol=0)
-			burnin = int(burnin_tau*np.max(tau))
+			burnin = int(self.burnin_tau*np.max(tau))
 			sample = reader.get_chain(discard=burnin)
-			logpro = reader.get_log_prob(discard=burnin)
-			#--------- MLP -------------
-			idx_mlp  = np.unravel_index(logpro.argmax(), logpro.shape)
-			MLP      = sample[idx_mlp]
-			#-------------------------
 
-			N,walkers,D = sample.shape
-			assert self.n_dim == D, "The dimension in the chain differs from that specified!"
-			
+			#------------- Transform ----------------------------------
+			sample = self.Transform(sample)
+			#----------------------------------------------------------
+
+			#--------- MAP --------------------------------------------
+			logpro   = reader.get_log_prob(discard=burnin)
+			idx_map  = np.unravel_index(logpro.argmax(), logpro.shape)
+			MAP      = sample[idx_map]
+			#----------------------------------------------------------
+
 			for d in range(self.n_dim):
-				stats[i,(3*d):(3*d + 3)] = self.statistics(sample[:,:,d],statistic=statistic)
+				stats[i,(3*d):(3*d + 3)] = self.statistics(sample[:,:,d])
 
-			if statistic is "MLP":
+			if self.statistic is "map":
 				if self.n_dim == 1:
-					stats[i,1]  = MLP[0]
+					stats[i,1]  = MAP[0]
 				elif self.n_dim == 3:
-					stats[i,[1,4,7]]  = MLP
+					stats[i,[1,4,7]]  = MAP
 				else:
 					print("Not yet implemented!")
+
+			tbar.update(1)
+		tbar.close()
 		
 		return stats
 
 
-	def statistics(self,sample,statistic):
+	def statistics(self,sample):
 		'''
 		Computes the statistics of the parameter
 		'''
 		sts = np.zeros(3)
 		sts[[0,2]] = np.quantile(sample,self.quantiles)
-		if   statistic is "median":
+		if  self.statistic is "median":
 			ctr = np.median(sample)
-		elif statistic is "mean":
-			ctr = np.mean(sample,axis=0)
-		elif statistic is "MAP":
+		elif self.statistic is "mean":
+			ctr = np.mean(sample)
+		elif self.statistic is "mode":
 			mins,maxs = np.min(sample),np.max(sample)
-			x         = np.linspace(mins,maxs,num=100)
+			x         = np.linspace(mins,maxs,num=self.npts_mode)
 			gkde      = st.gaussian_kde(sample.flatten())
 			ctr       = x[np.argmax(gkde(x))]
-		elif statistic is "MLP":
+		elif self.statistic is "map":
 			# This will be populated in the get_statistics function
 			ctr = 0.0
 		else:
@@ -270,21 +343,31 @@ class Analysis:
 		return sts
 
 
-	def save_statistics(self,file_csv):
+	def save_statistics(self,file_csv,names=None):
 		'''
 		Saves the statistics to a csv file.
+		Arguments:
+		file_csv (string) the name of the file where to save the statistics
+		names (list of strings) the names of the objects
+
+		Note: The statistic name will be appended.
 		'''
 
-		stats = self.get_statistics(statistic=self.statistic)
+		if names is None:
+			names = self.names
+		#-------------- Adds the statistic to the file name ------------
+		file_csv = file_csv.replace(".csv","_"+self.statistic+".csv")
+
+		if self.transformation is not None:
+			if self.n_dim == 3:
+				file_csv = file_csv.replace(".csv","_XYZ.csv")
+
+		stats = self.get_statistics(names=names)
 
 		df_stats = pn.DataFrame(data=stats,columns=self.labels_csv)
-		df_id    = pn.DataFrame(data=self.names,columns=[self.id])
+		df_id    = pn.DataFrame(data=names,columns=[self.id])
 
 		df       = df_id.join(df_stats)
 		df.to_csv(path_or_buf=file_csv,index=False)
-		
-
-
-			
 
 
