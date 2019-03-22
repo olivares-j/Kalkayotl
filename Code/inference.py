@@ -81,7 +81,7 @@ class Inference:
 		self.Data = data
 		print("Data correctly loaded")
 		
-	def run(self,n_iter,file_chains="chains.h5",tol_convergence=100,progress=True):
+	def run(self,n_iter,file_chains="chains.h5",tol_convergence=10,progress=True):
 		"""
 		Performs the MCMC run.
 		Arguments:

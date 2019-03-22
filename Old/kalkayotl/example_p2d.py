@@ -54,11 +54,11 @@ prior_scale  = int(sys.argv[3]) # Scale of the prior
 # Reds the data set.
 # Keep the order of observables, uncertainties and correlations
 # IMPORTANT put the identifier first
-fdata = "/home/javier/Repositories/Kalkayotl/Data/Star_300_0.csv"
-list_observables = ["ID","parallax","parallax_error"]
+fdata = "/home/javier/Repositories/Kalkayotl/Data/Taurus.csv"
+list_observables = ["SourceID","parallax","parallax_error"]
 
 #------- reads the data and orders it
-data  = pn.read_csv(fdata,usecols=list_observables,na_values=99.0) 
+data  = pn.read_csv(fdata,usecols=list_observables,na_values=99.0,nrows=2) 
 #---------- drop na values ------------
 data  = data.dropna(thresh=2)
 data  = data.reindex(columns=list_observables)

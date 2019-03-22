@@ -135,9 +135,5 @@ class Posterior:
 		arg      = -0.5*(x/self.sigma)**2
 		log_like = self.cte + arg
 
-		# log_like2 = st.norm.logpdf(self.corr_Mu,loc=1.0/theta[0],scale=self.sigma)
-
-		# print(log_like - log_like2)
-
 		log_posterior = self.log_prior_1d(theta[0]) + log_like
 		return log_posterior

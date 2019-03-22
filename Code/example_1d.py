@@ -31,8 +31,8 @@ from posterior_1d import Posterior as Posterior_1d
 from chain_analyser import Analysis
 
 #---------------- MCMC parameters  --------------------
-n_iter    = 2000         # Number of iterations for the MCMC 
-n_walkers = 50           # Number of walkers
+n_iter    = 3000         # Number of iterations for the MCMC 
+n_walkers = 20           # Number of walkers
 tolerance = 10
 
 #----------- prior parameters --------
@@ -48,7 +48,13 @@ list_of_prior = [
 {"type":"Half-Cauchy",  "location":0.0,"scale":1500.0},
 {"type":"EDSD",         "location":0.0,"scale":1000.0},
 {"type":"EDSD",         "location":0.0,"scale":1350.0},
-{"type":"EDSD",         "location":0.0,"scale":1500.0}
+{"type":"EDSD",         "location":0.0,"scale":1500.0},
+{"type":"Gaussian",     "location":300.0,"scale":20.0},
+{"type":"Gaussian",     "location":300.0,"scale":60.0},
+{"type":"Gaussian",     "location":300.0,"scale":100.0},
+{"type":"Cauchy",       "location":300.0,"scale":20.0},
+{"type":"Cauchy",       "location":300.0,"scale":60.0},
+{"type":"Cauchy",       "location":300.0,"scale":100.0}
 ]
 
 #============ Directories and data =================
@@ -56,7 +62,8 @@ list_of_prior = [
 dir_main  = os.getcwd()[:-4]
 dir_data  = dir_main + "Data/"
 dir_expl  = dir_main + "Analysis/"
-case      = "Star_300_0"
+case      = "Gaussian_300_20"
+statistic = "map"
 dir_chains= dir_expl + "Chains/"+case+"/"
 dir_plots = dir_expl + "Plots/"+case+"/"
 file_data = dir_data + case+".csv"
@@ -71,10 +78,6 @@ if not os.path.isdir(dir_plots):
 #==================================================
 
 #======================= 1D Version =====================================================
-data   = pn.read_csv(file_data) 
-truths = np.array(data['dist'])
-truths = truths.reshape((len(truths),1))
-
 list_observables = ["ID","parallax","parallax_error"]
 
 for prior in list_of_prior:
@@ -94,8 +97,8 @@ for prior in list_of_prior:
     #----------------- Analysis ---------------
     a1d = Analysis(n_dim=1,file_name=file_chains,id_name=list_observables[0],
         dir_plots=dir_plots,
-        tol_convergence=tolerance,statistic="MAP")
-    # a1d.plot_chains(true_values=truths)
+        tol_convergence=tolerance,statistic=statistic)
+    # a1d.plot_chains()
     a1d.save_statistics(file_csv)
 #=======================================================================================
         
