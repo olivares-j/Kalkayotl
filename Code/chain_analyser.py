@@ -38,8 +38,9 @@ from tqdm import tqdm
 from pygaia.astrometry.coordinates import Transformations
 from pygaia.astrometry.coordinates import CoordinateTransformation
 from pygaia.astrometry.vectorastrometry import sphericalToCartesian
+from pygaia.astrometry.vectorastrometry import astrometryToPhaseSpace
 
-def Identity(a,b,c):
+def Identity3D(a,b,c):
 	return a,b,c
 
 class Analysis:
@@ -97,8 +98,26 @@ class Analysis:
 				prefix          = ["ra","dec","dist"]
 
 			self.labels_csv = sum([[pre+su for su in suffix] for pre in prefix],[])
+
+		elif n_dim == 5:
+			self.labels     = ["R.A. [deg]","Dec. [deg]","Dist. [pc]","pmra [mas/yr]","pmdec [mas/yr]"]
+			prefix          = ["ra","dec","dist","pmra","pmdec"]
+			self.labels_csv = sum([[pre+su for su in suffix] for pre in prefix],[])
+			if self.transformation is not None :
+				print("For 5D version there is no transformation")
+
+		elif n_dim == 6:
+			if self.transformation is not None:
+				self.labels = ["X [pc]","Y [pc]","Z [pc]","U [km/s]","V [km/s]","W [km/s]"]
+				prefix      = ["X","Y","Z","U","V","W"]
+			else:
+				self.labels     = ["R.A. [deg]","Dec. [deg]","Dist. [pc]","pmra [mas/yr]","pmdec [mas/yr]","Rvel [km/s]"]
+				prefix          = ["ra","dec","dist","pmra","pmdec","rvel"]
+
+			self.labels_csv = sum([[pre+su for su in suffix] for pre in prefix],[])
+
 		else:
-			print("Error. Not yet implemented!")
+			sys.exit("Incorrect dimension")
 
 		#=================================================================================
 
@@ -130,14 +149,14 @@ class Analysis:
 
 		#---------- Initialize the Rotation ----------
 		if self.transformation is not None:
-			if self.transformation is "ICRS2GAL":
+			if self.transformation is "ICRS2GAL" and n_dim is 3:
 				CoordTrans = CoordinateTransformation(Transformations.ICRS2GAL)
 				self.Rotation = CoordTrans.transformCartesianCoordinates
-			elif self.transformation is "ICRS2ECL":
+			elif self.transformation is "ICRS2ECL" and n_dim is 3:
 				CoordTrans = CoordinateTransformation(Transformations.ICRS2ECL)
 				self.Rotation = CoordTrans.transformCartesianCoordinates
-			elif self.transformation is "XYZ":
-				self.Rotation = Identity
+			elif self.transformation is "XYZ" and n_dim in [3,6]:
+				self.Rotation = Identity3D
 			else:
 				sys.exit("Transformation not valid!")
 			
@@ -162,7 +181,7 @@ class Analysis:
 		assert self.n_dim == D, "The dimension in the chain differs from that specified!"
 		#----------------------------------------------------------
 
-		if self.transformation is None or self.n_dim == 1 :
+		if self.transformation is None or self.n_dim in [1,5] :
 			return sample
 
 		sample = np.reshape(sample,(N*walkers,D))
@@ -173,6 +192,15 @@ class Analysis:
 			X,Y,Z = sphericalToCartesian(sample[:,2],sample[:,0],sample[:,1])
 			X,Y,Z = self.Rotation(X,Y,Z)
 			sample = np.column_stack((X,Y,Z))
+
+		if self.n_dim == 6:
+			sample[:,0] = np.radians(sample[:,0])
+			sample[:,1] = np.radians(sample[:,1])
+			sample[:,2] = 1000.0/sample[:,2] # Back to parallax in mas :'(
+			# This need to be done to use the following function
+			X,Y,Z,U,V,W = astrometryToPhaseSpace(sample[:,0],sample[:,1],sample[:,2],
+												 sample[:,3],sample[:,4],sample[:,5])
+			sample = np.column_stack((X,Y,Z,U,V,W))
 
 		sample = np.reshape(sample,(N,walkers,D))
 		return sample
@@ -308,6 +336,10 @@ class Analysis:
 					stats[i,1]  = MAP[0]
 				elif self.n_dim == 3:
 					stats[i,[1,4,7]]  = MAP
+				elif self.n_dim == 5:
+					stats[i,[1,4,7,10,13]]  = MAP
+				elif self.n_dim == 6:
+					stats[i,[1,4,7,10,13,16]]  = MAP
 				else:
 					print("Not yet implemented!")
 
@@ -361,6 +393,11 @@ class Analysis:
 		if self.transformation is not None:
 			if self.n_dim == 3:
 				file_csv = file_csv.replace(".csv","_XYZ.csv")
+			elif self.n_dim == 6:
+				file_csv = file_csv.replace(".csv","_XYZUVW.csv")
+			else:
+				print("Error in dimension")
+
 
 		stats = self.get_statistics(names=names)
 

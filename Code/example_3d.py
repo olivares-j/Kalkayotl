@@ -14,7 +14,7 @@ This file is part of Kalkayotl.
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with PyAspidistra.  If not, see <http://www.gnu.org/licenses/>.
+    along with Kalkayotl.  If not, see <http://www.gnu.org/licenses/>.
 '''
 #------------ LOAD LIBRARIES -------------------
 from __future__ import absolute_import, unicode_literals, print_function
@@ -39,7 +39,7 @@ tolerance = 10
 list_of_prior = [
 # {"type":"Uniform",      "location":0.0,"scale":1000.0},
 # {"type":"Uniform",      "location":0.0,"scale":1350.0},
-# {"type":"Uniform",      "location":0.0,"scale":1500.0},
+{"type":"Uniform",      "location":0.0,"scale":1500.0}
 # {"type":"Half-Gaussian","location":0.0,"scale":1000.0},
 # {"type":"Half-Gaussian","location":0.0,"scale":1350.0},
 # {"type":"Half-Gaussian","location":0.0,"scale":1500.0},
@@ -47,7 +47,7 @@ list_of_prior = [
 # {"type":"Half-Cauchy",  "location":0.0,"scale":1350.0},
 # {"type":"Half-Cauchy",  "location":0.0,"scale":1500.0},
 # {"type":"EDSD",         "location":0.0,"scale":1000.0},
-{"type":"EDSD",         "location":0.0,"scale":1350.0}
+# {"type":"EDSD",         "location":0.0,"scale":1350.0}
 # {"type":"EDSD",         "location":0.0,"scale":1500.0},
 # {"type":"Gaussian",     "location":300.0,"scale":20.0},
 # {"type":"Gaussian",     "location":300.0,"scale":60.0},
@@ -62,7 +62,7 @@ list_of_prior = [
 dir_main  = os.getcwd()[:-4]
 dir_data  = dir_main + "Data/"
 dir_expl  = dir_main + "Analysis/"
-case      = "Taurus_3d"
+case      = "Ruprecht_147"
 statistic = "map"
 dir_chains= dir_expl + "Chains/"+case+"/"
 dir_plots = dir_expl + "Plots/"+case+"/"
@@ -78,7 +78,7 @@ if not os.path.isdir(dir_plots):
 #==================================================
 
 #======================= 3D Version =====================================================
-list_observables = ["SourceID","ra","dec","parallax",
+list_observables = ["ID_member","ra","dec","parallax",
                     "ra_error","dec_error","parallax_error",
                     "ra_dec_corr","ra_parallax_corr","dec_parallax_corr"]
 
@@ -101,7 +101,7 @@ for prior in list_of_prior:
         dir_plots=dir_plots,
         tol_convergence=tolerance,
         statistic=statistic,
-        transformation="ICRS2GAL")
+        transformation=None)
     # a1d.plot_chains(names=["83"])
     a1d.save_statistics(file_csv)
 #=======================================================================================

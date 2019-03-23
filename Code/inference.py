@@ -14,7 +14,7 @@ This file is part of Kalkayotl.
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with PyAspidistra.  If not, see <http://www.gnu.org/licenses/>.
+    along with Kalkayotl.  If not, see <http://www.gnu.org/licenses/>.
 '''
 from __future__ import absolute_import, unicode_literals, print_function
 import emcee
@@ -44,6 +44,19 @@ class Inference:
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
 								   st.uniform.rvs(loc=0.0,scale=prior_scale,size=1)[0]]) for i in range(n_walkers)]
+		if self.Posterior.ndim == 5:
+			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
+								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
+								   st.uniform.rvs(loc=0.0,scale=prior_scale,size=1)[0],
+								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
+								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0]]) for i in range(n_walkers)]
+		if self.Posterior.ndim == 6:
+			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
+								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
+								   st.uniform.rvs(loc=0.0,scale=prior_scale,size=1)[0],
+								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
+								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
+								   st.cauchy.rvs(loc=0.0,scale=300.0,size=1)[0]]) for i in range(n_walkers)]
 
 
 	def load_data(self,file_data,list_observables,*args,**kwargs):
@@ -61,7 +74,7 @@ class Inference:
 		#------- reads the data ----------------------------------------------
 		data  = pn.read_csv(file_data,usecols=list_observables,*args,**kwargs) 
 		#---------- drop na values and reorder ------------
-		data  = data.dropna(thresh=2)
+		data  = data.dropna(thresh=self.Posterior.ndim)
 		data  = data.reindex(columns=list_observables)
 
 		#------- index as string ------

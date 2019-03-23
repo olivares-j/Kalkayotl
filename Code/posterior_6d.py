@@ -21,43 +21,38 @@ import sys
 
 import numpy as np
 import scipy.stats as st
-from posterior_1d import Posterior as posterior_1d
+from posterior_5d import Posterior as posterior_5d
 
 class Posterior:
 	"""
-	This class provides flexibility to infer the posterior distribution of the 3D
+	This class provides flexibility to infer the posterior distribution of the 6D
 	"""
-	def __init__(self,prior="Uniform",prior_loc=0,prior_scale=100,zero_point=[0.0,0.0,0.0]):
+	def __init__(self,prior="Uniform",prior_loc=0,prior_scale=100,
+		zero_point=[0.0,0.0,0.0,0.0,0.0,0.0]):
 
-		self.ndim        = 3
+		self.ndim        = 6
 		self.prior_loc   = prior_loc
 		self.prior_scl   = prior_scale
 		self.zero_point  = zero_point
 
-		#================= 1D Prior ===========================
-
-		prior1d = posterior_1d(prior=prior,prior_loc=prior_loc,
+		#================= 5D Prior ===========================
+		prior5d = posterior_5d(prior=prior,prior_loc=prior_loc,
 								prior_scale=prior_scale)
 
-		self.log_prior_1d = prior1d.log_prior_1d
+		self.log_prior_5d = prior5d.log_prior_5d
 
-		#================== 2D prior ==========================
-		prior_ra   = 1.0/360
+		print("Posterior 6D initialized")
 
-		prior_de   = 1.0/180
-
-		self.log_prior_2d = np.log(prior_ra) + np.log(prior_de)
-		print("Posterior 3D initialized")
-
-	#======== 3D prior ====================
-	def log_prior_3d(self,theta):
-		a = self.log_prior_2d
-		b = self.log_prior_1d(theta[2])
-		return a+b
+	#======== 6D prior ====================
+	def log_prior_6d(self,theta):
+		lp_5d    = self.log_prior_5d(theta[:5])
+		lp_rvel  = st.cauchy.logpdf(theta[5],loc=0.0,scale=300.0) #km*s**-1
+		return lp_5d + lp_rvel
 	#======================================
 
 	#----------- Support -----------
 	def Support(self,theta):
+		# No restrictions on the value of true proper motions or radial_velocity
 		if (theta[0] <   0.0 or theta[0] >= 360.0 or
 		    theta[1] < -90.0 or theta[1] >   90.0 or
 		    theta[2] <=  0.0) :
@@ -66,15 +61,23 @@ class Posterior:
 			return True
 
 	def setup(self,datum):
-		ra,dec,pax,u_ra,u_dec,u_pax,corr_ra_dec,corr_ra_pax,corr_dec_pax = datum
-		corr      = np.zeros((self.ndim,self.ndim))
-		corr[0,1] = corr_ra_dec
-		corr[0,2] = corr_ra_pax
-		corr[1,2] = corr_dec_pax
+		# ra,dec,pax,pmra,pmdec,rvel                            = datum[:6]
+		# u_ra,u_dec,u_pax,u_pmra,u_pmdec,u_rvel                = datum[6:12]
+		# ra_dec_corr,ra_pax_corr,ra_pmra_corr,ra_pmdec_corr    = datum[12:16]
+		# dec_pax_corr,dec_pmra_corr,dec_pmdec_corr             = datum[16:19]
+		# pax_pmra_corr,pax_pmdec_corr                          = datum[19:21]
+		# pmra_pmdec_corr                                       = datum[21]
+		Mu = np.array(datum[:6])
+		Un = np.array(datum[6:12])		
+
+		corr       = np.zeros((self.ndim,self.ndim))
+		corr[0,1:5] = datum[12:16]
+		corr[1,2:5] = datum[16:19]
+		corr[2,3:5] = datum[19:21]
+		corr[3,4]   = datum[21]
 
 		corr      = corr + corr.T + np.eye(self.ndim)
-		Sigma     = np.diag([u_ra,u_dec,u_pax]).dot(corr.dot(np.diag([u_ra,u_dec,u_pax])))
-		Mu        = np.array([ra,dec,pax])
+		Sigma     = np.diag(Un).dot(corr.dot(np.diag(Un)))
 		
 		self.corr_Mu   = Mu + self.zero_point
 	
@@ -100,7 +103,7 @@ class Posterior:
 		if s <= 0:
 			sys.exit("Negative determinant!")
 
-		self.cte  = -0.5*(np.log((2.0*np.pi)**3) + logdet)
+		self.cte  = -0.5*(np.log((2.0*np.pi)**6) + logdet)
 
 
 
@@ -108,12 +111,13 @@ class Posterior:
 		if not self.Support(theta):
 			return -np.inf
 
-		true_Mu   = np.array([theta[0],theta[1],1.0/theta[2]])
+		true_Mu    = np.array(theta)
+		true_Mu[2] = 1.0/theta[2]
 
 		x        = self.corr_Mu - true_Mu
 		arg      = -0.5*np.dot(x.T,self.inv.dot(x))
 		log_like = self.cte + arg
-		log_posterior = self.log_prior_3d(theta) + log_like
+		log_posterior = self.log_prior_6d(theta) + log_like
 
 		return log_posterior
 
