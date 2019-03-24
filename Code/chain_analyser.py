@@ -48,7 +48,7 @@ class Analysis:
 	This class provides flexibility to analyse the chains inferred by emcee
 	"""
 	def __init__(self,file_name,n_dim=1,names=None,id_name="ID",dir_plots="Plots/",
-		figsize=(6.3,6.3),
+		figsize=(10,10),
 		quantiles=[0.159,0.841],
 		statistic="median",
 		tol_convergence=100,
@@ -240,7 +240,7 @@ class Analysis:
 			MAP      = sample[idx_map]
 			#----------------------------------------------------------
 
-			pdf = PdfPages(filename=self.dir_plots+self.id+"_"+str(name)+".pdf")
+			pdf = PdfPages(filename=self.dir_plots+str(self.n_dim)+"D_"+self.id+"_"+str(name)+".pdf")
 			plt.figure(1)
 			#----------- Trace plots --------------------------
 			if self.n_dim == 1:

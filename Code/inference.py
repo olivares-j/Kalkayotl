@@ -32,25 +32,39 @@ class Inference:
 		Arguments:
 		n_walkers (integer):       Number of ensamble particles.
 		"""
+		gaia_observables = ["ra","dec","parallax","pmra","pmdec","radial_velocity",
+                    "ra_error","dec_error","parallax_error","pmra_error","pmdec_error","radial_velocity_error",
+                    "ra_dec_corr","ra_parallax_corr","ra_pmra_corr","ra_pmdec_corr",
+                	"dec_parallax_corr","dec_pmra_corr","dec_pmdec_corr",
+                	"parallax_pmra_corr","parallax_pmdec_corr",
+                	"pmra_pmdec_corr"]
 
 		self.Posterior  = posterior(prior=prior,
 									prior_loc=prior_loc,
 									prior_scale=prior_scale,
 									**kwargs)
 		self.n_walkers = n_walkers
+
 		if self.Posterior.ndim == 1:
+			index_observables = [2,8]
 			self.pos0 = st.uniform.rvs(size=(n_walkers,self.Posterior.ndim))
+
 		if self.Posterior.ndim == 3:
+			index_observables = [0,1,2,6,7,8,12,13,16]
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
 								   st.uniform.rvs(loc=0.0,scale=prior_scale,size=1)[0]]) for i in range(n_walkers)]
+
 		if self.Posterior.ndim == 5:
+			index_observables = [0,1,2,3,4,6,7,8,9,10,12,13,14,15,16,17,18,19,20,21]
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
 								   st.uniform.rvs(loc=0.0,scale=prior_scale,size=1)[0],
 								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
 								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0]]) for i in range(n_walkers)]
+
 		if self.Posterior.ndim == 6:
+			index_observables = range(22)
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
 								   st.uniform.rvs(loc=0.0,scale=prior_scale,size=1)[0],
@@ -58,23 +72,27 @@ class Inference:
 								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
 								   st.cauchy.rvs(loc=0.0,scale=300.0,size=1)[0]]) for i in range(n_walkers)]
 
+		self.observables = [gaia_observables[i] for i in index_observables]
 
-	def load_data(self,file_data,list_observables,*args,**kwargs):
+
+	def load_data(self,file_data,id_name,*args,**kwargs):
 		"""
 		This function reads the data.
 
 		Arguments:
 		file_data (string): The path to a CSV file.
 
-		list_observables (array string): Names of columns.
+		id_name (string): Identifier in file_csv.
 
 		Other arguments are passed to pandas.read_csv function
 
 		"""
+		list_observables = sum([[id_name],self.observables],[])
+
 		#------- reads the data ----------------------------------------------
 		data  = pn.read_csv(file_data,usecols=list_observables,*args,**kwargs) 
 		#---------- drop na values and reorder ------------
-		data  = data.dropna(thresh=self.Posterior.ndim)
+		data  = data.dropna(thresh=len(list_observables))
 		data  = data.reindex(columns=list_observables)
 
 		#------- index as string ------
