@@ -19,10 +19,10 @@ order by random_index
 
 #----------------Mock data and MCMC parameters  --------------------
 random_state        = 1234     # Random state for the synthetic data
-data_loc,data_scale = 300.,20.0   # Location and scale of the distribution for the mock data
+data_loc,data_scale = 0.,500.0   # Location and scale of the distribution for the mock data
 data_distribution   = st.norm  # Change it according to your needs
-name_synthetic      = "Gaussian_300_20"
-synthetic_uncert    = "random"    # The type of synthetic uncertainties: "random" or "linear"
+name                = "Field_"+str(int(data_loc))+"_"+str(int(data_scale))
+type_uncert         = "random"    # The type of synthetic uncertainties: "random" or "linear"
 n_stars             = 1000         # Number of mock distances
 labels              = ["ID","dist","parallax","parallax_error"]
 #--------------------------------------------------------------------------------------
@@ -33,8 +33,9 @@ dir_data  = dir_main  + "Data/"
 dir_ana   = dir_main  + "Analysis/"
 dir_plots = dir_ana   + "Plots/"
 file_data = dir_data  + "Gaia_DR2_parallax_uncertainty.csv"
-file_plot = dir_plots + name_synthetic + "_uncertainty.pdf"
-file_syn  = dir_data  + name_synthetic + ".csv"
+file_plot = dir_plots + name + "_" + type_uncert + "_uncertainty.pdf"
+file_syn  = dir_data  + name + "_" + type_uncert +".csv"
+
 
 #------- Create directories -------
 if not os.path.isdir(dir_ana):
@@ -52,15 +53,15 @@ dst      = data_distribution.rvs(loc=data_loc, scale=data_scale, size=n_stars,ra
 #---- obtains the parallax in mas -------
 pax      = (1.0/dst)*1e3
 #----- assigns an uncertainty similar to those present in Gaia DR2 data, in mas ------- 
-if synthetic_uncert is "random":
+if type_uncert is "random":
 	#----------------- Fit --------------------
 	factor = 10. # This factor improves the fit
 	param = st.chi2.fit(u_obs*factor)
 	u_syn = st.chi2.rvs(df=param[0],loc=param[1], scale=param[2], size=n_stars,random_state=random_state)/factor
-elif synthetic_uncert is "linear":
+elif type_uncert is "linear":
 	u_syn    = np.linspace(np.min(u_obs),np.max(u_obs), num=n_stars)
 else:
-	sys.exit("Incorrect synthetic_uncert type")
+	sys.exit("Incorrect type_uncert")
 #----------------------------------------------------
 
 #========== Saves the synthetic data ====================
