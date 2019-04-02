@@ -31,8 +31,8 @@ from chain_analyser import Analysis
 
 
 #----------- Dimension and Case ---------------------
-dimension = 6
-case      = "Ruprecht_147"
+dimension = 1
+case      = "Star_500_0_linear"
 statistic = "map"
 
 
@@ -51,30 +51,30 @@ else:
 
 
 #---------------- MCMC parameters  --------------------
-n_iter    = 3000         # Number of iterations for the MCMC 
+n_iter    = 5000         # Number of iterations for the MCMC 
 n_walkers = 30           # Number of walkers
 tolerance = 20
 
 #----------- prior parameters --------
 list_of_prior = [
-# {"type":"Uniform",      "location":0.0,"scale":1000.0},
-# {"type":"Uniform",      "location":0.0,"scale":1350.0},
-{"type":"Uniform",      "location":0.0,"scale":1500.0}
-# {"type":"Half-Gaussian","location":0.0,"scale":1000.0},
-# {"type":"Half-Gaussian","location":0.0,"scale":1350.0},
-# {"type":"Half-Gaussian","location":0.0,"scale":1500.0},
-# {"type":"Half-Cauchy",  "location":0.0,"scale":1000.0},
-# {"type":"Half-Cauchy",  "location":0.0,"scale":1350.0},
-# {"type":"Half-Cauchy",  "location":0.0,"scale":1500.0},
-# {"type":"EDSD",         "location":0.0,"scale":1000.0},
-# {"type":"EDSD",         "location":0.0,"scale":1350.0}
-# {"type":"EDSD",         "location":0.0,"scale":1500.0},
-# {"type":"Gaussian",     "location":300.0,"scale":20.0},
-# {"type":"Gaussian",     "location":300.0,"scale":60.0},
-# {"type":"Gaussian",     "location":300.0,"scale":100.0},
-# {"type":"Cauchy",       "location":300.0,"scale":20.0},
-# {"type":"Cauchy",       "location":300.0,"scale":60.0},
-# {"type":"Cauchy",       "location":300.0,"scale":100.0}
+{"type":"Uniform",      "location":0.0,"scale":1000.0},
+{"type":"Uniform",      "location":0.0,"scale":1350.0},
+{"type":"Uniform",      "location":0.0,"scale":1500.0},
+{"type":"Half-Gaussian","location":0.0,"scale":1000.0},
+{"type":"Half-Gaussian","location":0.0,"scale":1350.0},
+{"type":"Half-Gaussian","location":0.0,"scale":1500.0},
+{"type":"Half-Cauchy",  "location":0.0,"scale":1000.0},
+{"type":"Half-Cauchy",  "location":0.0,"scale":1350.0},
+{"type":"Half-Cauchy",  "location":0.0,"scale":1500.0},
+{"type":"EDSD",         "location":0.0,"scale":1000.0},
+{"type":"EDSD",         "location":0.0,"scale":1350.0},
+{"type":"EDSD",         "location":0.0,"scale":1500.0},
+{"type":"Gaussian",     "location":500.0,"scale":20.0},
+{"type":"Gaussian",     "location":500.0,"scale":40.0},
+{"type":"Gaussian",     "location":500.0,"scale":80.0},
+{"type":"Cauchy",       "location":500.0,"scale":20.0},
+{"type":"Cauchy",       "location":500.0,"scale":40.0},
+{"type":"Cauchy",       "location":500.0,"scale":80.0}
 ]
 
 #============ Directories =================
@@ -106,7 +106,7 @@ if not os.path.isdir(dir_plots):
 #==================================================
 
 #======================= Inference and Analysis =====================================================
-id_name = "ID_member"
+id_name = "ID"
 
 for prior in list_of_prior:
     name_chains = "Chains_"+str(dimension)+"D_"+str(prior["type"])+"_loc="+str(int(prior["location"]))+"_scl="+str(int(prior["scale"]))+".h5"
@@ -119,7 +119,7 @@ for prior in list_of_prior:
                         prior_loc=prior["location"],
                         prior_scale=prior["scale"],
                         n_walkers=n_walkers)
-        p1d.load_data(file_data,id_name=id_name,nrows=2)
+        p1d.load_data(file_data,id_name=id_name)
         p1d.run(n_iter,file_chains=file_chains,tol_convergence=tolerance)
 
     #----------------- Analysis ---------------
@@ -129,6 +129,6 @@ for prior in list_of_prior:
                     tol_convergence=tolerance,
                     statistic=statistic,
                     transformation=None)
-    a1d.plot_chains()
+    # a1d.plot_chains()
     a1d.save_statistics(file_csv)
 #=======================================================================================
