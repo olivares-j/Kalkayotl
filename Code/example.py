@@ -32,7 +32,7 @@ from chain_analyser import Analysis
 
 #----------- Dimension and Case ---------------------
 dimension = 1
-case      = "Star_500_0_linear"
+case      = "Field_0_500_random"
 statistic = "map"
 
 
@@ -69,22 +69,23 @@ list_of_prior = [
 {"type":"EDSD",         "location":0.0,"scale":1000.0},
 {"type":"EDSD",         "location":0.0,"scale":1350.0},
 {"type":"EDSD",         "location":0.0,"scale":1500.0},
-{"type":"Gaussian",     "location":500.0,"scale":20.0},
-{"type":"Gaussian",     "location":500.0,"scale":40.0},
-{"type":"Gaussian",     "location":500.0,"scale":80.0},
-{"type":"Cauchy",       "location":500.0,"scale":20.0},
-{"type":"Cauchy",       "location":500.0,"scale":40.0},
-{"type":"Cauchy",       "location":500.0,"scale":80.0}
+# {"type":"Gaussian",     "location":50.0,"scale":20.0},
+# {"type":"Gaussian",     "location":50.0,"scale":40.0},
+# {"type":"Gaussian",     "location":50.0,"scale":80.0},
+# {"type":"Cauchy",       "location":50.0,"scale":20.0},
+# {"type":"Cauchy",       "location":50.0,"scale":40.0},
+# {"type":"Cauchy",       "location":50.0,"scale":80.0}
 ]
 
 #============ Directories =================
 #-------Main directory ---------------
 dir_main  = os.getcwd()[:-4]
+#-------------------------------------
 
-#----------- Data -----------------
+#----------- Data --------------------
 dir_data  = dir_main + "Data/"
 file_data = dir_data + case+".csv"
-#-----------------------------------
+#-------------------------------------
 
 #--------- Chains and plots ----------
 dir_ana    = dir_main + "Analysis/"
@@ -103,7 +104,7 @@ if not os.path.isdir(dir_chains):
     os.mkdir(dir_chains)
 if not os.path.isdir(dir_plots):
     os.mkdir(dir_plots)
-#==================================================
+#---------------------------------
 
 #======================= Inference and Analysis =====================================================
 id_name = "ID"
