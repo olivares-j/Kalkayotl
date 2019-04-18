@@ -76,7 +76,7 @@ class Posterior:
 		Sigma     = np.diag([u_ra,u_dec,u_pax]).dot(corr.dot(np.diag([u_ra,u_dec,u_pax])))
 		Mu        = np.array([ra,dec,pax])
 		
-		self.corr_Mu   = Mu + self.zero_point
+		self.corr_Mu   = Mu - self.zero_point
 	
 
 		try:

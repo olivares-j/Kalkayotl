@@ -54,7 +54,8 @@ cluster_priors = [
 {"type":"Cauchy",       "scale":80.0,"color":"green",  "line_style":"--"}
 ]
 
-list_of_cases    = ["Cluster_50_20_random","Cluster_100_20_random","Cluster_300_20_random","Cluster_500_20_random"]
+generic_case     = "Field"
+list_of_cases    = ["Field_0_50_random","Field_0_100_random","Field_0_300_random","Field_0_500_random"]
 locations        = ["50","100","300","500"]
 statistic        = "map"
 list_observables = ["ID","parallax","parallax_error"]
@@ -69,11 +70,11 @@ nrows            = 2          # In the plots
 
 dir_main   = os.getcwd()[:-4]
 dir_data   = dir_main  + "Data/"
-dir_ana    = dir_main  + "Analysis/Cluster/"
+dir_ana    = dir_main  + "Analysis/"+generic_case+"/"
 
-file_cls_plot  = dir_ana + "Cluster_cluster_priors_"+statistic+".pdf"
-file_gal_plot  = dir_ana + "Cluster_galactic_priors_"+statistic+".pdf"
-file_tex       = dir_ana + "Cluster_mad_"+statistic+".tex"
+file_cls_plot  = dir_ana + generic_case + "_cluster_priors_"+statistic+".pdf"
+file_gal_plot  = dir_ana + generic_case + "_galactic_priors_"+statistic+".pdf"
+file_tex       = dir_ana + generic_case  + "_mad_"+statistic+".tex"
 #=======================================================================================================================
 
 #================================== Galactic priors ==========================================================================
@@ -107,7 +108,7 @@ for i,case in enumerate(list_of_cases):
 	axs[idx[0],idx[1]].set_ylabel("Fractional error")
 	axs[idx[0],idx[1]].set_xlabel("Fractional uncertainty")
 	# axs[idx[0],idx[1]].yaxis.get_major_formatter().set_powerlimits((0, 1))
-	axs[idx[0],idx[1]].annotate(case[:-9],xy=(0.05,0.9),xycoords="axes fraction")
+	axs[idx[0],idx[1]].annotate(generic_case+"_"+str(locations[i]),xy=(0.05,0.9),xycoords="axes fraction")
 
 prior_lines = [mlines.Line2D([], [],color=prior["color"],linestyle="-",label=prior["type"]) for prior in [galactic_priors[idx] for idx in id_gal_plt]]
 scl_lines   = [mlines.Line2D([], [],color="black",linestyle=prior["line_style"],label=str(prior["scale"])+" pc") for prior in [galactic_priors[idx] for idx in id_scl_plt]]
@@ -141,72 +142,73 @@ pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
 plt.close(0)
 pdf.close()
 
-#=================================== Cluster prior ============================================================================
-pdf = PdfPages(filename=file_cls_plot)
-plt.figure(0)
-fig, axs = plt.subplots(nrows,ncols,figsize=(10,10),squeeze=True)
-for i,case in enumerate(list_of_cases):
-	idx = np.unravel_index(i,(nrows,ncols))
-	dir_chains = dir_ana   + case+"/Chains/"
-	file_data  = dir_data  + case + ".csv"
-	data       = pn.read_csv(file_data) 
-	for j,prior in enumerate(cluster_priors):
-		file_csv = dir_chains + "Chains_1D_"+str(prior["type"])+"_loc="+locations[i]+"_scl="+str(int(prior["scale"]))+"_"+statistic+".csv"
-		infered  = pn.read_csv(file_csv,usecols=["ID","dist_ctr"]) 
-		df   = data.join(infered,on="ID",lsuffix="_data",rsuffix="_estimate")
-		idnv = np.where(df['dist']<=0)[0]
-		df   = df.drop(idnv)
+# #=================================== Cluster prior ============================================================================
+# pdf = PdfPages(filename=file_cls_plot)
+# plt.figure(0)
+# fig, axs = plt.subplots(nrows,ncols,figsize=(10,10),squeeze=True)
+# for i,case in enumerate(list_of_cases):
+# 	idx = np.unravel_index(i,(nrows,ncols))
+# 	dir_chains = dir_ana   + case+"/Chains/"
+# 	file_data  = dir_data  + case + ".csv"
+# 	data       = pn.read_csv(file_data) 
+# 	for j,prior in enumerate(cluster_priors):
+# 		file_csv = dir_chains + "Chains_1D_"+str(prior["type"])+"_loc="+locations[i]+"_scl="+str(int(prior["scale"]))+"_"+statistic+".csv"
+# 		infered  = pn.read_csv(file_csv,usecols=["ID","dist_ctr"]) 
+# 		df   = data.join(infered,on="ID",lsuffix="_data",rsuffix="_estimate")
+# 		idnv = np.where(df['dist']<=0)[0]
+# 		df   = df.drop(idnv)
 		
-		df["Diff"] = df.apply(lambda x: (x["dist_ctr"] - x["dist"])/x["dist"], axis = 1)
-		df["Frac"] = df.apply(lambda x: x["parallax_error"]/x["parallax"], axis = 1)
-		df = df.sort_values(by="Frac")
-		mean = df.rolling(50).mean()
+# 		df["Diff"] = df.apply(lambda x: (x["dist_ctr"] - x["dist"])/x["dist"], axis = 1)
+# 		df["Frac"] = df.apply(lambda x: x["parallax_error"]/x["parallax"], axis = 1)
+# 		df = df.sort_values(by="Frac")
+# 		mean = df.rolling(50).mean()
 		
-		#---------- Plot ----------------------
-		# axs[idx[0],idx[1]].scatter(df["Frac"],df["Diff"],color=prior["color"],label=None)
-		# axs[idx[0],idx[1]].plot(df["Frac"],df["Diff"],linestyle=prior["line_style"],color=prior["color"],label=None)
-		axs[idx[0],idx[1]].plot(mean["Frac"],mean["Diff"],linestyle=prior["line_style"],lw=1,color=prior["color"],label=None)
+# 		#---------- Plot ----------------------
+# 		# axs[idx[0],idx[1]].scatter(df["Frac"],df["Diff"],color=prior["color"],label=None)
+# 		# axs[idx[0],idx[1]].plot(df["Frac"],df["Diff"],linestyle=prior["line_style"],color=prior["color"],label=None)
+# 		axs[idx[0],idx[1]].plot(mean["Frac"],mean["Diff"],linestyle=prior["line_style"],lw=1,color=prior["color"],label=None)
 
-	axs[idx[0],idx[1]].set_ylabel("Fractional error")
-	axs[idx[0],idx[1]].set_xlabel("Fractional uncertainty")
-	axs[idx[0],idx[1]].yaxis.get_major_formatter().set_powerlimits((0, 1))
-	axs[idx[0],idx[1]].annotate(case[:-10],xy=(0.7,0.95),xycoords="axes fraction")
+# 	axs[idx[0],idx[1]].set_ylabel("Fractional error")
+# 	axs[idx[0],idx[1]].set_xlabel("Fractional uncertainty")
+# 	axs[idx[0],idx[1]].yaxis.get_major_formatter().set_powerlimits((0, 1))
+# 	axs[idx[0],idx[1]].annotate(case[:-10],xy=(0.7,0.95),xycoords="axes fraction")
 
-prior_lines = [mlines.Line2D([], [],color=prior["color"],linestyle="-",label=prior["type"]) for prior in [cluster_priors[idx] for idx in id_cls_plt]]
-scl_lines   = [mlines.Line2D([], [],color="black",linestyle=prior["line_style"],label=str(prior["scale"])+" pc") for prior in [cluster_priors[idx] for idx in id_scl_plt]]
+# prior_lines = [mlines.Line2D([], [],color=prior["color"],linestyle="-",label=prior["type"]) for prior in [cluster_priors[idx] for idx in id_cls_plt]]
+# scl_lines   = [mlines.Line2D([], [],color="black",linestyle=prior["line_style"],label=str(prior["scale"])+" pc") for prior in [cluster_priors[idx] for idx in id_scl_plt]]
 
-axs[0,0].legend(handles=prior_lines,
-	title="Cluster priors",
-	shadow = False,
-	bbox_to_anchor=(0., 1.1, 1., .1),
-	borderaxespad=0.,
-	frameon = True,
-	fancybox = True,
-	ncol = 2,
-	fontsize = 'smaller',
-	mode = 'expand',
-	loc = 'upper left')
+# axs[0,0].legend(handles=prior_lines,
+# 	title="Cluster priors",
+# 	shadow = False,
+# 	bbox_to_anchor=(0., 1.1, 1., .1),
+# 	borderaxespad=0.,
+# 	frameon = True,
+# 	fancybox = True,
+# 	ncol = 2,
+# 	fontsize = 'smaller',
+# 	mode = 'expand',
+# 	loc = 'upper left')
 
-legend = plt.legend(handles=scl_lines,
-	title="Scales",
-	shadow = False,
-	bbox_to_anchor=(0., 2.30, 1., .1),
-	borderaxespad=0.,
-	frameon = True,
-	fancybox = True,
-	ncol = 3,
-	fontsize = 'smaller',
-	mode = 'expand',
-	loc = 'upper right')
+# legend = plt.legend(handles=scl_lines,
+# 	title="Scales",
+# 	shadow = False,
+# 	bbox_to_anchor=(0., 2.30, 1., .1),
+# 	borderaxespad=0.,
+# 	frameon = True,
+# 	fancybox = True,
+# 	ncol = 3,
+# 	fontsize = 'smaller',
+# 	mode = 'expand',
+# 	loc = 'upper right')
 
-plt.gca().add_artist(legend)
-pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
-plt.close(0)
-pdf.close()
+# plt.gca().add_artist(legend)
+# pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
+# plt.close(0)
+# pdf.close()
 
 
 #================================ MAD =================================================
 list_of_prior = sum([galactic_priors,cluster_priors],[])
+list_of_prior = galactic_priors
 MAD = np.zeros((len(list_of_prior),len(list_of_cases),2))
 for i,case in enumerate(list_of_cases):
 	dir_chains = dir_ana   + case+"/Chains/"
@@ -236,7 +238,7 @@ MAD = MAD.reshape((len(list_of_prior),2*len(list_of_cases)))
 
 #------------- Names of data frame ----------------------
 names_priors = [prior["type"]+"_"+str(int(prior["scale"])) for prior in list_of_prior]
-names_cases  = [case[:-10] for case in list_of_cases]
+names_cases  = [generic_case+"_"+str(loc) for loc in locations]
 col_names = pn.MultiIndex.from_product([names_cases, ["mean", "sd"]])
 
 pn.set_option('display.float_format', '{:.2g}'.format)

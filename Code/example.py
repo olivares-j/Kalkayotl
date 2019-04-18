@@ -32,7 +32,7 @@ from chain_analyser import Analysis
 
 #----------- Dimension and Case ---------------------
 dimension = 1
-case      = "Field_0_500_random"
+case      = "M45"
 statistic = "map"
 
 
@@ -69,12 +69,12 @@ list_of_prior = [
 {"type":"EDSD",         "location":0.0,"scale":1000.0},
 {"type":"EDSD",         "location":0.0,"scale":1350.0},
 {"type":"EDSD",         "location":0.0,"scale":1500.0},
-# {"type":"Gaussian",     "location":50.0,"scale":20.0},
-# {"type":"Gaussian",     "location":50.0,"scale":40.0},
-# {"type":"Gaussian",     "location":50.0,"scale":80.0},
-# {"type":"Cauchy",       "location":50.0,"scale":20.0},
-# {"type":"Cauchy",       "location":50.0,"scale":40.0},
-# {"type":"Cauchy",       "location":50.0,"scale":80.0}
+{"type":"Gaussian",     "location":136.0,"scale":20.0},
+{"type":"Gaussian",     "location":136.0,"scale":40.0},
+{"type":"Gaussian",     "location":136.0,"scale":80.0},
+{"type":"Cauchy",       "location":136.0,"scale":20.0},
+{"type":"Cauchy",       "location":136.0,"scale":40.0},
+{"type":"Cauchy",       "location":136.0,"scale":80.0}
 ]
 
 #============ Directories =================
@@ -119,7 +119,8 @@ for prior in list_of_prior:
                         prior=prior["type"],
                         prior_loc=prior["location"],
                         prior_scale=prior["scale"],
-                        n_walkers=n_walkers)
+                        n_walkers=n_walkers,
+                        zero_point=-0.029)
         p1d.load_data(file_data,id_name=id_name)
         p1d.run(n_iter,file_chains=file_chains,tol_convergence=tolerance)
 

@@ -79,7 +79,7 @@ class Posterior:
 		corr      = corr + corr.T + np.eye(self.ndim)
 		Sigma     = np.diag(Un).dot(corr.dot(np.diag(Un)))
 		
-		self.corr_Mu   = Mu + self.zero_point
+		self.corr_Mu   = Mu - self.zero_point
 	
 
 		try:

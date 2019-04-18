@@ -120,7 +120,7 @@ class Posterior:
 	############# SETUP###################
 	def setup(self,datum):
 
-		self.corr_Mu = datum[0] + self.zero_point
+		self.corr_Mu = datum[0] - self.zero_point
 		self.sigma   = datum[1]
 		self.cte     = np.log(1.0/np.sqrt(2.0*np.pi*datum[1]**2))
 
