@@ -28,7 +28,7 @@ class Posterior:
 	float  'prior_loc':   Location of the prior distribution in pc
 						  Assumed zero for Half-Gaussian, Half-Cauchy and EDSD
 	float  'prior_scale': Scale of the prior distribution in pc
-	float  'zero_point':  Parallax zero point
+	float  'zero_point':  Parallax zero point in arcsec
 	"""
 
 	def __init__(self,prior="Uniform",prior_loc=0,prior_scale=100,zero_point=0.0):

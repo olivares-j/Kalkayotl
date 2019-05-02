@@ -408,3 +408,26 @@ class Analysis:
 		df.to_csv(path_or_buf=file_csv,index=False)
 
 
+	def save_sample(self,file_h5,names=None):
+		"""
+		This function computes the chain statistics.
+
+		Arguments:
+		file_h5:            Name of the output file.
+		names:              List of objects names to save.
+		Returns (array):    For each parameter it contains min,central, and max. 
+		"""
+
+		#---------- Loop over names in file ---------------------------
+		tbar = tqdm(total=len(names),desc="Saving sample: ")
+		for i,name in enumerate(names):
+			reader = emcee.backends.HDFBackend(self.file_name,name=name)
+			tau    = reader.get_autocorr_time(tol=0)
+			burnin = int(self.burnin_tau*np.max(tau))
+			sample = reader.get_chain(discard=burnin)
+
+			#------------- Transform ----------------------------------
+			sample = self.Transform(sample)
+			#----------------------------------------------------------
+
+
