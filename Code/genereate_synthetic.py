@@ -19,9 +19,9 @@ order by random_index
 
 #----------------Mock data and MCMC parameters  --------------------
 random_state        = 1234     # Random state for the synthetic data
-data_loc,data_scale = 0.,500.0   # Location and scale of the distribution for the mock data
+data_loc,data_scale = 500.,20.0   # Location and scale of the distribution for the mock data
 data_distribution   = st.norm  # Change it according to your needs
-name                = "Field_"+str(int(data_loc))+"_"+str(int(data_scale))
+name                = "Cluster_"+str(int(data_loc))+"_"+str(int(data_scale))
 type_uncert         = "random"    # The type of synthetic uncertainties: "random" or "linear"
 n_stars             = 1000         # Number of mock distances
 labels              = ["ID","dist","parallax","parallax_error"]
@@ -48,10 +48,12 @@ if not os.path.isdir(dir_plots):
 u_obs = np.array(pn.read_csv(file_data))
 
 #====================== Generate Synthetic Data ============================================================================
-#---------- create synthetic data -------------------------------------------------------------------------
-dst      = data_distribution.rvs(loc=data_loc, scale=data_scale, size=n_stars,random_state=random_state)
-#---- obtains the parallax in mas -------
-pax      = (1.0/dst)*1e3
+#---------- create synthetic distances -------------------------------------------------------------------------
+distance  = data_distribution.rvs(loc=data_loc, scale=data_scale, size=n_stars,random_state=random_state)
+
+#---- True parallax in mas -------
+true_plx      = (1.0/distance)*1e3
+
 #----- assigns an uncertainty similar to those present in Gaia DR2 data, in mas ------- 
 if type_uncert is "random":
 	#----------------- Fit --------------------
@@ -64,8 +66,14 @@ else:
 	sys.exit("Incorrect type_uncert")
 #----------------------------------------------------
 
+#------- Observed parallax ------------------------------
+obs_plx = np.zeros_like(true_plx)
+for i,(tplx,uplx) in enumerate(zip(true_plx,u_syn)):
+	obs_plx[i] = st.norm.rvs(loc=tplx,scale=uplx,size=1)
+#--------------------------------------------------------
+
 #========== Saves the synthetic data ====================
-data = np.column_stack((dst,pax,u_syn))
+data = np.column_stack((distance,obs_plx,u_syn))
 df = pn.DataFrame(data=data,columns=labels[1:])
 df.to_csv(path_or_buf=file_syn,index_label=labels[0])
 #=====================================================
@@ -73,6 +81,14 @@ df.to_csv(path_or_buf=file_syn,index_label=labels[0])
 #---------------- Plot ----------------------------------------------------
 n_bins = 100
 pdf = PdfPages(filename=file_plot)
+plt.hist(obs_plx,density=False,bins=n_bins,alpha=0.5,label="Observed")
+plt.hist(true_plx,density=False,bins=n_bins,alpha=0.5,label="True")
+plt.legend()
+plt.ylabel("Density")
+plt.xlabel("Parallax [mas]")
+pdf.savefig(bbox_inches='tight')
+plt.close()
+
 plt.hist(u_obs,density=True,bins=n_bins,alpha=0.5,label="Observed")
 plt.hist(u_syn,density=True,bins=n_bins,alpha=0.5,label="Synthetic")
 plt.legend()
@@ -80,6 +96,7 @@ plt.ylabel("Density")
 plt.xlabel("Parallax uncertainties [mas]")
 pdf.savefig(bbox_inches='tight')
 plt.close()
+
 pdf.close()
 #------------------------------------------------------------------------------
 

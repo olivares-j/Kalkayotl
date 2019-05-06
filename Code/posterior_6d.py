@@ -27,7 +27,9 @@ class Posterior:
 	"""
 	This class provides flexibility to infer the posterior distribution of the 6D
 	"""
-	def __init__(self,prior="Uniform",prior_loc=0,prior_scale=100,
+	def __init__(self,prior=["Uniform","Uniform","Uniform","Uniform","Uniform","Uniform"],
+		prior_loc=[180,0,250,0,0,0],
+		prior_scale=[180,90,250,500,500,100],
 		zero_point=[0.0,0.0,0.0,0.0,0.0,0.0]):
 
 		self.ndim        = 6
@@ -36,17 +38,27 @@ class Posterior:
 		self.zero_point  = zero_point
 
 		#================= 5D Prior ===========================
-		prior5d = posterior_5d(prior=prior,prior_loc=prior_loc,
-								prior_scale=prior_scale)
+		prior5d = posterior_5d(prior=prior[0:4],prior_loc=prior_loc[0:4],
+								prior_scale=prior_scale[0:4])
 
 		self.log_prior_5d = prior5d.log_prior_5d
+
+		#================== Radial velocity prior ==========================
+		if   prior[5] == "Uniform" :
+			self.log_prior_rvel  = self.Uniform
+		elif prior[5] == "Gaussian" :
+			self.log_prior_rvel  = self.Gaussian		
+		elif prior[5] == "Cauchy" :
+			self.log_prior_rvel  = self.Cauchy
+		else:
+			RuntimeError("Incorrect prior name")
 
 		print("Posterior 6D initialized")
 
 	#======== 6D prior ====================
 	def log_prior_6d(self,theta):
 		lp_5d    = self.log_prior_5d(theta[:5])
-		lp_rvel  = st.cauchy.logpdf(theta[5],loc=0.0,scale=300.0) #km*s**-1
+		lp_rvel  = self.log_prior_rvel(theta[5],loc=self.prior_loc[5],scale=self.prior_scl[5])
 		return lp_5d + lp_rvel
 	#======================================
 

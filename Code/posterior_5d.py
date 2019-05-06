@@ -27,7 +27,9 @@ class Posterior:
 	"""
 	This class provides flexibility to infer the posterior distribution of the 5D
 	"""
-	def __init__(self,prior="Uniform",prior_loc=0,prior_scale=100,
+	def __init__(self,prior=["Uniform","Uniform","Uniform","Uniform","Uniform"],
+		prior_loc=[180,0,250,0,0],
+		prior_scale=[180,90,250,500,500],
 		zero_point=[0.0,0.0,0.0,0.0,0.0]):
 
 		self.ndim        = 5
@@ -36,19 +38,59 @@ class Posterior:
 		self.zero_point  = zero_point
 
 		#================= 3D Prior ===========================
-		prior3d = posterior_3d(prior=prior,prior_loc=prior_loc,
-								prior_scale=prior_scale)
+		prior3d = posterior_3d(prior=prior[0:3],
+			               prior_loc=prior_loc[0:3],
+						 prior_scale=prior_scale[0:3])
 
 		self.log_prior_3d = prior3d.log_prior_3d
 
+		#================== Proper motion R.A. prior ==========================
+		if   prior[3] == "Uniform" :
+			self.log_prior_mu_alpha  = self.Uniform
+		elif prior[3] == "Gaussian" :
+			self.log_prior_mu_alpha  = self.Gaussian		
+		elif prior[3] == "Cauchy" :
+			self.log_prior_mu_alpha  = self.Cauchy
+		else:
+			RuntimeError("Incorrect prior name")
+
+		#================== Proper motion Dec. prior ==========================
+		if   prior[4] == "Uniform" :
+			self.log_prior_mu_delta  = self.Uniform
+		elif prior[4] == "Gaussian" :
+			self.log_prior_mu_delta  = self.Gaussian		
+		elif prior[4] == "Cauchy" :
+			self.log_prior_mu_delta  = self.Cauchy
+		else:
+			RuntimeError("Incorrect prior name")
+
 		print("Posterior 5D initialized")
+
+	######################### PRIORS #######################################
+	def Uniform(self,theta,loc,scl):
+		""" 
+		Uniform prior
+		"""
+		return st.uniform.logpdf(theta,loc=loc-scl,scale=2*scl)
+
+	def Gaussian(self,theta,loc,scl):
+		"""
+		Gaussian prior
+		"""
+		return st.norm.logpdf(theta,loc=loc,scale=scl)
+
+	def Cauchy(self,theta,loc,scl):
+		"""
+		Cauchy prior
+		"""
+		return st.cauchy.logpdf(theta,loc=loc,scale=scl)
 
 	#======== 5D prior ====================
 	def log_prior_5d(self,theta):
-		lp_3d    = self.log_prior_3d(theta[:3])
-		lp_pmra  = st.cauchy.logpdf(theta[3],loc=0.0,scale=500.0) #mas*yr**-1
-		lp_pmdec = st.cauchy.logpdf(theta[4],loc=0.0,scale=500.0) #mas*yr**-1
-		return lp_3d + lp_pmra + lp_pmdec
+		lp_3d        = self.log_prior_3d(theta[:3])
+		lp_mu_alpha  = self.log_prior_mu_alpha(theta[3],loc=self.prior_loc[3],scale=self.prior_scl[3])
+		lp_mu_delta  = self.log_prior_mu_delta(theta[4],loc=self.prior_loc[4],scale=self.prior_scl[4])
+		return lp_3d + lp_mu_alpha + lp_mu_delta
 	#======================================
 
 	#----------- Support -----------

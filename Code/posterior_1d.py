@@ -31,7 +31,7 @@ class Posterior:
 	float  'zero_point':  Parallax zero point in arcsec
 	"""
 
-	def __init__(self,prior="Uniform",prior_loc=0,prior_scale=100,zero_point=0.0):
+	def __init__(self,prior="Uniform",prior_loc=250,prior_scale=250,zero_point=0.0):
 
 		self.ndim        = 1
 		self.prior_loc   = prior_loc
@@ -68,10 +68,7 @@ class Posterior:
 		""" 
 		Uniform prior
 		"""
-		if theta > self.prior_scl or theta < self.prior_loc:
-			return -np.inf
-		else:
-			return st.uniform.logpdf(theta,loc=self.prior_loc,scale=self.prior_scl)
+		return st.uniform.logpdf(theta,loc=self.prior_loc-self.prior_scl,scale=2*self.prior_scl)
 
 	def Gaussian(self,theta):
 		"""
@@ -136,4 +133,5 @@ class Posterior:
 		log_like = self.cte + arg
 
 		log_posterior = self.log_prior_1d(theta[0]) + log_like
+
 		return log_posterior

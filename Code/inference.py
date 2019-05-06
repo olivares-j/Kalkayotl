@@ -47,19 +47,19 @@ class Inference:
 
 		if self.Posterior.ndim == 1:
 			index_observables = [2,8]
-			self.pos0 = st.uniform.rvs(size=(n_walkers,self.Posterior.ndim))
+			self.pos0 = st.uniform.rvs(loc=prior_loc,scale=prior_scale,size=(n_walkers,self.Posterior.ndim))
 
 		if self.Posterior.ndim == 3:
 			index_observables = [0,1,2,6,7,8,12,13,16]
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
-								   st.uniform.rvs(loc=0.0,scale=prior_scale,size=1)[0]]) for i in range(n_walkers)]
+								   st.uniform.rvs(loc=prior_loc,scale=prior_scale,size=1)[0]]) for i in range(n_walkers)]
 
 		if self.Posterior.ndim == 5:
 			index_observables = [0,1,2,3,4,6,7,8,9,10,12,13,14,15,16,17,18,19,20,21]
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
-								   st.uniform.rvs(loc=0.0,scale=prior_scale,size=1)[0],
+								   st.uniform.rvs(loc=prior_loc,scale=prior_scale,size=1)[0],
 								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
 								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0]]) for i in range(n_walkers)]
 
@@ -67,7 +67,7 @@ class Inference:
 			index_observables = range(22)
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
-								   st.uniform.rvs(loc=0.0,scale=prior_scale,size=1)[0],
+								   st.uniform.rvs(loc=prior_loc,scale=prior_scale,size=1)[0],
 								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
 								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
 								   st.cauchy.rvs(loc=0.0,scale=300.0,size=1)[0]]) for i in range(n_walkers)]

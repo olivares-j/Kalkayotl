@@ -31,55 +31,97 @@ from chain_analyser import Analysis
 
 
 #----------- Dimension and Case ---------------------
-dimension = 5
-case      = "NGC6774"
+dimension = 1
+# If synthetic, comment the zero_point line in inference.
+case      = "Star_300"
 statistic = "map"
 
 
 #---------------Posterior -----------------
+
+#------------------------ 1D ----------------------------
 if dimension == 1:
     from posterior_1d import Posterior
     zero_point = -0.000029
+
+    #----------- prior parameters --------
+    list_of_prior = [
+    {"type":"EDSD",     "location":0.0,   "scale":1350.0},
+    {"type":"Uniform",  "location":300.0, "scale":50.0},
+    {"type":"Gaussian", "location":300.0, "scale":50.0},
+    {"type":"Cauchy",   "location":300.0, "scale":50.0}
+    ]
+
+#---------------------- 3D ---------------------------------
 elif dimension == 3:
     from posterior_3d import Posterior
     zero_point = np.array([0,0,-0.000029])
+
+    #----------- prior parameters ---------------------------------------------------------------
+    list_of_prior = [
+    {"type":["Uniform","Uniform","EDSD"],     
+    "location":[180,0,0.0],   "scale":[180,90,1350.0]},
+
+    {"type":["Uniform","Uniform","Uniform"],  
+    "location":[180,0,300.0], "scale":[180,90,50.0]},
+
+    {"type":["Uniform","Uniform","Gaussian"], 
+    "location":[180,0,300.0], "scale":[180,90,50.0]},
+
+    {"type":["Uniform","Uniform","Cauchy"],   
+    "location":[180,0,300.0], "scale":[180,90,50.0]}
+    ]
+
+#--------------------- 5D ------------------------------------
 elif dimension == 5:
     from posterior_5d import Posterior
     zero_point = np.array([0,0,-0.000029,0.010,0.010])
+
+    #----------- prior parameters --------
+    list_of_prior = [
+    {"type":["Uniform","Uniform","EDSD","Uniform","Uniform"],
+    "location":[180,0,0.0,0,0],   "scale":[180,90,1350.0,500,500]},
+
+    {"type":["Uniform","Uniform","Uniform","Uniform","Uniform"],
+    "location":[180,0,300.0,0,0], "scale":[180,90,50.0,500,500]},
+
+    {"type":["Uniform","Uniform","Gaussian","Uniform","Uniform"],
+    "location":[180,0,300.0,0,0], "scale":[180,90,50.0,500,500]},
+
+    {"type":["Uniform","Uniform","Cauchy","Uniform","Uniform"],
+    "location":[180,0,300.0,0,0], "scale":[180,90,50.0,500,500]}
+    ]
+
+#-------------------- 6D -------------------------------------
 elif dimension == 6:
     from posterior_6d import Posterior
     zero_point = np.array([0,0,-0.000029,0.010,0.010,0.0])
+
+    #----------- prior parameters --------
+    list_of_prior = [
+    {"type":["Uniform","Uniform","EDSD","Uniform","Uniform","Uniform"],
+    "location":[180,0,0.0,0,0,0],   "scale":[180,90,1350.0,500,500,100]},
+
+    {"type":["Uniform","Uniform","Uniform","Uniform","Uniform","Uniform"],
+    "location":[180,0,300.0,0,0,0], "scale":[180,90,50.0,500,500,100]},
+
+    {"type":["Uniform","Uniform","Gaussian","Uniform","Uniform","Uniform"],
+    "location":[180,0,300.0,0,0,0], "scale":[180,90,50.0,500,500,100]},
+
+    {"type":["Uniform","Uniform","Cauchy","Uniform","Uniform","Uniform"],
+    "location":[180,0,300.0,0,0,0], "scale":[180,90,50.0,500,500,100]}
+    ]
+
 else:
     sys.exit("Dimension is not correct")
 #------------------------------------------
 
 
 #---------------- MCMC parameters  --------------------
-n_iter    = 10000         # Number of iterations for the MCMC 
-n_walkers = 50           # Number of walkers
+n_iter    = 1000    # Number of iterations for the MCMC 
+n_walkers = 50       # Number of walkers
 tolerance = 20
 
-#----------- prior parameters --------
-list_of_prior = [
-# {"type":"Uniform",      "location":0.0,"scale":1000.0},
-# {"type":"Uniform",      "location":0.0,"scale":1350.0},
-# {"type":"Uniform",      "location":0.0,"scale":1500.0},
-# # {"type":"Half-Gaussian","location":0.0,"scale":1000.0},
-# # {"type":"Half-Gaussian","location":0.0,"scale":1350.0},
-# {"type":"Half-Gaussian","location":0.0,"scale":1500.0}
-# # {"type":"Half-Cauchy",  "location":0.0,"scale":1000.0},
-# # {"type":"Half-Cauchy",  "location":0.0,"scale":1350.0},
-# {"type":"Half-Cauchy",  "location":0.0,"scale":1500.0},
-# # {"type":"EDSD",         "location":0.0,"scale":1000.0},
-# # {"type":"EDSD",         "location":0.0,"scale":1350.0},
-# {"type":"EDSD",         "location":0.0,"scale":1500.0}
-# {"type":"Gaussian",     "location":136.0,"scale":20.0},
-# {"type":"Gaussian",     "location":136.0,"scale":40.0},
-# {"type":"Gaussian",     "location":300.0,"scale":80.0}
-# {"type":"Cauchy",       "location":136.0,"scale":20.0},
-# {"type":"Cauchy",       "location":136.0,"scale":40.0},
-{"type":"Cauchy",       "location":300.0,"scale":80.0}
-]
 
 #============ Directories =================
 #-------Main directory ---------------
@@ -87,8 +129,8 @@ dir_main  = os.getcwd()[:-4]
 #-------------------------------------
 
 #----------- Data --------------------
-dir_data  = dir_main + "Data/"+case+"/"
-file_data = dir_data + "Olivares+2019.csv"
+dir_data  = dir_main + "Data/"#+case+"/"
+file_data = dir_data + "Star_300_0_linear.csv"
 #-------------------------------------
 
 #--------- Chains and plots ----------
@@ -124,8 +166,9 @@ for prior in list_of_prior:
                         prior_loc=prior["location"],
                         prior_scale=prior["scale"],
                         n_walkers=n_walkers,
-                        zero_point=zero_point)
-        p1d.load_data(file_data,id_name=id_name)
+                        # zero_point=zero_point,
+                        )
+        p1d.load_data(file_data,id_name=id_name,nrows=2)
         p1d.run(n_iter,file_chains=file_chains,tol_convergence=tolerance)
 
     #----------------- Analysis ---------------
@@ -136,6 +179,6 @@ for prior in list_of_prior:
                     statistic=statistic,
                     quantiles=[0.05,0.95],
                     transformation=None)
-    # a1d.plot_chains()
+    a1d.plot_chains()
     a1d.save_statistics(file_csv)
 #=======================================================================================
