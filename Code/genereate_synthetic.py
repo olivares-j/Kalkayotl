@@ -18,10 +18,11 @@ order by random_index
 '''
 
 #----------------Mock data and MCMC parameters  --------------------
+case                = "Cluster_500"
 random_state        = 1234     # Random state for the synthetic data
 data_loc,data_scale = 500.,20.0   # Location and scale of the distribution for the mock data
 data_distribution   = st.norm  # Change it according to your needs
-name                = "Cluster_"+str(int(data_loc))+"_"+str(int(data_scale))
+name                = case + "_"+str(int(data_scale))
 type_uncert         = "random"    # The type of synthetic uncertainties: "random" or "linear"
 n_stars             = 1000         # Number of mock distances
 labels              = ["ID","dist","parallax","parallax_error"]
@@ -30,24 +31,21 @@ labels              = ["ID","dist","parallax","parallax_error"]
 #--------------------- Directories and files --------------------------------
 dir_main  = os.getcwd()[:-4]
 dir_data  = dir_main  + "Data/"
-dir_ana   = dir_main  + "Analysis/"
-dir_plots = dir_ana   + "Plots/"
 file_data = dir_data  + "Gaia_DR2_parallax_uncertainty.csv"
-file_plot = dir_plots + name + "_" + type_uncert + "_uncertainty.pdf"
-file_syn  = dir_data  + name + "_" + type_uncert +".csv"
+dir_case  = dir_data  + case +"/"
+file_plot = dir_case  + name + "_" + type_uncert + "_uncertainty.pdf"
+file_syn  = dir_case  + name + "_" + type_uncert +".csv"
 
 
 #------- Create directories -------
-if not os.path.isdir(dir_ana):
-	os.mkdir(dir_ana )
-if not os.path.isdir(dir_plots):
-    os.mkdir(dir_plots)
-#---------------------------------
+if not os.path.isdir(dir_case):
+	os.mkdir(dir_case)
 
 #---------- Reads observed uncertainties --------
 u_obs = np.array(pn.read_csv(file_data))
 
 #====================== Generate Synthetic Data ============================================================================
+print("Fitting Gaia parallax uncertainty ---")
 #---------- create synthetic distances -------------------------------------------------------------------------
 distance  = data_distribution.rvs(loc=data_loc, scale=data_scale, size=n_stars,random_state=random_state)
 
@@ -67,6 +65,7 @@ else:
 #----------------------------------------------------
 
 #------- Observed parallax ------------------------------
+print("Generating synthetic parallax ---")
 obs_plx = np.zeros_like(true_plx)
 for i,(tplx,uplx) in enumerate(zip(true_plx,u_syn)):
 	obs_plx[i] = st.norm.rvs(loc=tplx,scale=uplx,size=1)

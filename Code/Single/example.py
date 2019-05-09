@@ -33,27 +33,55 @@ from chain_analyser import Analysis
 #----------- Dimension and Case ---------------------
 dimension = 1
 # If synthetic, comment the zero_point line in inference.
-case      = "Star_300"
+case      = "Cluster_500"
 statistic = "map"
+file_csv  = "Cluster_500_20_random.csv"
+
+#---------------- MCMC parameters  --------------------
+n_iter    = 10000    # Number of iterations for the MCMC 
+n_walkers = 50       # Number of walkers
+tolerance = 20
 
 
-#---------------Posterior -----------------
+#============ Directories =================
+#-------Main directory ---------------
+dir_main  = os.getcwd()[:-11]
+#-------------------------------------
 
+#----------- Data --------------------
+dir_data  = dir_main + "Data/"
+file_data = dir_data + case +"/"+ file_csv
+#-------------------------------------
+
+#--------- Chains and plots ----------
+dir_ana    = dir_main + "Analysis/"
+dir_case   = dir_ana  + case +"/"
+dir_case   = dir_ana  + "Synthetic/" + case +"/"
+dir_chains = dir_case + "Chains/"
+dir_plots  = dir_case + "Plots/"
+#--------------------------------------
+
+#================== Posterior =============================
 #------------------------ 1D ----------------------------
 if dimension == 1:
+    idx = 0
     from posterior_1d import Posterior
     zero_point = -0.000029
 
     #----------- prior parameters --------
     list_of_prior = [
     {"type":"EDSD",     "location":0.0,   "scale":1350.0},
-    {"type":"Uniform",  "location":300.0, "scale":50.0},
-    {"type":"Gaussian", "location":300.0, "scale":50.0},
-    {"type":"Cauchy",   "location":300.0, "scale":50.0}
+    {"type":"Uniform",  "location":500.0, "scale":50.0},
+    {"type":"Gaussian", "location":500.0, "scale":50.0},
+    {"type":"Cauchy",   "location":500.0, "scale":50.0},
+    {"type":"Uniform",  "location":500.0, "scale":100.0},
+    {"type":"Gaussian", "location":500.0, "scale":100.0},
+    {"type":"Cauchy",   "location":500.0, "scale":100.0}
     ]
 
 #---------------------- 3D ---------------------------------
 elif dimension == 3:
+    idx = 2
     from posterior_3d import Posterior
     zero_point = np.array([0,0,-0.000029])
 
@@ -74,6 +102,7 @@ elif dimension == 3:
 
 #--------------------- 5D ------------------------------------
 elif dimension == 5:
+    idx = 2
     from posterior_5d import Posterior
     zero_point = np.array([0,0,-0.000029,0.010,0.010])
 
@@ -94,6 +123,7 @@ elif dimension == 5:
 
 #-------------------- 6D -------------------------------------
 elif dimension == 6:
+    idx = 2
     from posterior_6d import Posterior
     zero_point = np.array([0,0,-0.000029,0.010,0.010,0.0])
 
@@ -116,31 +146,6 @@ else:
     sys.exit("Dimension is not correct")
 #------------------------------------------
 
-
-#---------------- MCMC parameters  --------------------
-n_iter    = 1000    # Number of iterations for the MCMC 
-n_walkers = 50       # Number of walkers
-tolerance = 20
-
-
-#============ Directories =================
-#-------Main directory ---------------
-dir_main  = os.getcwd()[:-4]
-#-------------------------------------
-
-#----------- Data --------------------
-dir_data  = dir_main + "Data/"#+case+"/"
-file_data = dir_data + "Star_300_0_linear.csv"
-#-------------------------------------
-
-#--------- Chains and plots ----------
-dir_ana    = dir_main + "Analysis/"
-dir_case   = dir_ana  + case +"/"
-dir_chains = dir_case + "Chains/"
-dir_plots  = dir_case + "Plots/"
-#--------------------------------------
-
-
 #------- Create directories -------
 if not os.path.isdir(dir_ana):
 	os.mkdir(dir_ana)
@@ -156,7 +161,15 @@ if not os.path.isdir(dir_plots):
 id_name = "ID"
 
 for prior in list_of_prior:
-    name_chains = "Chains_"+str(dimension)+"D_"+str(prior["type"])+"_loc="+str(int(prior["location"]))+"_scl="+str(int(prior["scale"]))+".h5"
+    if dimension == 1:
+        name_chains = ("Chains_"+str(dimension)+"D_"+str(prior["type"])+
+                        "_loc="+str(int(prior["location"]))+
+                        "_scl="+str(int(prior["scale"]))+".h5")
+    else:
+        name_chains = ("Chains_"+str(dimension)+"D_"+str(prior["type"][idx])+
+                        "_loc="+str(int(prior["location"][idx]))+
+                        "_scl="+str(int(prior["scale"][idx]))+".h5")
+
     file_chains = dir_chains + name_chains
     file_csv    = file_chains.replace("h5","csv")
 
@@ -168,17 +181,20 @@ for prior in list_of_prior:
                         n_walkers=n_walkers,
                         # zero_point=zero_point,
                         )
-        p1d.load_data(file_data,id_name=id_name,nrows=2)
-        p1d.run(n_iter,file_chains=file_chains,tol_convergence=tolerance)
+        p1d.load_data(file_data,id_name=id_name)
+        p1d.run(n_iter,
+            file_chains=file_chains,
+            tol_convergence=tolerance)
 
     #----------------- Analysis ---------------
-    a1d = Analysis(n_dim=dimension,file_name=file_chains,
+    a1d = Analysis(n_dim=dimension,
+                    file_name=file_chains,
                     id_name=id_name,
                     dir_plots=dir_plots,
                     tol_convergence=tolerance,
                     statistic=statistic,
                     quantiles=[0.05,0.95],
                     transformation=None)
-    a1d.plot_chains()
+    # a1d.plot_chains()
     a1d.save_statistics(file_csv)
 #=======================================================================================
