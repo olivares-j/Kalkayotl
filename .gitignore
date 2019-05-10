@@ -1,6 +1,5 @@
 docs/
 dist/
-TGAS_uncertainties/
 Analysis/
 Example/
 *.pyc
