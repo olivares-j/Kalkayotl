@@ -33,16 +33,14 @@ import matplotlib.lines as mlines
 #----------- Galactic prior --------
 
 list_of_priors = [
-{"type":"EDSD",         "location":0.0,"scale":1500.0},
-{"type":"Uniform",      "location":0.0,"scale":1500.0},
-{"type":"Half-Cauchy",  "location":0.0,"scale":1500.0},
-{"type":"Half-Gaussian","location":0.0,"scale":1500.0},
-{"type":"Cauchy",       "location":300,"scale":80.0},
-{"type":"Gaussian",     "location":300,"scale":80.0}
+{"type":"EDSD",         "location":0.0,"scale":1350, "marker":"."},
+{"type":"Uniform",      "location":300,"scale":50,  "marker":"v"},
+{"type":"Cauchy",       "location":300,"scale":50,  "marker":"d"},
+{"type":"Gaussian",     "location":300,"scale":50,  "marker":"s"}
 ]
 
 #============ Directories and data =================
-case = "3D"
+case = "1D"
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_ana    = dir_main  + "Analysis/NGC6774/"
 dir_chains = dir_ana   + "Chains/"
@@ -51,7 +49,7 @@ file_CBJ   = dir_main  + "Data/NGC6774/Olivares+2019_Bailer-Jones+208.csv"
 #=======================================================================================================================
 
 #-------- Read Coryn data ------------------------------------------------
-data = pn.read_csv(file_CBJ,usecols=["ID","rest","b_rest","B_rest"])
+data = pn.read_csv(file_CBJ,usecols=["ID","rest","b_rest","B_rest","parallax","parallax_error"])
 data.sort_values(by="ID",inplace=True)
 data.set_index("ID",inplace=True)
 
@@ -76,23 +74,31 @@ pdf = PdfPages(filename=file_plot)
 plt.figure(figsize=(6,6))
 plt.plot(x_line,x_line,color="black",linewidth=0.5,zorder=0)
 for j,prior in enumerate(list_of_priors):
-	x_err = np.vstack((data["rest"]-data["b_rest"],data["B_rest"]-data["rest"]))
-	y_err = np.vstack((data[prior["type"]+"_ctr"]-data[prior["type"]+"_min"],data[prior["type"]+"_max"]-data[prior["type"]+"_ctr"]))
-	plt.errorbar(data["rest"],data[prior["type"]+"_ctr"],yerr=y_err,xerr=x_err,label=prior["type"],#fmt='none',
-		ls='none',marker="o",ms=5,elinewidth=0.01,zorder=1)
-	# plt.scatter(data["rest"],data[prior["type"]+"_ctr"],s=5,zorder=2,label=prior["type"])
+	y     = data["rest"]
+	x     = data[prior["type"]+"_ctr"]
+	clr   = data["parallax_error"]/data["parallax"]
+	y_err = np.vstack((data["rest"]-data["b_rest"],data["B_rest"]-data["rest"]))
+	x_err = np.vstack((data[prior["type"]+"_ctr"]-data[prior["type"]+"_min"],data[prior["type"]+"_max"]-data[prior["type"]+"_ctr"]))
+	
+	plt.errorbar(x,y,yerr=y_err,xerr=x_err,
+		fmt='none',ls='none',marker="o",ms=5,
+		ecolor="grey",elinewidth=0.01,zorder=1,label=None)
+	
+	plt.scatter(x,y,s=20,c=clr,marker=prior["marker"],zorder=2,label=prior["type"],cmap="magma")
+
 plt.xlabel("Distance [pc]")
 plt.ylabel("Distance [pc]")
+plt.colorbar()
 plt.xlim(np.min(data["rest"])-10,np.max(data["rest"])+10)
 plt.ylim(np.min(data["rest"])-10,np.max(data["rest"])+10)
 plt.legend(
 	title="Prior",
 	shadow = False,
-	bbox_to_anchor=(0.,1.05, 1., .1),
+	bbox_to_anchor=(0.,1.01, 1., .1),
 	borderaxespad=0.,
 	frameon = True,
 	fancybox = True,
-	ncol = 3,
+	ncol = 4,
 	fontsize = 'smaller',
 	mode = 'expand',
 	loc = 'upper left')

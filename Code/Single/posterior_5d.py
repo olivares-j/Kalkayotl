@@ -88,8 +88,8 @@ class Posterior:
 	#======== 5D prior ====================
 	def log_prior_5d(self,theta):
 		lp_3d        = self.log_prior_3d(theta[:3])
-		lp_mu_alpha  = self.log_prior_mu_alpha(theta[3],loc=self.prior_loc[3],scale=self.prior_scl[3])
-		lp_mu_delta  = self.log_prior_mu_delta(theta[4],loc=self.prior_loc[4],scale=self.prior_scl[4])
+		lp_mu_alpha  = self.log_prior_mu_alpha(theta[3],self.prior_loc[3],self.prior_scl[3])
+		lp_mu_delta  = self.log_prior_mu_delta(theta[4],self.prior_loc[4],self.prior_scl[4])
 		return lp_3d + lp_mu_alpha + lp_mu_delta
 	#======================================
 

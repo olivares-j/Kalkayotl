@@ -43,7 +43,7 @@ class Posterior:
 								prior_loc=prior_loc[2],
 								prior_scale=prior_scale[2])
 
-		self.log_prior_dst = prior1d.log_prior_1d
+		self.log_prior_dst = prior_1d.log_prior_1d
 
 		#================== R.A. prior ==========================
 		if   prior[0] == "Uniform" :

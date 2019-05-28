@@ -48,7 +48,7 @@ class Analysis:
 	This class provides flexibility to analyse the chains inferred by emcee
 	"""
 	def __init__(self,file_name,n_dim=1,names=None,id_name="ID",dir_plots="Plots/",
-		figsize=(10,10),
+		figsize=(12,12),
 		quantiles=[0.159,0.841],
 		statistic="median",
 		tol_convergence=100,
@@ -254,7 +254,7 @@ class Analysis:
 				    ax = axes[j]
 				    ax.plot(sample[:, :, j], "k", alpha=0.3)
 				    ax.set_ylabel(self.labels[j])
-				    ax.yaxis.set_label_coords(-0.1, 0.5)
+				    ax.yaxis.set_label_coords(-0.05, 0.5)
 
 				axes[-1].set_xlabel("Step")
 
@@ -268,7 +268,7 @@ class Analysis:
 			fig = corner.corner(sample, 
 						labels=self.labels,
 						truths=true_values[i],
-						use_math_text=True)
+						use_math_text=False)
 
 			#=========== Titles =========================================
 			# Extract the axes

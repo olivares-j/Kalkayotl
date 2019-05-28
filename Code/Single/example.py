@@ -31,11 +31,11 @@ from chain_analyser import Analysis
 
 
 #----------- Dimension and Case ---------------------
-dimension = 1
+dimension = 3
 # If synthetic, comment the zero_point line in inference.
-case      = "Cluster_500"
+case      = "Taurus"
 statistic = "map"
-file_csv  = "Cluster_500_20_random.csv"
+file_csv  = "Taurus_3d.csv"
 
 #---------------- MCMC parameters  --------------------
 n_iter    = 10000    # Number of iterations for the MCMC 
@@ -56,7 +56,7 @@ file_data = dir_data + case +"/"+ file_csv
 #--------- Chains and plots ----------
 dir_ana    = dir_main + "Analysis/"
 dir_case   = dir_ana  + case +"/"
-dir_case   = dir_ana  + "Synthetic/" + case +"/"
+# dir_case   = dir_ana  + "Synthetic/" + case +"/"
 dir_chains = dir_case + "Chains/"
 dir_plots  = dir_case + "Plots/"
 #--------------------------------------
@@ -70,13 +70,15 @@ if dimension == 1:
 
     #----------- prior parameters --------
     list_of_prior = [
-    {"type":"EDSD",     "location":0.0,   "scale":1350.0},
-    {"type":"Uniform",  "location":500.0, "scale":50.0},
-    {"type":"Gaussian", "location":500.0, "scale":50.0},
-    {"type":"Cauchy",   "location":500.0, "scale":50.0},
-    {"type":"Uniform",  "location":500.0, "scale":100.0},
-    {"type":"Gaussian", "location":500.0, "scale":100.0},
-    {"type":"Cauchy",   "location":500.0, "scale":100.0}
+    {"type":"EDSD",     "location":0.0,   "scale":1350.0}
+    # {"type":"Uniform",  "location":300.0, "scale":50.0},
+    # {"type":"Gaussian", "location":300.0, "scale":50.0},
+    # {"type":"Cauchy",   "location":300.0, "scale":50.0},
+    # {"type":"Uniform",  "location":300.0, "scale":10.0},
+    # {"type":"Uniform",  "location":300.0, "scale":20.0},
+    # {"type":"Uniform",  "location":300.0, "scale":30.0},
+    # {"type":"Uniform",  "location":300.0, "scale":40.0}
+    # {"type":"Uniform",  "location":500.0, "scale":50.0},
     ]
 
 #---------------------- 3D ---------------------------------
@@ -90,14 +92,14 @@ elif dimension == 3:
     {"type":["Uniform","Uniform","EDSD"],     
     "location":[180,0,0.0],   "scale":[180,90,1350.0]},
 
-    {"type":["Uniform","Uniform","Uniform"],  
-    "location":[180,0,300.0], "scale":[180,90,50.0]},
+    # {"type":["Uniform","Uniform","Uniform"],  
+    # "location":[180,0,300.0], "scale":[180,90,50.0]},
 
-    {"type":["Uniform","Uniform","Gaussian"], 
-    "location":[180,0,300.0], "scale":[180,90,50.0]},
+    # {"type":["Uniform","Uniform","Gaussian"], 
+    # "location":[180,0,300.0], "scale":[180,90,50.0]},
 
-    {"type":["Uniform","Uniform","Cauchy"],   
-    "location":[180,0,300.0], "scale":[180,90,50.0]}
+    # {"type":["Uniform","Uniform","Cauchy"],   
+    # "location":[180,0,300.0], "scale":[180,90,50.0]}
     ]
 
 #--------------------- 5D ------------------------------------
@@ -158,7 +160,7 @@ if not os.path.isdir(dir_plots):
 #---------------------------------
 
 #======================= Inference and Analysis =====================================================
-id_name = "ID"
+id_name = "SourceID"
 
 for prior in list_of_prior:
     if dimension == 1:
@@ -179,7 +181,7 @@ for prior in list_of_prior:
                         prior_loc=prior["location"],
                         prior_scale=prior["scale"],
                         n_walkers=n_walkers,
-                        # zero_point=zero_point,
+                        zero_point=zero_point
                         )
         p1d.load_data(file_data,id_name=id_name)
         p1d.run(n_iter,
@@ -194,7 +196,10 @@ for prior in list_of_prior:
                     tol_convergence=tolerance,
                     statistic=statistic,
                     quantiles=[0.05,0.95],
-                    transformation=None)
-    # a1d.plot_chains()
-    a1d.save_statistics(file_csv)
+                    # transformation=None,
+                    names="2",
+                    transformation="ICRS2GAL",
+                    )
+    a1d.plot_chains()
+    # a1d.save_statistics(file_csv)
 #=======================================================================================

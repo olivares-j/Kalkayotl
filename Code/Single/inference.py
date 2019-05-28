@@ -53,24 +53,27 @@ class Inference:
 			index_observables = [0,1,2,6,7,8,12,13,16]
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
-								   st.uniform.rvs(loc=prior_loc,scale=prior_scale,size=1)[0]]) for i in range(n_walkers)]
+								   st.uniform.rvs(loc=prior_loc[2],scale=prior_scale[2],size=1)[0]]
+								   ) for i in range(n_walkers)]
 
 		if self.Posterior.ndim == 5:
 			index_observables = [0,1,2,3,4,6,7,8,9,10,12,13,14,15,16,17,18,19,20,21]
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
-								   st.uniform.rvs(loc=prior_loc,scale=prior_scale,size=1)[0],
-								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
-								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0]]) for i in range(n_walkers)]
+								   st.uniform.rvs(loc=prior_loc[2],scale=prior_scale[2],size=1)[0],
+								   st.uniform.rvs(loc=prior_loc[3],scale=prior_scale[3],size=1)[0],
+								   st.uniform.rvs(loc=prior_loc[4],scale=prior_scale[4],size=1)[0]]
+								   ) for i in range(n_walkers)]
 
 		if self.Posterior.ndim == 6:
 			index_observables = range(22)
 			self.pos0 = [np.array([st.uniform.rvs(loc=0,scale=360,size=1)[0],
 								   st.uniform.rvs(loc=-90,scale=180,size=1)[0],
-								   st.uniform.rvs(loc=prior_loc,scale=prior_scale,size=1)[0],
-								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
-								   st.cauchy.rvs(loc=0.0,scale=500.0,size=1)[0],
-								   st.cauchy.rvs(loc=0.0,scale=300.0,size=1)[0]]) for i in range(n_walkers)]
+								   st.uniform.rvs(loc=prior_loc[2],scale=prior_scale[2],size=1)[0],
+								   st.uniform.rvs(loc=prior_loc[3],scale=prior_scale[3],size=1)[0],
+								   st.uniform.rvs(loc=prior_loc[4],scale=prior_scale[4],size=1)[0],
+								   st.uniform.rvs(loc=prior_loc[5],scale=prior_scale[5],size=1)[0]]
+								   ) for i in range(n_walkers)]
 
 		self.observables = [gaia_observables[i] for i in index_observables]
 
@@ -98,9 +101,16 @@ class Inference:
 		#------- index as string ------
 		data[list_observables[0]] = data[list_observables[0]].astype('str')
 
-		#------- Correct units ------
+		#================== Correct units ==========================
+		#----- mas to sec -----------------------------------
 		data["parallax"]       = data["parallax"]*1e-3
 		data["parallax_error"] = data["parallax_error"]*1e-3
+
+		if self.Posterior.ndim > 1:
+			#----- Transform mas to deg ------------------
+			data["ra_error"]  = data["ra_error"]/3.6e6
+			data["dec_error"] = data["dec_error"]/3.6e6 
+		#============================================================
 
 		#----- put ID as row name-----
 		data.set_index(list_observables[0],inplace=True)
