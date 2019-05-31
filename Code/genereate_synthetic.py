@@ -18,9 +18,9 @@ order by random_index
 '''
 
 #----------------Mock data and MCMC parameters  --------------------
-case                = "Cluster_500"
+case                = "Cluster_300"
 random_state        = 1234     # Random state for the synthetic data
-data_loc,data_scale = 500.,20.0   # Location and scale of the distribution for the mock data
+data_loc,data_scale = 300.,20.0   # Location and scale of the distribution for the mock data
 data_distribution   = st.norm  # Change it according to your needs
 name                = case + "_"+str(int(data_scale))
 type_uncert         = "random"    # The type of synthetic uncertainties: "random" or "linear"
@@ -33,7 +33,7 @@ dir_main  = os.getcwd()[:-4]
 dir_data  = dir_main  + "Data/"
 file_data = dir_data  + "Gaia_DR2_parallax_uncertainty.csv"
 dir_case  = dir_data  + case +"/"
-file_plot = dir_case  + name + "_" + type_uncert + "_uncertainty.pdf"
+file_plot = dir_case  + name + "_" + type_uncert + "_plot.pdf"
 file_syn  = dir_case  + name + "_" + type_uncert +".csv"
 
 
@@ -42,7 +42,7 @@ if not os.path.isdir(dir_case):
 	os.mkdir(dir_case)
 
 #---------- Reads observed uncertainties --------
-u_obs = np.array(pn.read_csv(file_data))
+u_obs = np.array(pn.read_csv(file_data)).flatten()
 
 #====================== Generate Synthetic Data ============================================================================
 print("Fitting Gaia parallax uncertainty ---")
@@ -54,10 +54,8 @@ true_plx      = (1.0/distance)*1e3
 
 #----- assigns an uncertainty similar to those present in Gaia DR2 data, in mas ------- 
 if type_uncert is "random":
-	#----------------- Fit --------------------
-	factor = 10. # This factor improves the fit
-	param = st.chi2.fit(u_obs*factor)
-	u_syn = st.chi2.rvs(df=param[0],loc=param[1], scale=param[2], size=n_stars,random_state=random_state)/factor
+	#----------------- Random choice --------------------
+	u_syn    = np.random.choice(u_obs,n_stars)
 elif type_uncert is "linear":
 	u_syn    = np.linspace(np.min(u_obs),np.max(u_obs), num=n_stars)
 else:
@@ -87,15 +85,6 @@ plt.ylabel("Density")
 plt.xlabel("Parallax [mas]")
 pdf.savefig(bbox_inches='tight')
 plt.close()
-
-plt.hist(u_obs,density=True,bins=n_bins,alpha=0.5,label="Observed")
-plt.hist(u_syn,density=True,bins=n_bins,alpha=0.5,label="Synthetic")
-plt.legend()
-plt.ylabel("Density")
-plt.xlabel("Parallax uncertainties [mas]")
-pdf.savefig(bbox_inches='tight')
-plt.close()
-
 pdf.close()
 #------------------------------------------------------------------------------
 
