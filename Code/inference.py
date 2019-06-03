@@ -21,7 +21,7 @@ import sys
 import pymc3 as pm
 import numpy as np
 import pandas as pn
-from Single import Single1D#,Single2D,Single3D,Single5D
+from Models import Model1D#,Single2D,Single3D,Single5D
 
 class Inference:
 	"""
@@ -161,26 +161,26 @@ class Inference:
 		'''
 
 		if self.D == 1:
-			self.Model = Single1D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
+			self.Model = Model1D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
 								  prior=self.prior)
 			
 		elif self.D == 3:
-			self.Model = Single3D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
+			self.Model = Model3D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
 								  prior=self.prior)
 			
 		elif self.D == 5:
-			self.Model = Single5D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
+			self.Model = Model5D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
 								  prior=self.prior)
 	
 		elif self.D == 6:
-			self.Model = Single6D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
+			self.Model = Model6D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
 								  prior=self.prior)
 		else:
 			sys.exit("Dimension not valid!")
 
 
 		
-	def run(self,sample_iters,burning_iters,file_chains="chains.h5"):
+	def run(self,sample_iters,burning_iters,dir_chains):
 		"""
 		Performs the MCMC run.
 		Arguments:
@@ -190,7 +190,8 @@ class Inference:
 		"""
 		print("Computing posterior")
 		with self.Model as model:
-			trace = pm.sample(sample_iters, tune=burning_iters)
+			db = pm.backends.Text(dir_chains)
+			trace = pm.sample(sample_iters, tune=burning_iters, trace=db)
 		
 
 

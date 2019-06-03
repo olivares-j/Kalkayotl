@@ -38,8 +38,8 @@ statistic = "map"
 file_csv  = "Cluster_300_20_random.csv"
 
 #---------------- MCMC parameters  --------------------
-sample_iters    = 10    # Number of iterations for the MCMC 
-burning_iters   = 10
+sample_iters    = 1000    # Number of iterations for the MCMC 
+burning_iters   = 1000
 
 
 #============ Directories =================
@@ -69,15 +69,9 @@ if dimension == 1:
 
     #----------- prior parameters --------
     list_of_prior = [
-    # {"type":"EDSD",     "location":0.0,   "scale":1350.0}
-    # {"type":"Uniform",  "location":300.0, "scale":50.0},
-    # {"type":"Gaussian", "location":300.0, "scale":50.0},
-    # {"type":"Cauchy",   "location":300.0, "scale":50.0},
-    {"type":"Uniform",  "location":300.0, "scale":10.0}
-    # {"type":"Uniform",  "location":300.0, "scale":20.0},
-    # {"type":"Uniform",  "location":300.0, "scale":30.0},
-    # {"type":"Uniform",  "location":300.0, "scale":40.0}
-    # {"type":"Uniform",  "location":500.0, "scale":50.0},
+    "Gaussian"
+    # "Cauchy",
+    # "Uniform"
     ]
 
 #---------------------- 3D ---------------------------------
@@ -162,26 +156,21 @@ if not os.path.isdir(dir_plots):
 id_name = "ID"
 
 for prior in list_of_prior:
-    if dimension == 1:
-        name_chains = ("Chains_"+str(dimension)+"D_"+str(prior["type"])+
-                        "_loc="+str(int(prior["location"]))+
-                        "_scl="+str(int(prior["scale"]))+".h5")
-    else:
-        name_chains = ("Chains_"+str(dimension)+"D_"+str(prior["type"][idx])+
-                        "_loc="+str(int(prior["location"][idx]))+
-                        "_scl="+str(int(prior["scale"][idx]))+".h5")
+    #----------- Output dir -------------------
+    dir_out = dir_chains + prior
+    if not os.path.isdir(dir_out):
+        os.mkdir(dir_out)
 
-    file_chains = dir_chains + name_chains
-    file_csv    = file_chains.replace("h5","csv")
-
-    if not os.path.isfile(file_chains):
+    #--------- Run model -----------------------
+    if not os.listdir(dir_out):
         p1d = Inference(dimension=dimension,
                         prior=prior,
                         zero_point=zero_point)
         p1d.load_data(file_data,id_name=id_name)
         p1d.setup()
-        p1d.run(sample_iters=sample_iters,burning_iters=burning_iters,
-            file_chains=file_chains)
+        p1d.run(sample_iters=sample_iters,
+            burning_iters=burning_iters,
+            dir_chains=dir_out)
     sys.exit()
 
     #----------------- Analysis ---------------
