@@ -21,18 +21,26 @@ import sys
 import pymc3 as pm
 import numpy as np
 import pandas as pn
-from Models import Model1D#,Single2D,Single3D,Single5D
+from Models import Model1D,Model3D#,Single3D,Single5D
 
 class Inference:
 	"""
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
 	"""
-	def __init__(self,dimension,prior,zero_point,**kwargs):
+	def __init__(self,dimension,prior,parameters,
+				hyper_alpha,
+				hyper_beta,
+				hyper_gamma,
+				transformation,
+				zero_point,**kwargs):
 		"""
 		Arguments:
-		dimension (integer):     Dimension of the inference
+		dimension (integer):  Dimension of the inference
 		prior (string):       Prior family
-		prior_params (array): Prior parameters
+		parameters (dict):    Prior parameters( location and scale)
+		hyper_alpha (matrix)  Hyper-parameters of location
+		hyper_beta (list)     Hyper-parameters of scale
+		hyper_gamma (vector)  Hyper-parameters of weights (only for GMM prior)    
 		"""
 		gaia_observables = ["ra","dec","parallax","pmra","pmdec","radial_velocity",
                     "ra_error","dec_error","parallax_error","pmra_error","pmdec_error","radial_velocity_error",
@@ -41,9 +49,14 @@ class Inference:
                 	"parallax_pmra_corr","parallax_pmdec_corr",
                 	"pmra_pmdec_corr"]
 
-		self.D          = dimension 
-		self.prior      = prior
-		self.zero_point = zero_point
+		self.D                = dimension 
+		self.prior            = prior
+		self.zero_point       = zero_point
+		self.parameters       = parameters
+		self.hyper_alpha      = hyper_alpha
+		self.hyper_beta       = hyper_beta
+		self.hyper_gamma      = hyper_gamma
+		self.transformation   = transformation
 
 		if self.D == 1:
 			index_obs  = [2,8]
@@ -123,32 +136,32 @@ class Inference:
 			RuntimeError("Data have incorrect shape!")
 
 		#==================== Set Mu and Sigma =========================================
-		Mu    = np.zeros(self.n_stars*self.D)
-		Sigma = np.zeros((self.n_stars*self.D,self.n_stars*self.D))
+		Mu      = np.zeros(self.n_stars*self.D)
+		Sigma   = np.zeros((self.n_stars*self.D,self.n_stars*self.D))
+		idx_tru = np.triu_indices(self.D,k=1)
 		for i,(ID,datum) in enumerate(data.iterrows()):
-			# idx = [b for b in range(i*self.D,i*self.D + self.D)]
-			idx = range(i*self.D,i*self.D + self.D)
-			# ra,dec,pax,pmra,pmdec,rvel                            = datum[:6]
-			# u_ra,u_dec,u_pax,u_pmra,u_pmdec,u_rvel                = datum[6:12]
-			# ra_dec_corr,ra_pax_corr,ra_pmra_corr,ra_pmdec_corr    = datum[12:16]
-			# dec_pax_corr,dec_pmra_corr,dec_pmdec_corr             = datum[16:19]
-			# pax_pmra_corr,pax_pmdec_corr                          = datum[19:21]
-			# pmra_pmdec_corr                                       = datum[21]
+			idx  = range(i*self.D,i*self.D + self.D)
 			mu   = np.array(datum[self.names_mu])  - self.zero_point
 			sd   = np.array(datum[self.names_sd])
 			corr = np.array(datum[self.names_corr])
 
-			#-------- Correlation matrix ---------
+			#-------- Correlation matrix of uncertainties ---------------
 			rho  = np.zeros((self.D,self.D))
+			rho[idx_tru] = corr
 			rho  = rho + rho.T + np.eye(self.D)
 
-			#-------- Covariance matrix ----------------------
+			#-------- Covariance matrix of uncertainties ----------------------
 			sigma = np.diag(sd).dot(rho.dot(np.diag(sd)))
+			
 			
 			#---------- Include mu and sigma in Mu and Sigma ---
 			Mu[idx] = mu
 			Sigma[np.ix_(idx,idx)] = sigma
 
+
+		#===================== Set correlations amongst stars ===========================
+		#TO BE DONE
+		#================================================================================
 		self.mu_data    = Mu
 		self.sigma_data = Sigma
 		#=================================================================================
@@ -162,19 +175,39 @@ class Inference:
 
 		if self.D == 1:
 			self.Model = Model1D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
-								  prior=self.prior)
+								  prior=self.prior,
+								  parameters=self.parameters,
+								  hyper_alpha=self.hyper_alpha,
+								  hyper_beta=self.hyper_beta,
+								  hyper_gamma=self.hyper_gamma,
+								  transformation=self.transformation)
 			
 		elif self.D == 3:
 			self.Model = Model3D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
-								  prior=self.prior)
+								  prior=self.prior,
+								  parameters=self.parameters,
+								  hyper_alpha=self.hyper_alpha,
+								  hyper_beta=self.hyper_beta,
+								  hyper_gamma=self.hyper_gamma,
+								  transformation=self.transformation)
 			
 		elif self.D == 5:
 			self.Model = Model5D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
-								  prior=self.prior)
+								  prior=self.prior,
+								  parameters=self.parameters,
+								  hyper_alpha=self.hyper_alpha,
+								  hyper_beta=self.hyper_beta,
+								  hyper_gamma=self.hyper_gamma,
+								  transformation=self.transformation)
 	
 		elif self.D == 6:
 			self.Model = Model6D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
-								  prior=self.prior)
+								  prior=self.prior,
+								  parameters=self.parameters,
+								  hyper_alpha=self.hyper_alpha,
+								  hyper_beta=self.hyper_beta,
+								  hyper_gamma=self.hyper_gamma,
+								  transformation=self.transformation)
 		else:
 			sys.exit("Dimension not valid!")
 

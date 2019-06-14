@@ -31,14 +31,19 @@ from chain_analyser import Analysis
 
 
 #----------- Dimension and Case ---------------------
-dimension = 1
+dimension = 3
 # If synthetic, comment the zero_point line in inference.
-case      = "Cluster_300"
+case      = "Rup147"
+file_csv  = "Rup147_GDR2.csv"
+
+# case      = "Cluster_300"
+# file_csv  = "Cluster_300_20_random.csv"
+
 statistic = "map"
-file_csv  = "Cluster_300_20_random.csv"
+
 
 #---------------- MCMC parameters  --------------------
-sample_iters    = 1000    # Number of iterations for the MCMC 
+sample_iters    = 100   # Number of iterations for the MCMC 
 burning_iters   = 1000
 
 
@@ -50,6 +55,7 @@ dir_main  = os.getcwd().replace("Code","")
 
 #----------- Data --------------------
 dir_data  = dir_main + "Data/"
+# dir_data  = dir_main + "Data/Synthetic/"
 file_data = dir_data + case +"/"+ file_csv
 #-------------------------------------
 
@@ -62,80 +68,57 @@ dir_plots  = dir_case + "Plots/"
 #--------------------------------------
 
 #================== Posterior =============================
+#----------- prior parameters ---------------------------------------------------------------
+list_of_prior = [
+    "Gaussian"
+    # "GMM"
+    ]
+#--------- Cluster values ------------
+fac      = 5
+ra,dra   = 289.02,1.15
+dec,ddec = -16.43,1.57
+plx,dplx = 3.34,0.65
+
 #------------------------ 1D ----------------------------
 if dimension == 1:
     idx = 0
     zero_point = -0.000029
 
-    #----------- prior parameters --------
-    list_of_prior = [
-    "Gaussian"
-    # "Cauchy",
-    # "Uniform"
-    ]
+    #----------- Parameters --------
+    #Either non or fixed value in pc
+    parameters = {"location":None,"scale":None}
+
+    #------ hyper-parameters ------------------------------
+    # hyper_alpha = [[plx-dplx,plx+dplx]]
+    # hyper_beta  = [[fac*dplx]]
+    hyper_alpha = [[100,400]]
+    hyper_beta  = [[100]]
+    hyper_gamma = None
 
 #---------------------- 3D ---------------------------------
 elif dimension == 3:
     idx = 2
-    from posterior_3d import Posterior
     zero_point = np.array([0,0,-0.000029])
 
-    #----------- prior parameters ---------------------------------------------------------------
-    list_of_prior = [
-    {"type":["Uniform","Uniform","EDSD"],     
-    "location":[180,0,0.0],   "scale":[180,90,1350.0]},
+    #----------- Parameters --------
+    #Either non or fixed value in pc
+    parameters = {"location":None,"scale":None}
 
-    # {"type":["Uniform","Uniform","Uniform"],  
-    # "location":[180,0,300.0], "scale":[180,90,50.0]},
+    #------ hyper-parameters ------------------------------
+    hyper_alpha = [[ra-dra,ra+dra],[dec-ddec,dec+ddec],[plx-dplx,plx+dplx]]
+    hyper_beta  = [5,1]
+    hyper_gamma = None
 
-    # {"type":["Uniform","Uniform","Gaussian"], 
-    # "location":[180,0,300.0], "scale":[180,90,50.0]},
-
-    # {"type":["Uniform","Uniform","Cauchy"],   
-    # "location":[180,0,300.0], "scale":[180,90,50.0]}
-    ]
 
 #--------------------- 5D ------------------------------------
 elif dimension == 5:
     idx = 2
-    from posterior_5d import Posterior
     zero_point = np.array([0,0,-0.000029,0.010,0.010])
-
-    #----------- prior parameters --------
-    list_of_prior = [
-    {"type":["Uniform","Uniform","EDSD","Uniform","Uniform"],
-    "location":[180,0,0.0,0,0],   "scale":[180,90,1350.0,500,500]},
-
-    {"type":["Uniform","Uniform","Uniform","Uniform","Uniform"],
-    "location":[180,0,300.0,0,0], "scale":[180,90,50.0,500,500]},
-
-    {"type":["Uniform","Uniform","Gaussian","Uniform","Uniform"],
-    "location":[180,0,300.0,0,0], "scale":[180,90,50.0,500,500]},
-
-    {"type":["Uniform","Uniform","Cauchy","Uniform","Uniform"],
-    "location":[180,0,300.0,0,0], "scale":[180,90,50.0,500,500]}
-    ]
 
 #-------------------- 6D -------------------------------------
 elif dimension == 6:
     idx = 2
-    from posterior_6d import Posterior
     zero_point = np.array([0,0,-0.000029,0.010,0.010,0.0])
-
-    #----------- prior parameters --------
-    list_of_prior = [
-    {"type":["Uniform","Uniform","EDSD","Uniform","Uniform","Uniform"],
-    "location":[180,0,0.0,0,0,0],   "scale":[180,90,1350.0,500,500,100]},
-
-    {"type":["Uniform","Uniform","Uniform","Uniform","Uniform","Uniform"],
-    "location":[180,0,300.0,0,0,0], "scale":[180,90,50.0,500,500,100]},
-
-    {"type":["Uniform","Uniform","Gaussian","Uniform","Uniform","Uniform"],
-    "location":[180,0,300.0,0,0,0], "scale":[180,90,50.0,500,500,100]},
-
-    {"type":["Uniform","Uniform","Cauchy","Uniform","Uniform","Uniform"],
-    "location":[180,0,300.0,0,0,0], "scale":[180,90,50.0,500,500,100]}
-    ]
 
 else:
     sys.exit("Dimension is not correct")
@@ -161,30 +144,39 @@ for prior in list_of_prior:
     if not os.path.isdir(dir_out):
         os.mkdir(dir_out)
 
+    dir_out = dir_out + "/" + str(dimension)+"D"
+    if not os.path.isdir(dir_out):
+        os.mkdir(dir_out)
+
     #--------- Run model -----------------------
     if not os.listdir(dir_out):
         p1d = Inference(dimension=dimension,
                         prior=prior,
+                        parameters=parameters,
+                        hyper_alpha=hyper_alpha,
+                        hyper_beta=hyper_beta,
+                        hyper_gamma=hyper_gamma,
+                        transformation=None,
                         zero_point=zero_point)
         p1d.load_data(file_data,id_name=id_name)
         p1d.setup()
         p1d.run(sample_iters=sample_iters,
             burning_iters=burning_iters,
             dir_chains=dir_out)
-    sys.exit()
+    # sys.exit()
 
-    #----------------- Analysis ---------------
-    a1d = Analysis(n_dim=dimension,
-                    file_name=file_chains,
-                    id_name=id_name,
-                    dir_plots=dir_plots,
-                    tol_convergence=tolerance,
-                    statistic=statistic,
-                    quantiles=[0.05,0.95],
-                    # transformation=None,
-                    names="2",
-                    transformation="ICRS2GAL",
-                    )
-    a1d.plot_chains()
-    # a1d.save_statistics(file_csv)
+    # #----------------- Analysis ---------------
+    # a1d = Analysis(n_dim=dimension,
+    #                 file_name=file_chains,
+    #                 id_name=id_name,
+    #                 dir_plots=dir_plots,
+    #                 tol_convergence=tolerance,
+    #                 statistic=statistic,
+    #                 quantiles=[0.05,0.95],
+    #                 # transformation=None,
+    #                 names="2",
+    #                 transformation="ICRS2GAL",
+    #                 )
+    # a1d.plot_chains()
+    # # a1d.save_statistics(file_csv)
 #=======================================================================================
