@@ -27,14 +27,14 @@ import pandas as pn
 from inference import Inference
 
 #-------------- Chain analyser -------------
-from chain_analyser import Analysis
+# from chain_analyser import Analysis
 
 
 #----------- Dimension and Case ---------------------
-dimension = 3
+dimension = 1
 # If synthetic, comment the zero_point line in inference.
-case      = "Rup147"
-file_csv  = "Rup147_GDR2.csv"
+case      = "M67"
+file_csv  = "m67.csv"
 
 # case      = "Cluster_300"
 # file_csv  = "Cluster_300_20_random.csv"
@@ -70,8 +70,8 @@ dir_plots  = dir_case + "Plots/"
 #================== Posterior =============================
 #----------- prior parameters ---------------------------------------------------------------
 list_of_prior = [
-    "Gaussian"
-    # "GMM"
+    # "Gaussian"
+    "GMM"
     ]
 #--------- Cluster values ------------
 fac      = 5
@@ -87,13 +87,16 @@ if dimension == 1:
     #----------- Parameters --------
     #Either non or fixed value in pc
     parameters = {"location":None,"scale":None}
+    transformation = "pc"
 
     #------ hyper-parameters ------------------------------
-    # hyper_alpha = [[plx-dplx,plx+dplx]]
-    # hyper_beta  = [[fac*dplx]]
-    hyper_alpha = [[100,400]]
-    hyper_beta  = [[100]]
-    hyper_gamma = None
+    if transformation is "mas":
+        hyper_alpha = [[plx-dplx,plx+dplx]]
+        hyper_beta  = [[fac*dplx]]
+    else:
+        hyper_alpha = [[100,1000]]
+        hyper_beta  = [[100]]
+    hyper_gamma = np.array([2,1])
 
 #---------------------- 3D ---------------------------------
 elif dimension == 3:
@@ -156,7 +159,7 @@ for prior in list_of_prior:
                         hyper_alpha=hyper_alpha,
                         hyper_beta=hyper_beta,
                         hyper_gamma=hyper_gamma,
-                        transformation=None,
+                        transformation=transformation,
                         zero_point=zero_point)
         p1d.load_data(file_data,id_name=id_name)
         p1d.setup()

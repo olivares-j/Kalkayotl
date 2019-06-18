@@ -2,7 +2,13 @@ import sys
 import numpy as np
 import pymc3 as pm
 
-#-------- Import Theano transformations ------------
+#-------- Import transformations ------------
+def T1(x):
+    return x*1e-3
+
+def T2(x):
+    return 1.0/x
+#---------------------------------------------
 
 
 class Model1D(pm.Model):
@@ -15,7 +21,7 @@ class Model1D(pm.Model):
         hyper_alpha=[[0,10]],
         hyper_beta=[0.5],
         hyper_gamma=None,
-        transformation=None,
+        transformation="mas",
         name='flavour_1d', model=None):
         # 2) call super's init first, passing model and name
         # to it name will be prefix for all variables here if
@@ -38,13 +44,17 @@ class Model1D(pm.Model):
         #-------------------------------------------------------------------------------
 
         #============= Transformations ====================================
-        # if transformation is None:
-        #     self.Transformation = Identity
-        # elif transformation is "GAL2EQ":
-        #     self.Transformation = GAL2EQ
-        # else:
-        #     sys.exit("Transformation is not accepted")
+
+        if transformation is "mas":
+            Transformation = T1
+
+        elif transformation is "pc":
+            Transformation = T2
+
+        else:
+            sys.exit("Transformation is not accepted")
         #==================================================================
+
         #================ Hyper-parameters =====================================
         if hyper_gamma is None:
             shape = 1
@@ -72,9 +82,9 @@ class Model1D(pm.Model):
             pm.Normal("source",mu=self.mu,sd=self.sd,shape=self.N)
 
         elif prior is "GMM":
-            pm.Dirichlet("weights",a=hyper_gamma,shape=shape)
+            pm.Dirichlet("weights",a=hyper_gamma)
 
-            pm.NormalMixture("distances",w=self.weights,
+            pm.NormalMixture("source",w=self.weights,
                 mu=self.mu,
                 sigma=self.sd,
                 comp_shape=1,
@@ -84,10 +94,8 @@ class Model1D(pm.Model):
             sys.exit("The specified prior is not supported")
         #-----------------------------------------------------------------------------
 
-        #----------------------- Transformation---------------------------------------
-        # pm.Deterministic('true', self.Transformation(self.source))
-        pm.Deterministic('true', 1/self.source)
-        #----------------------------------------------------------------------------
+        #----------------- Transformations ----------------------
+        pm.Deterministic('true', Transformation(self.source))
 
         #----------------------- Likelihood ----------------------------------------
         pm.MvNormal('obs', mu=self.true, tau=self.T,observed=mu_data)

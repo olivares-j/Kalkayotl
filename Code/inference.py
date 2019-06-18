@@ -224,7 +224,7 @@ class Inference:
 		print("Computing posterior")
 		with self.Model as model:
 			db = pm.backends.Text(dir_chains)
-			trace = pm.sample(sample_iters, tune=burning_iters, trace=db)
+			trace = pm.sample(sample_iters, tune=burning_iters, trace=db,cores=1,chains=1)
 		
 
 
