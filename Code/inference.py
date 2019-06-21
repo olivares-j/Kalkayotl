@@ -117,15 +117,15 @@ class Inference:
 		#------- index as string ------
 		data[list_observables[0]] = data[list_observables[0]].astype('str')
 
-		#================== Correct units ==========================
-		#----- mas to sec -----------------------------------
-		data["parallax"]       = data["parallax"]*1e-3
-		data["parallax_error"] = data["parallax_error"]*1e-3
-
 		if self.D > 1:
-			#----- Transform mas to deg ------------------
-			data["ra_error"]  = data["ra_error"]/3.6e6
-			data["dec_error"] = data["dec_error"]/3.6e6 
+			#-------- Uncertainties in microarcsec -----------
+			data["ra_error"]       = data["ra_error"]*1e3
+			data["dec_error"]      = data["dec_error"]*1e3
+			data["parallax_error"] = data["parallax_error"]*1e3
+
+			data["ra"]       = data["ra"]*3.6e9
+			data["dec"]      = data["dec"]*3.6e9
+			data["parallax"] = data["parallax"]*1e3
 		#============================================================
 
 		#----- put ID as row name-----
@@ -152,7 +152,6 @@ class Inference:
 
 			#-------- Covariance matrix of uncertainties ----------------------
 			sigma = np.diag(sd).dot(rho.dot(np.diag(sd)))
-			
 			
 			#---------- Include mu and sigma in Mu and Sigma ---
 			Mu[idx] = mu
@@ -224,7 +223,7 @@ class Inference:
 		print("Computing posterior")
 		with self.Model as model:
 			db = pm.backends.Text(dir_chains)
-			trace = pm.sample(sample_iters, tune=burning_iters, trace=db,cores=1,chains=1)
+			trace = pm.sample(sample_iters, tune=burning_iters, trace=db)
 		
 
 

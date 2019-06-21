@@ -1,13 +1,14 @@
 import sys
 import numpy as np
 import pymc3 as pm
+from theano import tensor as tt, printing
 
 #-------- Import transformations ------------
-def T1(x):
-    return x*1e-3
+def I1D(x):
+    return x
 
-def T2(x):
-    return 1.0/x
+def T1(x):
+    return 1.e3/x
 #---------------------------------------------
 
 
@@ -46,10 +47,10 @@ class Model1D(pm.Model):
         #============= Transformations ====================================
 
         if transformation is "mas":
-            Transformation = T1
+            Transformation = I1D
 
         elif transformation is "pc":
-            Transformation = T2
+            Transformation = T1
 
         else:
             sys.exit("Transformation is not accepted")
@@ -102,6 +103,45 @@ class Model1D(pm.Model):
         #------------------------------------------------------------------------------
 
         
+def I3D(x):
+    return x
+
+def cartesianToSpherical(a):
+  """
+  Convert Cartesian to spherical coordinates. The input can be scalars or 1-dimensional numpy arrays.
+  Note that the angle coordinates follow the astronomical convention of using elevation (declination,
+  latitude) rather than its complement (pi/2-elevation), which is commonly used in the mathematical
+  treatment of spherical coordinates.
+  Parameters
+  ----------
+  
+  x - Cartesian vector component along the X-axis
+  y - Cartesian vector component along the Y-axis
+  z - Cartesian vector component along the Z-axis
+  Returns
+  -------
+  
+  The spherical coordinates r=sqrt(x*x+y*y+z*z), longitude phi, latitude theta.
+  
+  NOTE THAT THE LONGITUDE ANGLE IS BETWEEN 0 AND +2PI. FOR r=0 AN EXCEPTION IS RAISED.
+  """
+  x = a[:,0]
+  y = a[:,1]
+  z = a[:,2]
+  rCylSq=x*x+y*y
+  r=tt.sqrt(rCylSq+z*z)
+  # if np.any(r==0.0):
+  #   raise Exception("Error: one or more of the points is at distance zero.")
+  phi = tt.arctan2(y,x)
+  phi = tt.where(phi<0.0, phi+2*np.pi, phi)
+  theta = tt.arctan2(z,tt.sqrt(rCylSq))
+  #-------- All in mas ----------
+  phi   = tt.rad2deg(phi)*3.6e6
+  theta = tt.rad2deg(theta)*3.6e6
+  plx   = 1.0e3/r
+  #------- Join ------
+  res = tt.concatenate([phi, theta ,plx])
+  return res
 
 
 class Model3D(pm.Model):
@@ -111,8 +151,8 @@ class Model3D(pm.Model):
     def __init__(self,mu_data=None,Sigma_data=None,
         prior="Gaussian",
         parameters={"location":None,"scale":None},
-        hyper_alpha=[[0,360],[-90,90],[0,10]],
-        hyper_beta=[10,10,0.5],
+        hyper_alpha=None,
+        hyper_beta=None,
         hyper_gamma=None,
         transformation=None,
         name='flavour_3d', model=None):
@@ -134,15 +174,23 @@ class Model3D(pm.Model):
 
         T = np.linalg.inv(Sigma_data)
         #-------------------------------------------------------------------------------
+        print(mu_data)
+        print(Sigma_data)
+        print(parameters["location"])
+        print(parameters["scale"])
 
         #============= Transformations ====================================
-        # if transformation is None:
-        #     self.Transformation = Identity
-        # elif transformation is "GAL2EQ":
-        #     self.Transformation = GAL2EQ
-        # else:
-        #     sys.exit("Transformation is not accepted")
+
+        if transformation is "mas":
+            Transformation = I3D
+
+        elif transformation is "pc":
+            Transformation = cartesianToSpherical
+
+        else:
+            sys.exit("Transformation is not accepted")
         #==================================================================
+
         #================ Hyper-parameters =====================================
         if hyper_gamma is None:
             shape = 1
@@ -162,29 +210,37 @@ class Model3D(pm.Model):
                                     shape=shape)
 
             #--------- Join variables --------------
-            self.mu = pm.math.concatenate([self.location_0,
+            mu = pm.math.concatenate([self.location_0,
                                  self.location_1,
                                  self.location_2],axis=0)
 
         else:
-            self.mu = np.array(parameters["location"])
+            mu = parameters["location"]
 
         #------------------------ Scale ---------------------------------------
         if parameters["scale"] is None:
-            packed_chol = pm.LKJCholeskyCov('chol_cov', eta=hyper_beta[1], n=3, sd_dist=pm.HalfCauchy.dist(beta=hyper_beta[0]))
-            chol = pm.expand_packed_triangular(3, packed_chol, lower=True)
+            pm.HalfCauchy("sd_0",beta=hyper_beta[0],shape=shape)
+            pm.HalfCauchy("sd_1",beta=hyper_beta[1],shape=shape)
+            pm.HalfCauchy("sd_2",beta=hyper_beta[2],shape=shape)
+
+            sigma_diag  = pm.math.concatenate([self.sd_0,self.sd_1,self.sd_2],axis=0)
+            sigma       = tt.nlinalg.diag(sigma_diag)
+
+
+            # pm.LKJCorr('chol_corr', eta=hyper_beta[3], n=3)
+            # pm.Deterministic('C', tt.fill_diagonal(self.chol_corr[np.zeros((3, 3), dtype=np.int64)], 1.))
+            self.C = np.eye(3)
+
+            cov= tt.nlinalg.matrix_dot(sigma, self.C, sigma)
+           
 
         else:
-            chol = np.linalg.cholesky(parameters["scale"])
-
-        
+            cov = parameters["scale"]
         #========================================================================
-
-        
 
         #------------------ True values ---------------------------------------------
         if prior is "Gaussian":
-            pm.MvNormal("source",mu=self.mu,chol=chol,shape=(N,3))
+            pm.MvNormal("source",mu=mu,cov=cov,shape=(N,3))
 
         elif prior is "GMM":
             pm.Dirichlet("weights",a=hyper_gamma,shape=shape)
@@ -199,12 +255,13 @@ class Model3D(pm.Model):
             sys.exit("The specified prior is not supported")
         #-----------------------------------------------------------------------------
 
-
         #----------------------- Transformation---------------------------------------
-        # pm.Deterministic('true', self.Transformation(self.source))
-        self.source[:,2] = self.source[:,2]*1e-3
-        pm.Deterministic('true', pm.math.flatten(self.source))
+        pm.Deterministic('transformed', Transformation(self.source))
+        # transformed_print = tt.printing.Print("transformed")(self.transformed)
+        #-----------------------------------------------------------------------------
 
+        #------------ Flatten --------------------------------------------------------
+        pm.Deterministic('true', pm.math.flatten(self.transformed))
         #----------------------------------------------------------------------------
 
         #----------------------- Likelihood ----------------------------------------
