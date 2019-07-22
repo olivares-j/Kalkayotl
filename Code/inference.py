@@ -118,14 +118,9 @@ class Inference:
 		data[list_observables[0]] = data[list_observables[0]].astype('str')
 
 		if self.D > 1:
-			#-------- Uncertainties in microarcsec -----------
-			data["ra_error"]       = data["ra_error"]*1e3
-			data["dec_error"]      = data["dec_error"]*1e3
-			data["parallax_error"] = data["parallax_error"]*1e3
-
-			data["ra"]       = data["ra"]*3.6e9
-			data["dec"]      = data["dec"]*3.6e9
-			data["parallax"] = data["parallax"]*1e3
+			#--- Uncertainties in must be in same units as means -----------
+			data["ra_error"]       = data["ra_error"]/(1e3*3600.0)  + 100.0/3600.0
+			data["dec_error"]      = data["dec_error"]/(1e3*3600.0) + 100.0/3600.0
 		#============================================================
 
 		#----- put ID as row name-----
@@ -136,8 +131,8 @@ class Inference:
 			RuntimeError("Data have incorrect shape!")
 
 		#==================== Set Mu and Sigma =========================================
-		Mu      = np.zeros(self.n_stars*self.D)
-		Sigma   = np.zeros((self.n_stars*self.D,self.n_stars*self.D))
+		self.mu_data = np.zeros(self.n_stars*self.D)
+		self.sg_data = np.zeros((self.n_stars*self.D,self.n_stars*self.D))
 		idx_tru = np.triu_indices(self.D,k=1)
 		for i,(ID,datum) in enumerate(data.iterrows()):
 			idx  = range(i*self.D,i*self.D + self.D)
@@ -154,15 +149,12 @@ class Inference:
 			sigma = np.diag(sd).dot(rho.dot(np.diag(sd)))
 			
 			#---------- Include mu and sigma in Mu and Sigma ---
-			Mu[idx] = mu
-			Sigma[np.ix_(idx,idx)] = sigma
+			self.mu_data[idx] = mu
+			self.sg_data[np.ix_(idx,idx)] = sigma
 
 
 		#===================== Set correlations amongst stars ===========================
 		#TO BE DONE
-		#================================================================================
-		self.mu_data    = Mu
-		self.sigma_data = Sigma
 		#=================================================================================
 
 		print("Data correctly loaded")
@@ -173,7 +165,7 @@ class Inference:
 		'''
 
 		if self.D == 1:
-			self.Model = Model1D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
+			self.Model = Model1D(mu_data=self.mu_data,sg_data=self.sg_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
 								  hyper_alpha=self.hyper_alpha,
@@ -182,7 +174,7 @@ class Inference:
 								  transformation=self.transformation)
 			
 		elif self.D == 3:
-			self.Model = Model3D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
+			self.Model = Model3D(mu_data=self.mu_data,sg_data=self.sg_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
 								  hyper_alpha=self.hyper_alpha,
@@ -191,7 +183,7 @@ class Inference:
 								  transformation=self.transformation)
 			
 		elif self.D == 5:
-			self.Model = Model5D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
+			self.Model = Model5D(mu_data=self.mu_data,sg_data=self.sg_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
 								  hyper_alpha=self.hyper_alpha,
@@ -200,7 +192,7 @@ class Inference:
 								  transformation=self.transformation)
 	
 		elif self.D == 6:
-			self.Model = Model6D(mu_data=self.mu_data,Sigma_data=self.sigma_data,
+			self.Model = Model6D(mu_data=self.mu_data,sg_data=self.sg_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
 								  hyper_alpha=self.hyper_alpha,

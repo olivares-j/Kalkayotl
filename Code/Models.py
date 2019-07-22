@@ -16,7 +16,7 @@ class Model1D(pm.Model):
     '''
     Model to infer the distance of a series of stars
     '''
-    def __init__(self,mu_data=None,Sigma_data=None,
+    def __init__(self,mu_data,sg_data,
         prior="Gaussian",
         parameters={"location":None,"scale": None},
         hyper_alpha=[[0,10]],
@@ -41,7 +41,7 @@ class Model1D(pm.Model):
         if self.N == 0:
             sys.exit("Data has length zero!. You must provide at least one data point")
 
-        self.T = np.linalg.inv(Sigma_data)
+        self.T = np.linalg.inv(sg_data)
         #-------------------------------------------------------------------------------
 
         #============= Transformations ====================================
@@ -107,48 +107,48 @@ def I3D(x):
     return x
 
 def cartesianToSpherical(a):
-  """
-  Convert Cartesian to spherical coordinates. The input can be scalars or 1-dimensional numpy arrays.
-  Note that the angle coordinates follow the astronomical convention of using elevation (declination,
-  latitude) rather than its complement (pi/2-elevation), which is commonly used in the mathematical
-  treatment of spherical coordinates.
-  Parameters
-  ----------
-  
-  x - Cartesian vector component along the X-axis
-  y - Cartesian vector component along the Y-axis
-  z - Cartesian vector component along the Z-axis
-  Returns
-  -------
-  
-  The spherical coordinates r=sqrt(x*x+y*y+z*z), longitude phi, latitude theta.
-  
-  NOTE THAT THE LONGITUDE ANGLE IS BETWEEN 0 AND +2PI. FOR r=0 AN EXCEPTION IS RAISED.
-  """
-  x = a[:,0]
-  y = a[:,1]
-  z = a[:,2]
-  rCylSq=x*x+y*y
-  r=tt.sqrt(rCylSq+z*z)
-  # if np.any(r==0.0):
-  #   raise Exception("Error: one or more of the points is at distance zero.")
-  phi = tt.arctan2(y,x)
-  phi = tt.where(phi<0.0, phi+2*np.pi, phi)
-  theta = tt.arctan2(z,tt.sqrt(rCylSq))
-  #-------- All in mas ----------
-  phi   = tt.rad2deg(phi)*3.6e6
-  theta = tt.rad2deg(theta)*3.6e6
-  plx   = 1.0e3/r
-  #------- Join ------
-  res = tt.concatenate([phi, theta ,plx])
-  return res
+    """
+    Convert Cartesian to spherical coordinates. The input can be scalars or 1-dimensional numpy arrays.
+    Note that the angle coordinates follow the astronomical convention of using elevation (declination,
+    latitude) rather than its complement (pi/2-elevation), which is commonly used in the mathematical
+    treatment of spherical coordinates.
+    Parameters
+    ----------
+
+    x - Cartesian vector component along the X-axis
+    y - Cartesian vector component along the Y-axis
+    z - Cartesian vector component along the Z-axis
+    Returns
+    -------
+
+    The spherical coordinates r=sqrt(x*x+y*y+z*z), longitude phi, latitude theta.
+
+    NOTE THAT THE LONGITUDE ANGLE IS BETWEEN 0 AND +2PI. FOR r=0 AN EXCEPTION IS RAISED.
+    """
+    x = a[:,0]
+    y = a[:,1]
+    z = a[:,2]
+    rCylSq=x*x+y*y
+    r=tt.sqrt(rCylSq+z*z)
+    # if np.any(r==0.0):
+    #   raise Exception("Error: one or more of the points is at distance zero.")
+    phi = tt.arctan2(y,x)
+    phi = tt.where(phi<0.0, phi+2*np.pi, phi)
+    theta = tt.arctan2(z,tt.sqrt(rCylSq))
+    #-------- Units----------
+    phi   = tt.rad2deg(phi)   # Degrees
+    theta = tt.rad2deg(theta) # Degrees
+    plx   = 1000.0/r           # mas
+    #------- Join ------
+    res = tt.stack([phi, theta ,plx],axis=1)
+    return res
 
 
 class Model3D(pm.Model):
     '''
     Model to infer the distance and ra dec position of a cluster
     '''
-    def __init__(self,mu_data=None,Sigma_data=None,
+    def __init__(self,mu_data,sg_data,
         prior="Gaussian",
         parameters={"location":None,"scale":None},
         hyper_alpha=None,
@@ -172,12 +172,8 @@ class Model3D(pm.Model):
         if N == 0:
             sys.exit("Data has length zero!. You must provide at least one data point")
 
-        T = np.linalg.inv(Sigma_data)
+        T = np.linalg.inv(sg_data)
         #-------------------------------------------------------------------------------
-        print(mu_data)
-        print(Sigma_data)
-        print(parameters["location"])
-        print(parameters["scale"])
 
         #============= Transformations ====================================
 

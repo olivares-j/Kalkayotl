@@ -31,7 +31,7 @@ from inference import Inference
 
 
 #----------- Dimension and Case ---------------------
-dimension = 1
+dimension = 3
 # If synthetic, comment the zero_point line in inference.
 case      = "Rup147"
 file_csv  = "Rup147.csv"
@@ -81,11 +81,6 @@ ra,dra   = 289.02,1.15
 dec,ddec = -16.43,1.57
 plx,dplx = 3.25,0.14
 
-ra   = ra*3.6e9
-dec  = dec*3.6e9
-dra  = dra*3.6e9
-ddec = ddec*3.6e9
-
 #------------------------ 1D ----------------------------
 if dimension == 1:
     idx = 0
@@ -107,20 +102,20 @@ if dimension == 1:
 #---------------------- 3D ---------------------------------
 elif dimension == 3:
     idx = 2
-    zero_point = np.array([0,0,-29.0])
+    zero_point = np.array([0,0,-0.029])
 
     #----------- Parameters --------
     #Either non or fixed value in pc
     parameters = {"location":None,"scale":None}
     # parameters = {"location":[ra,dec,plx],"scale":np.diag([dra,ddec,dplx])}
-    transformation = "mas"
+    transformation = "pc"
 
     #------ hyper-parameters ------------------------------
     if transformation is "mas":
         hyper_alpha = [[ra-dra,ra+dra],[dec-ddec,dec+ddec],[plx-dplx,plx+dplx]]
         hyper_beta  = [dra,ddec,dplx,1]
     elif transformation is "pc":
-        hyper_alpha = [[95,100],[-290,-270],[-100,-90]]
+        hyper_alpha = [[90,100],[-280,-270],[-90,-80]]
         hyper_beta  = [100,100,100,1]
 
 #--------------------- 5D ------------------------------------
@@ -171,7 +166,7 @@ for prior in list_of_prior:
                         hyper_gamma=hyper_gamma,
                         transformation=transformation,
                         zero_point=zero_point)
-        p1d.load_data(file_data,id_name=id_name,nrows=2)
+        p1d.load_data(file_data,id_name=id_name)
         p1d.setup()
         p1d.run(sample_iters=sample_iters,
             burning_iters=burning_iters,
