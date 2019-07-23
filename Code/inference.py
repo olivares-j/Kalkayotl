@@ -119,8 +119,8 @@ class Inference:
 
 		if self.D > 1:
 			#--- Uncertainties in must be in same units as means -----------
-			data["ra_error"]       = data["ra_error"]/(1e3*3600.0)  + 100.0/3600.0
-			data["dec_error"]      = data["dec_error"]/(1e3*3600.0) + 100.0/3600.0
+			data["ra_error"]       = data["ra_error"]/(1e3*3600.0)  + 10.0/3600.0
+			data["dec_error"]      = data["dec_error"]/(1e3*3600.0) + 10.0/3600.0
 		#============================================================
 
 		#----- put ID as row name-----

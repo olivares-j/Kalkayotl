@@ -43,8 +43,8 @@ statistic = "map"
 
 
 #---------------- MCMC parameters  --------------------
-sample_iters    = 100   # Number of iterations for the MCMC 
-burning_iters   = 1000
+sample_iters    = 500   # Number of iterations for the MCMC 
+burning_iters   = 2000
 
 
 #============ Directories =================
