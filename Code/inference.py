@@ -21,7 +21,9 @@ import sys
 import pymc3 as pm
 import numpy as np
 import pandas as pn
-from Models import Model1D,Model3D#,Single3D,Single5D
+from Models import Model1D,Model3D#,Model5D,Model6D
+
+from Functions import AngularSeparation,CovarianceParallax,CovariancePM
 
 class Inference:
 	"""
@@ -31,6 +33,7 @@ class Inference:
 				hyper_alpha,
 				hyper_beta,
 				hyper_gamma,
+				hyper_delta,
 				transformation,
 				zero_point,**kwargs):
 		"""
@@ -56,20 +59,26 @@ class Inference:
 		self.hyper_alpha      = hyper_alpha
 		self.hyper_beta       = hyper_beta
 		self.hyper_gamma      = hyper_gamma
+		self.hyper_delta      = hyper_delta
 		self.transformation   = transformation
 
+		self.idx_pma    = 3
+		self.idx_pmd    = 4
+		self.idx_plx    = 2
+
 		if self.D == 1:
-			index_obs  = [2,8]
-			index_mu   = [2]
-			index_sd   = [8]
-			index_corr = []
+			index_obs   = [0,1,2,8]
+			index_mu    = [2]
+			index_sd    = [8]
+			index_corr  = []
+			self.idx_plx = 0
 			
 
 		elif self.D == 3:
 			index_obs  = [0,1,2,6,7,8,12,13,16]
 			index_mu   = [0,1,2]
 			index_sd   = [6,7,8]
-			index_corr = [12,13,16] 
+			index_corr = [12,13,16]
 
 
 		elif self.D == 5:
@@ -77,6 +86,7 @@ class Inference:
 			index_mu   = [0,1,2,3,4]
 			index_sd   = [6,7,8,9,10]
 			index_corr = [12,13,14,15,16,17,18,19,20,21]
+			idx_plx    = 2
 
 
 		elif self.D == 6:
@@ -84,6 +94,7 @@ class Inference:
 			index_mu   = [0,1,2,3,4,5]
 			index_sd   = [6,7,8,9,10,11]
 			index_corr = [12,13,14,15,16,17,18,19,20,21]
+			idx_plx    = 2
 
 		else:
 			sys.exit("Dimension not valid!")
@@ -135,7 +146,7 @@ class Inference:
 		self.sg_data = np.zeros((self.n_stars*self.D,self.n_stars*self.D))
 		idx_tru = np.triu_indices(self.D,k=1)
 		for i,(ID,datum) in enumerate(data.iterrows()):
-			idx  = range(i*self.D,i*self.D + self.D)
+			ida  = range(i*self.D,i*self.D + self.D)
 			mu   = np.array(datum[self.names_mu])  - self.zero_point
 			sd   = np.array(datum[self.names_sd])
 			corr = np.array(datum[self.names_corr])
@@ -148,15 +159,43 @@ class Inference:
 			#-------- Covariance matrix of uncertainties ----------------------
 			sigma = np.diag(sd).dot(rho.dot(np.diag(sd)))
 			
-			#---------- Include mu and sigma in Mu and Sigma ---
-			self.mu_data[idx] = mu
-			self.sg_data[np.ix_(idx,idx)] = sigma
+			#---------- Insert star data --------------
+			self.mu_data[ida] = mu
+			self.sg_data[np.ix_(ida,ida)] = sigma
 
 
 		#===================== Set correlations amongst stars ===========================
 		#TO BE DONE
-		#=================================================================================
+		#------ Obtain array of positions ------------
+		positions = data[["ra","dec"]].to_numpy()
 
+		#------ Angular separations ----------
+		theta = AngularSeparation(positions)
+
+		#------ Covariance in parallax -----
+		cov_plx = CovarianceParallax(theta)
+		np.fill_diagonal(cov_plx,0.0)
+
+		#------ Add parallax covariance -----------------------
+		ida_plx = [i*self.D + self.idx_plx for i in range(self.n_stars)]
+		self.sg_data[np.ix_(ida_plx,ida_plx)] += cov_plx
+		#------------------------------------------------------
+		
+		if self.D > 3:
+			#------ Covariance in PM ----------------------------
+			# Same for mu_alpha and mu_delta
+			cov_pms = CovariancePM(theta)
+			np.fill_diagonal(cov_pms,0.0)
+
+			#------ Add PM covariances -----------------------
+			ida_pma = [i*self.D + self.idx_pma for i in range(self.n_stars)]
+			ida_pmd = [i*self.D + self.idx_pmd for i in range(self.n_stars)]
+
+			self.sg_data[np.ix_(ida_pma,ida_pma)] += cov_pms
+			self.sg_data[np.ix_(ida_pmd,ida_pmd)] += cov_pms
+
+
+		#=================================================================================
 		print("Data correctly loaded")
 
 	def setup(self):
@@ -171,6 +210,7 @@ class Inference:
 								  hyper_alpha=self.hyper_alpha,
 								  hyper_beta=self.hyper_beta,
 								  hyper_gamma=self.hyper_gamma,
+								  hyper_delta=self.hyper_delta,
 								  transformation=self.transformation)
 			
 		elif self.D == 3:
@@ -180,6 +220,7 @@ class Inference:
 								  hyper_alpha=self.hyper_alpha,
 								  hyper_beta=self.hyper_beta,
 								  hyper_gamma=self.hyper_gamma,
+								  hyper_delta=self.hyper_delta,
 								  transformation=self.transformation)
 			
 		elif self.D == 5:
@@ -189,6 +230,7 @@ class Inference:
 								  hyper_alpha=self.hyper_alpha,
 								  hyper_beta=self.hyper_beta,
 								  hyper_gamma=self.hyper_gamma,
+								  hyper_delta=self.hyper_delta,
 								  transformation=self.transformation)
 	
 		elif self.D == 6:
@@ -198,6 +240,7 @@ class Inference:
 								  hyper_alpha=self.hyper_alpha,
 								  hyper_beta=self.hyper_beta,
 								  hyper_gamma=self.hyper_gamma,
+								  hyper_delta=self.hyper_delta,
 								  transformation=self.transformation)
 		else:
 			sys.exit("Dimension not valid!")
