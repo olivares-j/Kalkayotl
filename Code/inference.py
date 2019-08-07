@@ -21,7 +21,7 @@ import sys
 import pymc3 as pm
 import numpy as np
 import pandas as pn
-from Models import Model1D,Model3D#,Model5D,Model6D
+from Models import Model1D,Model3D,Model5D,Model6D
 
 from Functions import AngularSeparation,CovarianceParallax,CovariancePM
 
@@ -105,6 +105,10 @@ class Inference:
 		self.names_corr = [gaia_observables[i] for i in index_corr] 
 
 
+		if prior is "Gaussian":
+			assert hyper_delta is None, "Parameter hyper_delta is only valid for GMM prior."
+
+
 	def load_data(self,file_data,id_name,*args,**kwargs):
 		"""
 		This function reads the data.
@@ -145,6 +149,11 @@ class Inference:
 		self.mu_data = np.zeros(self.n_stars*self.D)
 		self.sg_data = np.zeros((self.n_stars*self.D,self.n_stars*self.D))
 		idx_tru = np.triu_indices(self.D,k=1)
+		if self.D == 6:
+			#----- There is no correlation with r_vel ---
+			idi = np.where(idx_tru[1] != 5)[0]
+			idx_tru = (idx_tru[0][idi],idx_tru[1][idi])
+
 		for i,(ID,datum) in enumerate(data.iterrows()):
 			ida  = range(i*self.D,i*self.D + self.D)
 			mu   = np.array(datum[self.names_mu])  - self.zero_point
@@ -165,7 +174,6 @@ class Inference:
 
 
 		#===================== Set correlations amongst stars ===========================
-		#TO BE DONE
 		#------ Obtain array of positions ------------
 		positions = data[["ra","dec"]].to_numpy()
 

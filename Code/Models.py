@@ -417,10 +417,8 @@ class Model6D(pm.Model):
 		#================ Hyper-parameters =====================================
 		if hyper_delta is None:
 			shape = 1
-			axis=0
 		else:
 			shape = len(hyper_delta)
-			axis=1
 
 		#------------------------ Location ----------------------------------
 		if parameters["location"] is None:
@@ -449,7 +447,7 @@ class Model6D(pm.Model):
 								 self.location_2,
 								 self.location_3,
 								 self.location_4,
-								 self.location_5],axis=axis)
+								 self.location_5],axis=1)
 
 		else:
 			mu = parameters["location"]
@@ -473,16 +471,18 @@ class Model6D(pm.Model):
 									self.sd_2,
 									self.sd_3,
 									self.sd_4,
-									self.sd_5],axis=axis)
+									self.sd_5],axis=1)
 
 			cov = theano.shared(np.zeros((shape,6,6)))
 
 			for i in range(shape):
 				sigma       = tt.nlinalg.diag(sigma_diag[i])
+				# sigma_print = tt.printing.Print("sigma")(sigma)
 				covi        = tt.nlinalg.matrix_dot(sigma, C, sigma)
 				cov         = tt.set_subtensor(cov[i],covi)
 			
-			cov_print   = tt.printing.Print("cov")(cov)
+			# cov_print   = tt.printing.Print("cov")(cov[0])
+			# mu_print    = tt.printing.Print("mu")(mu)
 		   
 
 		else:
@@ -491,7 +491,7 @@ class Model6D(pm.Model):
 
 		#------------------ True values ---------------------------------------------
 		if prior is "Gaussian":
-			pm.MvNormal("source",mu=mu,cov=cov,shape=(N,6))
+			pm.MvNormal("source",mu=mu,cov=cov[0],shape=(N,6))
 
 		elif prior is "GMM":
 			pm.Dirichlet("weights",a=hyper_delta,shape=shape)

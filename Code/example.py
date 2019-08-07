@@ -22,6 +22,7 @@ import sys
 import os
 import numpy as np
 import pandas as pn
+from Transformations import astrometryToPhaseSpace
 
 #--------------- Inferer -------------------
 from inference import Inference
@@ -31,7 +32,7 @@ from inference import Inference
 
 
 #----------- Dimension and Case ---------------------
-dimension = 3
+dimension = 6
 # If synthetic, comment the zero_point line in inference.
 case      = "Rup147"
 file_csv  = "Rup147.csv"
@@ -41,8 +42,8 @@ file_csv  = "Rup147.csv"
 
 #------ Cluster mean and dispersion -----------------------
 #--- R.A., Dec. parallax,proper motions and radial velocity
-mu     = np.array([289.02,-16.43, 3.25,0.0,0.0,0.0])
-sd     = np.array([1.15, 1.57, 0.14,1.0,1.0,1.0])
+mu     = np.array([289.02,-16.43, 3.25,-0.98,-26.69,40.0])
+sd     = np.array([1.15, 1.57, 0.14,0.64,0.72,10.0])
 #---------------------------------------------------------
 
 statistic = "map"
@@ -80,21 +81,25 @@ dir_plots  = dir_case + "Plots/"
 # If Gaussian then hyper_gamma must be None
 # If GMM then hyper_delta must be set (see below).
 list_of_prior = [
-	# "Gaussian"
-	"GMM"
+	"Gaussian"
+	# "GMM"
 	]
 #----------------------------------------------------
 
 #----------- Hyper Alpha -------------------------------------
-
-all_hyp_alpha_mas = (np.vstack([mu - sd, mu + sd]).T).tolist()
+# Hyper parameter describing the range where the mean values
+# will be searched for.
+hyp_alpha_mas = np.vstack([mu - sd, mu + sd])
+hyp_alpha_pc  = np.sort(astrometryToPhaseSpace(hyp_alpha_mas).T)
+hyp_alpha_pc  = hyp_alpha_pc.tolist()
+hyp_alpha_mas = hyp_alpha_mas.T.tolist()
 #-------------------------------------------------------------
 
 #------------- Hyper Beta --------------------
 # Hyper-parameter controlling the distribution of standard 
 # deviations. Corresponds to beta in HalfCauchy distribution
-all_hyp_beta_mas  = (5.0*sd).tolist()
-all_hyp_beta_pc   = np.repeat(10,6).tolist()
+hyp_beta_mas  = (5.0*sd).tolist()
+hyp_beta_pc   = np.repeat(10,6).tolist()
 #-------------------------------------------------
 
 #------------ Hyper Gamma ---------------------------------
@@ -107,7 +112,8 @@ hyper_gamma = 1
 # Only for GMM prior. It represents the hyper-parameter 
 # of the Dirichlet distribution.
 # Its length indicate the number of components in the GMM.
-hyper_delta = np.array([2,1])
+hyper_delta = None
+# hyper_delta = np.array([2,1])
 #----------------------------------------------------------
 
 #----------- Parameters -----------------------------------------------------
@@ -122,64 +128,46 @@ parameters = {"location":None,"scale":None}
 # Either "mas" or "pc" to indicate the observable or physical
 # space in which the Parameters will be inferred
 transformation = "pc"
+
+if transformation is "mas":
+	hyp_alpha = hyp_alpha_mas
+	hyp_beta  = hyp_beta_mas
+elif transformation is "pc":
+	hyp_alpha = hyp_alpha_pc
+	hyp_beta  = hyp_beta_pc
 #--------------------------------------------------------------
 
 #--------- Zero point ------------------- ------------
 # The zero point of the astrometry
-all_zero_pint = np.array([0,0,-0.029,0.010,0.010,0.0])
+zero_point = np.array([0,0,-0.029,0.010,0.010,0.0])
 #--------------------------------------------------------
-
-
 #==========================================================
 
 #========================== Models ==========================
 #------------------------ 1D ----------------------------
 if dimension == 1:
-	zero_point = all_zero_pint[2]
-
-	#------ hyper-parameters ------------------------------
-	if transformation is "mas":
-		hyper_alpha = [all_hyp_alpha_mas[2]]
-		hyper_beta  = [all_hyp_beta_mas[2]]
-	else:
-		hyper_alpha = [[0,1000]]
-		hyper_beta  = [all_hyp_beta_pc[2]]
-
+	zero_point  = zero_pint[2]
+	hyper_alpha = [hyp_alpha[2]]
+	hyper_beta  = [hyp_beta[2]]
+	
 #---------------------- 3D ---------------------------------
 elif dimension == 3:
-	zero_point = all_zero_pint[:3]
+	zero_point  = zero_pint[:3]
+	hyper_alpha = hyp_alpha[:3]
+	hyper_beta  = hyp_beta[:3]
 
-	#------ hyper-parameters ------------------------------
-	if transformation is "mas":
-		hyper_alpha = all_hyp_alpha_mas[:3]
-		hyper_beta  = all_hyp_beta_mas[:3]
-	elif transformation is "pc":
-		hyper_alpha = [[90,100],[-280,-270],[-90,-80]]
-		hyper_beta  = all_hyp_beta_pc[:3]
 
 #--------------------- 5D ------------------------------------
 elif dimension == 5:
-	zero_point = all_zero_pint[:5]
-
-	#------ hyper-parameters ------------------------------
-	if transformation is "mas":
-		hyper_alpha = all_hyp_alpha_mas[:5]
-		hyper_beta  = all_hyp_beta_mas[:5]
-	elif transformation is "pc":
-		hyper_alpha = [[90,100],[-280,-270],[-90,-80]]
-		hyper_beta  = all_hyp_beta_pc[:5]
+	zero_point  = zero_pint[:5]
+	hyper_alpha = hyp_alpha[:5]
+	hyper_beta  = hyp_beta[:5]
 
 #-------------------- 6D -------------------------------------
 elif dimension == 6:
-	zero_point = all_zero_point
-
-	#------ hyper-parameters ------------------------------
-	if transformation is "mas":
-		hyper_alpha = all_hyp_alpha_mas
-		hyper_beta  = all_hyp_beta_mas
-	elif transformation is "pc":
-		hyper_alpha = [[90,100],[-280,-270],[-90,-80]]
-		hyper_beta  = all_hyp_beta_pc
+	zero_point  = zero_point
+	hyper_alpha = hyp_alpha
+	hyper_beta  = hyp_beta
 
 else:
 	sys.exit("Dimension is not correct")
@@ -215,7 +203,7 @@ for prior in list_of_prior:
 					hyper_delta=hyper_delta,
 					transformation=transformation,
 					zero_point=zero_point)
-	p1d.load_data(file_data,id_name=id_name,nrows=2)
+	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
 	p1d.run(sample_iters=sample_iters,
 		burning_iters=burning_iters,
