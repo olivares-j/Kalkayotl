@@ -2,7 +2,7 @@ import os
 import numpy  as np
 import pandas as pn
 import scipy.stats as st
-from pygaia.astrometry.vectorastrometry import phaseSpaceToAstrometry
+from Transformations import phaseSpaceToAstrometry
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -19,12 +19,12 @@ order by random_index
 '''
 
 #----------------Mock data and MCMC parameters  --------------------
-case          = "Gauss_1"
+case          = "Gauss_2"
 random_state  = 1234     # Random state for the synthetic data
-# mu            = 
-# sd_0          =
-# sd_1          =
-fraction      = np.array([1.0,0.0])
+mu            = np.array([96,-277,-86,7,-26,-48],dtype="float32")
+sd_0          = np.array([3,8,6,4,14,4],dtype="float32")
+sd_1          = 2.0*sd_0
+fraction      = np.array([0.8,0.2])
 n_stars       = 1000         # Number of mock distances
 labels        = ["ID","r","x","y","z","vx","vy","vz",
 				"ra","dec","parallax","pmra","pmdec","radial_velocity",
@@ -57,14 +57,15 @@ u_obs = u_obs[np.random.choice(len(u_obs),n_stars)]
 
 #====================== Generate Synthetic Data ==================================================
 #---------- True stars--------------------------------------------------------
-n_0  = np.ceil(fraction[0]*n_stars)
-n_1  = np.floor(fraction[1]*n_stars)
-true = st.multivariate_normal.rvs(mean=mu, cov=np.diag(sd_0), 
+n_0  = int(np.ceil(fraction[0]*n_stars))
+n_1  = int(np.floor(fraction[1]*n_stars))
+
+true = st.multivariate_normal.rvs(mean=mu, cov=np.diag(sd_0**2), 
 						size=n_0,random_state=random_state)
 if n_1 > 0:
-	true_1  = st.multivariate_normal.rvs(mean=mu, cov=np.diag(sd_1), 
+	true_1  = st.multivariate_normal.rvs(mean=mu, cov=np.diag(sd_1**2), 
 						size=n_1,random_state=random_state)
-	true = np.stack([true,true_1],axis=0)
+	true = np.vstack((true,true_1))
 
 N,D = np.shape(true)
 if N != n_stars:
@@ -73,12 +74,8 @@ if N != n_stars:
 #---- Physical to observed quantities-------
 dist  = np.sqrt(true[:,0]**2 + true[:,1]**2 + true[:,2]**2)
 
-phi, theta, parallax, muphistar, mutheta, vrad = phaseSpaceToAstrometry(true[:,0],true[:,1],true[:,2],true[:,3],true[:,4],true[:,5])
-phi   = np.rad2deg(phi)
-theta = np.rad2deg(theta)
-
-true  = np.stack([phi, theta, parallax, muphistar, mutheta, vrad],axis=1)
-
+#--- Notice that  phaseSpace... returns a theano tensor---
+true = np.array(phaseSpaceToAstrometry(true).eval())
 #----------------------------------------------------
 
 #------- Observed ------------------------------
