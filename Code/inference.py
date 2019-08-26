@@ -340,18 +340,21 @@ class Inference:
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
-		file_csv (string) the name of the file where to save the statistics
-		names (list of strings) the names of the objects
+		dir_csv (string) Directory where to save the statistics
+		statistic (string) Type of statistic (mean,median or mode)
+		quantiles (list of floats) Quantile values to return
 
-		Note: The statistic name will be appended.
 		'''
 		print("Saving statistics ...")
+
+		#----------------------- Functions ----------------------------------
 
 		def my_mode(sample):
 			mins,maxs = np.min(sample),np.max(sample)
 			x         = np.linspace(mins,maxs,num=1000)
 			gkde      = st.gaussian_kde(sample.flatten())
 			ctr       = x[np.argmax(gkde(x))]
+			return ctr
 
 
 		def trace_mean(x):
@@ -364,7 +367,10 @@ class Inference:
 			return pn.Series(np.apply_along_axis(my_mode,0,x), name='mode')
 
 		def trace_quantiles(x):
-			return pn.DataFrame(np.quantile(x, quantiles,axis=0).T,columns=["lower","upper"])
+			return pn.DataFrame(np.quantile(x, quantiles,axis=0).T,
+							columns=["lower","upper"])
+		#---------------------------------------------------------------------
+
 
 		#------- Variable names -----------------------------------------------------------
 		source_name = list(filter(lambda x: "source" in x, self.trace.varnames))

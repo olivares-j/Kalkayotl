@@ -27,15 +27,15 @@ from Transformations import astrometryToPhaseSpace
 #--------------- Inferer -------------------
 from inference import Inference
 
-#-------------- Chain analyser -------------
-from chain_analyser import Analysis
-
-
-#----------- Dimension and Case ---------------------
+#--- Dimension---------------------
 dimension = 1
+
+#------------------------- Case----------------------------
 # If synthetic, comment the zero_point line in inference.
-case      = "Gauss_1"
-file_csv  = "Gauss_1.csv"
+case      = "Gauss_1"     # Case name
+file_csv  = "Gauss_1.csv" # Data file
+id_name   = "ID"          # Identifier's name
+#-----------------------------------------------------------
 
 
 #------ Cluster mean and dispersion -----------------------
@@ -44,17 +44,21 @@ mu     = np.array([289.02,-16.43, 3.25,-0.98,-26.69,40.0])
 sd     = np.array([1.15, 1.57, 0.14,0.64,0.72,10.0])
 #---------------------------------------------------------
 
-statistic = "mean"
-
-id_name = "ID"
 
 
+#===================== Chains =================================
 #---------------- MCMC parameters  --------------------
 sample_iters    = 1000   # Number of iterations for the MCMC 
 burning_iters   = 2000
 
+#------- Statistic ----------------------
+# Statistics to return after chain analysis 
+statistic = "mode"
+quantiles = [0.159,0.841]
+#==============================================================
 
-#============ Directories =================
+
+#============ Directories =============================
 #-------Main directory ---------------
 dir_main  = os.getcwd().replace("Code","")
 
@@ -71,6 +75,7 @@ dir_case   = dir_ana  + case +"/"
 dir_chains = dir_case + "Chains/"
 dir_plots  = dir_case + "Plots/"
 #--------------------------------------
+#==================================================
 
 #================== Posterior =============================
 #----------- Prior type -----------------------------
@@ -145,6 +150,8 @@ zero_point = np.zeros_like(zero_point)
 indep_measures = True
 #==========================================================
 
+
+
 #========================== Models ==========================
 #------------------------ 1D ----------------------------
 if dimension == 1:
@@ -190,12 +197,10 @@ os.makedirs(dir_plots,exist_ok=True)
 for prior in list_of_prior:
 	#----------- Output dir -------------------
 	dir_prior = dir_chains + prior
-	dir_out = dir_prior + "/" + str(dimension)+"D"
+	dir_out   = dir_prior + "/" + str(dimension)+"D"
 
 	os.makedirs(dir_prior,exist_ok=True)
 	os.makedirs(dir_out,exist_ok=True)
-
-	file_csv = dir_out + "/Statistics.csv"
 
 	#--------- Run model -----------------------
 	p1d = Inference(dimension=dimension,
@@ -213,11 +218,13 @@ for prior in list_of_prior:
 	# p1d.run(sample_iters=sample_iters,
 	# 	burning_iters=burning_iters,
 	# 	dir_chains=dir_out)
+
+	#-------- Analyse chains --------------------------------
 	p1d.load_trace(burning_iters=burning_iters,
 					dir_chains=dir_out)
-	# p1d.convergence()
+	p1d.convergence()
 	# p1d.plot_chains(dir_out)
-	p1d.save_statistics(dir_csv=dir_out,statistic=statistic)
-
-	sys.exit()
+	p1d.save_statistics(dir_csv=dir_out,
+						statistic=statistic,
+						quantiles=quantiles)
 #=======================================================================================
