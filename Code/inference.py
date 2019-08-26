@@ -25,6 +25,15 @@ from Models import Model1D,Model3D,Model5D,Model6D
 
 from Functions import AngularSeparation,CovarianceParallax,CovariancePM
 
+
+import matplotlib
+matplotlib.use('PDF')
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+
+import scipy.stats as st
+
+
 class Inference:
 	"""
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
@@ -35,7 +44,9 @@ class Inference:
 				hyper_gamma,
 				hyper_delta,
 				transformation,
-				zero_point,**kwargs):
+				zero_point,
+				indep_measures=False,
+				**kwargs):
 		"""
 		Arguments:
 		dimension (integer):  Dimension of the inference
@@ -61,6 +72,7 @@ class Inference:
 		self.hyper_gamma      = hyper_gamma
 		self.hyper_delta      = hyper_delta
 		self.transformation   = transformation
+		self.indep_measures   = indep_measures
 
 		self.idx_pma    = 3
 		self.idx_pmd    = 4
@@ -174,37 +186,41 @@ class Inference:
 
 
 		#===================== Set correlations amongst stars ===========================
-		#------ Obtain array of positions ------------
-		positions = data[["ra","dec"]].to_numpy()
+		if not self.indep_measures :
+			#------ Obtain array of positions ------------
+			positions = data[["ra","dec"]].to_numpy()
 
-		#------ Angular separations ----------
-		theta = AngularSeparation(positions)
+			#------ Angular separations ----------
+			theta = AngularSeparation(positions)
 
-		#------ Covariance in parallax -----
-		cov_plx = CovarianceParallax(theta)
-		np.fill_diagonal(cov_plx,0.0)
+			#------ Covariance in parallax -----
+			cov_plx = CovarianceParallax(theta)
+			np.fill_diagonal(cov_plx,0.0)
 
-		#------ Add parallax covariance -----------------------
-		ida_plx = [i*self.D + self.idx_plx for i in range(self.n_stars)]
-		self.sg_data[np.ix_(ida_plx,ida_plx)] += cov_plx
-		#------------------------------------------------------
-		
-		if self.D > 3:
-			#------ Covariance in PM ----------------------------
-			# Same for mu_alpha and mu_delta
-			cov_pms = CovariancePM(theta)
-			np.fill_diagonal(cov_pms,0.0)
+			#------ Add parallax covariance -----------------------
+			ida_plx = [i*self.D + self.idx_plx for i in range(self.n_stars)]
+			self.sg_data[np.ix_(ida_plx,ida_plx)] += cov_plx
+			#------------------------------------------------------
+			
+			if self.D > 3:
+				#------ Covariance in PM ----------------------------
+				# Same for mu_alpha and mu_delta
+				cov_pms = CovariancePM(theta)
+				np.fill_diagonal(cov_pms,0.0)
 
-			#------ Add PM covariances -----------------------
-			ida_pma = [i*self.D + self.idx_pma for i in range(self.n_stars)]
-			ida_pmd = [i*self.D + self.idx_pmd for i in range(self.n_stars)]
+				#------ Add PM covariances -----------------------
+				ida_pma = [i*self.D + self.idx_pma for i in range(self.n_stars)]
+				ida_pmd = [i*self.D + self.idx_pmd for i in range(self.n_stars)]
 
-			self.sg_data[np.ix_(ida_pma,ida_pma)] += cov_pms
-			self.sg_data[np.ix_(ida_pmd,ida_pmd)] += cov_pms
+				self.sg_data[np.ix_(ida_pma,ida_pma)] += cov_pms
+				self.sg_data[np.ix_(ida_pmd,ida_pmd)] += cov_pms
 
 
 		#=================================================================================
 		print("Data correctly loaded")
+		# print(self.mu_data)
+		# print(self.sg_data)
+		# sys.exit()
 
 	def setup(self):
 		'''
@@ -268,6 +284,119 @@ class Inference:
 			db = pm.backends.Text(dir_chains)
 			trace = pm.sample(sample_iters, tune=burning_iters, trace=db,
 							  discard_tuned_samples=True)
+
+	def load_trace(self,burning_iters,dir_chains):
+		'''
+		Loads a previously saved sampling of the model
+		'''
+		print("Loading existing chains ... ")
+		with self.Model as model:
+			#---------Load Trace --------------------
+			all_trace = pm.backends.text.load(dir_chains)
+
+			#-------- Discard burn -----
+			self.trace = all_trace[burning_iters:]
+
+	def convergence(self):
+		"""
+		Analyse the chains.		
+		"""
+		print("Computing convergence statistics ...")
+		dict_rhat  = pm.diagnostics.gelman_rubin(self.trace)
+		dict_effn  = pm.diagnostics.effective_n(self.trace)
+
+		print("Gelman-Rubin statistics:")
+		for key,value in dict_rhat.items():
+			print("{0} : {1:2.4f}".format(key,np.mean(value)))
+		print("Effective sample size:")
+		for key,value in dict_effn.items():
+			print("{0} : {1:2.4f}".format(key,np.mean(value)))
+
+	def plot_chains(self,dir_plots,figure_size=None,lines=None):
+		"""
+		This function plots the trace in the
+		"""
+		print("Plotting traces ...")
+
+		#----- Remove non desired variables---------
+		var_names = self.trace.varnames
+		for i,var in enumerate(var_names):
+			if "interval" in var or "source" in var or "true" in var:
+				var_names.pop(i)
+		
+		pdf = PdfPages(filename=dir_plots+"/Traces.pdf")
+		plt.figure(1)
+		pm.traceplot(self.trace,figsize=figure_size,
+			lines=lines,
+			var_names=var_names)
+			
+		#-------------- Save fig --------------------------
+		pdf.savefig(bbox_inches='tight')
+		plt.close(1)
+		
+		pdf.close()
+
+	def save_statistics(self,dir_csv,statistic,quantiles=[0.159,0.841]):
+		'''
+		Saves the statistics to a csv file.
+		Arguments:
+		file_csv (string) the name of the file where to save the statistics
+		names (list of strings) the names of the objects
+
+		Note: The statistic name will be appended.
+		'''
+		print("Saving statistics ...")
+
+		def my_mode(sample):
+			mins,maxs = np.min(sample),np.max(sample)
+			x         = np.linspace(mins,maxs,num=1000)
+			gkde      = st.gaussian_kde(sample.flatten())
+			ctr       = x[np.argmax(gkde(x))]
+
+
+		def trace_mean(x):
+			return pn.Series(np.mean(x, 0), name='mean')
+
+		def trace_median(x):
+			return pn.Series(np.median(x, 0), name='median')
+
+		def trace_mode(x):
+			return pn.Series(np.apply_along_axis(my_mode,0,x), name='mode')
+
+		def trace_quantiles(x):
+			return pn.DataFrame(np.quantile(x, quantiles,axis=0).T,columns=["lower","upper"])
+
+		#------- Variable names -----------------------------------------------------------
+		source_name = list(filter(lambda x: "source" in x, self.trace.varnames))
+		global_name = list(filter(lambda x: "mu" in x or "sd" in x, self.trace.varnames))
+		for x in global_name :
+			if "log" in x :
+				global_name.remove(x)
+
+		for x in global_name :
+			if "interval" in x :
+				global_name.remove(x)
+		#-------------------------------------------------------------------------------------
+
+		#-------------- Adds the statistic to the file name ------------
+		source_csv = dir_csv +"/Sources_"+statistic+".csv"
+		global_csv = dir_csv +"/Cluster_"+statistic+".csv"
+
+		if statistic is "mean":
+			stat_funcs = [trace_mean, trace_quantiles]
+		elif statistic is "median":
+			stat_funcs = [trace_median, trace_quantiles]
+		elif statistic is "mode":
+			stat_funcs = [trace_mode, trace_quantiles]
+		else:
+			sys.exit("Incorrect statistic:"+statistic)
+
+
+		df_source = pm.stats.summary(self.trace,varnames=source_name,stat_funcs=stat_funcs)
+		df_global = pm.stats.summary(self.trace,varnames=global_name,stat_funcs=stat_funcs)
+
+		df_source.to_csv(path_or_buf=source_csv,index_label="Parameter")
+		df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
 		
 
 

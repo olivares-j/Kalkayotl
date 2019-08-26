@@ -146,10 +146,8 @@ class Model3D(pm.Model):
 		#================ Hyper-parameters =====================================
 		if hyper_delta is None:
 			shape = 1
-			axis  = 0
 		else:
 			shape = len(hyper_delta)
-			axis  = 1
 
 		#------------------------ Location ----------------------------------
 		if parameters["location"] is None:
@@ -166,7 +164,7 @@ class Model3D(pm.Model):
 			#--------- Join variables --------------
 			mu = pm.math.stack([self.location_0,
 								self.location_1,
-								self.location_2],axis=axis)
+								self.location_2],axis=1)
 
 		else:
 			mu = parameters["location"]
@@ -181,7 +179,7 @@ class Model3D(pm.Model):
 			# pm.Deterministic('C', tt.fill_diagonal(self.chol_corr[np.zeros((3, 3), dtype=np.int64)], 1.))
 			C = np.eye(3)
 
-			sigma_diag  = pm.math.stack([self.sd_0,self.sd_1,self.sd_2],axis=axis)
+			sigma_diag  = pm.math.stack([self.sd_0,self.sd_1,self.sd_2],axis=1)
 
 			cov = theano.shared(np.zeros((shape,3,3)))
 
@@ -190,7 +188,7 @@ class Model3D(pm.Model):
 				covi        = tt.nlinalg.matrix_dot(sigma, C, sigma)
 				cov         = tt.set_subtensor(cov[i],covi)
 			
-			cov_print   = tt.printing.Print("cov")(cov)
+			# cov_print   = tt.printing.Print("cov")(cov)
 		   
 
 		else:
@@ -199,7 +197,7 @@ class Model3D(pm.Model):
 
 		#------------------ True values ---------------------------------------------
 		if prior is "Gaussian":
-			pm.MvNormal("source",mu=mu,cov=cov,shape=(N,3))
+			pm.MvNormal("source",mu=mu,cov=cov[0],shape=(N,3))
 
 		elif prior is "GMM":
 			pm.Dirichlet("weights",a=hyper_delta,shape=shape)
@@ -275,10 +273,8 @@ class Model5D(pm.Model):
 		#================ Hyper-parameters =====================================
 		if hyper_delta is None:
 			shape = 1
-			axis  = 0
 		else:
 			shape = len(hyper_delta)
-			axis  = 1
 
 		#------------------------ Location ----------------------------------
 		if parameters["location"] is None:
@@ -303,7 +299,7 @@ class Model5D(pm.Model):
 								self.location_1,
 								self.location_2,
 								self.location_3,
-								self.location_4],axis=axis)
+								self.location_4],axis=1)
 
 		else:
 			mu = parameters["location"]
@@ -325,7 +321,7 @@ class Model5D(pm.Model):
 										self.sd_1,
 										self.sd_2,
 										self.sd_3,
-										self.sd_4],axis=axis)
+										self.sd_4],axis=1)
 
 			cov = theano.shared(np.zeros((shape,5,5)))
 
@@ -342,7 +338,7 @@ class Model5D(pm.Model):
 
 		#------------------ True values ---------------------------------------------
 		if prior is "Gaussian":
-			pm.MvNormal("source",mu=mu,cov=cov,shape=(N,5))
+			pm.MvNormal("source",mu=mu,cov=cov[0],shape=(N,5))
 
 		elif prior is "GMM":
 			pm.Dirichlet("weights",a=hyper_delta,shape=shape)

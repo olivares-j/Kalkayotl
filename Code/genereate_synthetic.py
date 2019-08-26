@@ -19,17 +19,21 @@ order by random_index
 '''
 
 #----------------Mock data and MCMC parameters  --------------------
-case          = "Gauss_2"
+case          = "Gauss_1"
 random_state  = 1234     # Random state for the synthetic data
 mu            = np.array([96,-277,-86,7,-26,-48],dtype="float32")
 sd_0          = np.array([3,8,6,4,14,4],dtype="float32")
 sd_1          = 2.0*sd_0
-fraction      = np.array([0.8,0.2])
+fraction      = np.array([1.0,0.0])
 n_stars       = 1000         # Number of mock distances
 labels        = ["ID","r","x","y","z","vx","vy","vz",
 				"ra","dec","parallax","pmra","pmdec","radial_velocity",
 				"ra_error","dec_error","parallax_error","pmra_error",
-				"pmdec_error","radial_velocity_error"]
+				"pmdec_error","radial_velocity_error",
+				"ra_dec_corr","ra_parallax_corr","ra_pmra_corr","ra_pmdec_corr",
+                "dec_parallax_corr","dec_pmra_corr","dec_pmdec_corr",
+                "parallax_pmra_corr","parallax_pmdec_corr",
+                "pmra_pmdec_corr"]
 #--------------------------------------------------------------------------------------
 
 #------ Directories and files --------------------------------
@@ -86,8 +90,11 @@ for i in range(N):
 		obs[i,j] = st.norm.rvs(loc=true[i,j],scale=u_obs[i,j],size=1)
 #--------------------------------------------------------
 
+#--------- Correlations --------
+corrs = np.zeros((true.shape[0],10))
+
 #========== Saves the synthetic data ====================
-data = np.column_stack((dist,true,obs,u_obs))
+data = np.column_stack((dist,true,obs,u_obs,corrs))
 df = pn.DataFrame(data=data,columns=labels[1:])
 df.to_csv(path_or_buf=file_syn,index_label=labels[0])
 #=====================================================

@@ -28,17 +28,15 @@ from Transformations import astrometryToPhaseSpace
 from inference import Inference
 
 #-------------- Chain analyser -------------
-# from chain_analyser import Analysis
+from chain_analyser import Analysis
 
 
 #----------- Dimension and Case ---------------------
-dimension = 6
+dimension = 1
 # If synthetic, comment the zero_point line in inference.
-case      = "Rup147"
-file_csv  = "Rup147.csv"
+case      = "Gauss_1"
+file_csv  = "Gauss_1.csv"
 
-# case      = "Cluster_300"
-# file_csv  = "Cluster_300_20_random.csv"
 
 #------ Cluster mean and dispersion -----------------------
 #--- R.A., Dec. parallax,proper motions and radial velocity
@@ -46,13 +44,13 @@ mu     = np.array([289.02,-16.43, 3.25,-0.98,-26.69,40.0])
 sd     = np.array([1.15, 1.57, 0.14,0.64,0.72,10.0])
 #---------------------------------------------------------
 
-statistic = "map"
+statistic = "mean"
 
 id_name = "ID"
 
 
 #---------------- MCMC parameters  --------------------
-sample_iters    = 500   # Number of iterations for the MCMC 
+sample_iters    = 1000   # Number of iterations for the MCMC 
 burning_iters   = 2000
 
 
@@ -64,14 +62,12 @@ dir_main  = os.getcwd().replace("Code","")
 
 #----------- Data --------------------
 dir_data  = dir_main + "Data/"
-# dir_data  = dir_main + "Data/Synthetic/"
 file_data = dir_data + case +"/"+ file_csv
 #-------------------------------------
 
 #--------- Chains and plots ----------
 dir_ana    = dir_main + "Analysis/"
 dir_case   = dir_ana  + case +"/"
-# dir_case   = dir_ana  + "Synthetic/" + case +"/"
 dir_chains = dir_case + "Chains/"
 dir_plots  = dir_case + "Plots/"
 #--------------------------------------
@@ -140,26 +136,32 @@ elif transformation is "pc":
 #--------- Zero point ------------------- ------------
 # The zero point of the astrometry
 zero_point = np.array([0,0,-0.029,0.010,0.010,0.0])
+zero_point = np.zeros_like(zero_point)
 #--------------------------------------------------------
+
+#------- Independent measurements--------
+# In Gaia real data the measurements of stars are correlated,
+# thus indep_measures must be set to False (default)
+indep_measures = True
 #==========================================================
 
 #========================== Models ==========================
 #------------------------ 1D ----------------------------
 if dimension == 1:
-	zero_point  = zero_pint[2]
-	hyper_alpha = [hyp_alpha[2]]
+	zero_point  = zero_point[2]
+	hyper_alpha = [[0,1000]]
 	hyper_beta  = [hyp_beta[2]]
 	
 #---------------------- 3D ---------------------------------
 elif dimension == 3:
-	zero_point  = zero_pint[:3]
+	zero_point  = zero_point[:3]
 	hyper_alpha = hyp_alpha[:3]
 	hyper_beta  = hyp_beta[:3]
 
 
 #--------------------- 5D ------------------------------------
 elif dimension == 5:
-	zero_point  = zero_pint[:5]
+	zero_point  = zero_point[:5]
 	hyper_alpha = hyp_alpha[:5]
 	hyper_beta  = hyp_beta[:5]
 
@@ -193,6 +195,8 @@ for prior in list_of_prior:
 	os.makedirs(dir_prior,exist_ok=True)
 	os.makedirs(dir_out,exist_ok=True)
 
+	file_csv = dir_out + "/Statistics.csv"
+
 	#--------- Run model -----------------------
 	p1d = Inference(dimension=dimension,
 					prior=prior,
@@ -202,26 +206,18 @@ for prior in list_of_prior:
 					hyper_gamma=hyper_gamma,
 					hyper_delta=hyper_delta,
 					transformation=transformation,
-					zero_point=zero_point)
+					zero_point=zero_point,
+					indep_measures=indep_measures)
 	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
-	p1d.run(sample_iters=sample_iters,
-		burning_iters=burning_iters,
-		dir_chains=dir_out)
-	# sys.exit()
+	# p1d.run(sample_iters=sample_iters,
+	# 	burning_iters=burning_iters,
+	# 	dir_chains=dir_out)
+	p1d.load_trace(burning_iters=burning_iters,
+					dir_chains=dir_out)
+	# p1d.convergence()
+	# p1d.plot_chains(dir_out)
+	p1d.save_statistics(dir_csv=dir_out,statistic=statistic)
 
-	# #----------------- Analysis ---------------
-	# a1d = Analysis(n_dim=dimension,
-	#                 file_name=file_chains,
-	#                 id_name=id_name,
-	#                 dir_plots=dir_plots,
-	#                 tol_convergence=tolerance,
-	#                 statistic=statistic,
-	#                 quantiles=[0.05,0.95],
-	#                 # transformation=None,
-	#                 names="2",
-	#                 transformation="ICRS2GAL",
-	#                 )
-	# a1d.plot_chains()
-	# # a1d.save_statistics(file_csv)
+	sys.exit()
 #=======================================================================================
