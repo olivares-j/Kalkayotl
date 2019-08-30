@@ -2,7 +2,7 @@ import os
 import numpy  as np
 import pandas as pn
 import scipy.stats as st
-from Transformations import phaseSpaceToAstrometry
+from Transformations import phaseSpaceToAstrometry_and_RV
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -19,12 +19,12 @@ order by random_index
 '''
 
 #----------------Mock data and MCMC parameters  --------------------
-case          = "Gauss_1"
+case          = "Gauss_2"
 random_state  = 1234     # Random state for the synthetic data
 mu            = np.array([96,-277,-86,7,-26,-48],dtype="float32")
 sd_0          = np.array([3,8,6,4,14,4],dtype="float32")
 sd_1          = 2.0*sd_0
-fraction      = np.array([1.0,0.0])
+fraction      = np.array([0.8,0.2])
 n_stars       = 1000         # Number of mock distances
 labels        = ["ID","r","x","y","z","vx","vy","vz",
 				"ra","dec","parallax","pmra","pmdec","radial_velocity",
@@ -79,7 +79,7 @@ if N != n_stars:
 dist  = np.sqrt(true[:,0]**2 + true[:,1]**2 + true[:,2]**2)
 
 #--- Notice that  phaseSpace... returns a theano tensor---
-true = np.array(phaseSpaceToAstrometry(true).eval())
+true = np.array(phaseSpaceToAstrometry_and_RV(true).eval())
 #----------------------------------------------------
 
 #------- Observed ------------------------------

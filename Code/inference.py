@@ -21,7 +21,7 @@ import sys
 import pymc3 as pm
 import numpy as np
 import pandas as pn
-from Models import Model1D,Model3D,Model5D,Model6D
+from Models import Model1D,ModelND
 
 from Functions import AngularSeparation,CovarianceParallax,CovariancePM
 
@@ -30,6 +30,7 @@ import matplotlib
 matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+import random
 
 import scipy.stats as st
 
@@ -43,6 +44,7 @@ class Inference:
 				hyper_beta,
 				hyper_gamma,
 				hyper_delta,
+				dir_out,
 				transformation,
 				zero_point,
 				indep_measures=False,
@@ -71,6 +73,7 @@ class Inference:
 		self.hyper_beta       = hyper_beta
 		self.hyper_gamma      = hyper_gamma
 		self.hyper_delta      = hyper_delta
+		self.dir_out          = dir_out
 		self.transformation   = transformation
 		self.indep_measures   = indep_measures
 
@@ -121,7 +124,7 @@ class Inference:
 			assert hyper_delta is None, "Parameter hyper_delta is only valid for GMM prior."
 
 
-	def load_data(self,file_data,id_name,*args,**kwargs):
+	def load_data(self,file_data,id_name,radec_inflation=10.0,id_length=10,*args,**kwargs):
 		"""
 		This function reads the data.
 
@@ -146,12 +149,17 @@ class Inference:
 
 		if self.D > 1:
 			#--- Uncertainties in must be in same units as means -----------
-			data["ra_error"]       = data["ra_error"]/(1e3*3600.0)  + 10.0/3600.0
-			data["dec_error"]      = data["dec_error"]/(1e3*3600.0) + 10.0/3600.0
+			data["ra_error"]       = data["ra_error"]/(1e3*3600.0)  + radec_inflation/3600.0
+			data["dec_error"]      = data["dec_error"]/(1e3*3600.0) + radec_inflation/3600.0
 		#============================================================
 
 		#----- put ID as row name-----
 		data.set_index(list_observables[0],inplace=True)
+
+		#----- Track ID -------------
+		# In case of missing values
+		IDs = []
+		#----------------------------
 
 		self.n_stars,D = np.shape(data)
 		if D != 2 :
@@ -167,6 +175,9 @@ class Inference:
 			idx_tru = (idx_tru[0][idi],idx_tru[1][idi])
 
 		for i,(ID,datum) in enumerate(data.iterrows()):
+			#---Populate IDs ----------
+			IDs.append(ID)
+			#--------------------------
 			ida  = range(i*self.D,i*self.D + self.D)
 			mu   = np.array(datum[self.names_mu])  - self.zero_point
 			sd   = np.array(datum[self.names_sd])
@@ -183,6 +194,13 @@ class Inference:
 			#---------- Insert star data --------------
 			self.mu_data[ida] = mu
 			self.sg_data[np.ix_(ida,ida)] = sigma
+		#=========================================================================
+
+		#----- Save identifiers ------
+		df_IDs = pn.DataFrame(IDs,columns=["ID"])
+		df_IDs.to_csv(path_or_buf=self.dir_out+"/Identifiers.csv",index_label="Parameter")
+		self.ID = IDs
+
 
 
 		#===================== Set correlations amongst stars ===========================
@@ -218,9 +236,7 @@ class Inference:
 
 		#=================================================================================
 		print("Data correctly loaded")
-		# print(self.mu_data)
-		# print(self.sg_data)
-		# sys.exit()
+
 
 	def setup(self):
 		'''
@@ -236,29 +252,9 @@ class Inference:
 								  hyper_gamma=self.hyper_gamma,
 								  hyper_delta=self.hyper_delta,
 								  transformation=self.transformation)
-			
-		elif self.D == 3:
-			self.Model = Model3D(mu_data=self.mu_data,sg_data=self.sg_data,
-								  prior=self.prior,
-								  parameters=self.parameters,
-								  hyper_alpha=self.hyper_alpha,
-								  hyper_beta=self.hyper_beta,
-								  hyper_gamma=self.hyper_gamma,
-								  hyper_delta=self.hyper_delta,
-								  transformation=self.transformation)
-			
-		elif self.D == 5:
-			self.Model = Model5D(mu_data=self.mu_data,sg_data=self.sg_data,
-								  prior=self.prior,
-								  parameters=self.parameters,
-								  hyper_alpha=self.hyper_alpha,
-								  hyper_beta=self.hyper_beta,
-								  hyper_gamma=self.hyper_gamma,
-								  hyper_delta=self.hyper_delta,
-								  transformation=self.transformation)
-	
-		elif self.D == 6:
-			self.Model = Model6D(mu_data=self.mu_data,sg_data=self.sg_data,
+
+		elif self.D in [3,5,6]:
+			self.Model = ModelND(dimension=self.D,mu_data=self.mu_data,sg_data=self.sg_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
 								  hyper_alpha=self.hyper_alpha,
@@ -271,7 +267,7 @@ class Inference:
 
 
 		
-	def run(self,sample_iters,burning_iters,dir_chains):
+	def run(self,sample_iters,burning_iters):
 		"""
 		Performs the MCMC run.
 		Arguments:
@@ -281,21 +277,50 @@ class Inference:
 		"""
 		print("Computing posterior")
 		with self.Model as model:
-			db = pm.backends.Text(dir_chains)
+			db = pm.backends.Text(self.dir_out)
 			trace = pm.sample(sample_iters, tune=burning_iters, trace=db,
 							  discard_tuned_samples=True)
 
-	def load_trace(self,burning_iters,dir_chains):
+	def load_trace(self,burning_iters):
 		'''
 		Loads a previously saved sampling of the model
 		'''
 		print("Loading existing chains ... ")
 		with self.Model as model:
 			#---------Load Trace --------------------
-			all_trace = pm.backends.text.load(dir_chains)
+			all_trace = pm.backends.text.load(self.dir_out)
 
 			#-------- Discard burn -----
 			self.trace = all_trace[burning_iters:]
+
+		print("The following chains have been loaded:")
+		print(self.trace)
+
+		#------- Variable names -----------------------------------------------------------
+		source_names = list(filter(lambda x: "source" in x, self.trace.varnames.copy()))
+		global_names = list(filter(lambda x: "loc" in x or "scl" in x or "weights" in x,
+							self.trace.varnames.copy()))
+		
+		names = global_names.copy()
+
+		for i,var in enumerate(names):
+			test = (("interval" in var) 
+					or ("log" in var))
+			if test:
+				global_names.remove(var)
+
+
+		names = source_names.copy()
+
+		for i,var in enumerate(names):
+			test = (("interval" in var) 
+					or ("log" in var))
+			if test:
+				source_names.remove(var)
+
+		self.global_names = global_names
+		self.source_names = source_names
+		#-------------------------------------------------------------------------------------
 
 	def convergence(self):
 		"""
@@ -312,27 +337,55 @@ class Inference:
 		for key,value in dict_effn.items():
 			print("{0} : {1:2.4f}".format(key,np.mean(value)))
 
-	def plot_chains(self,dir_plots,figure_size=None,lines=None):
+	def plot_chains(self,dir_plots,
+		coords=None,
+		divergences='bottom', 
+		figsize=None, 
+		textsize=None, 
+		lines=None, 
+		combined=False, 
+		plot_kwargs=None, 
+		hist_kwargs=None, 
+		trace_kwargs=None):
 		"""
-		This function plots the trace in the
+		This function plots the trace. Parameters are the same as in pymc3
 		"""
+
 		print("Plotting traces ...")
 
-		#----- Remove non desired variables---------
-		var_names = self.trace.varnames
-		for i,var in enumerate(var_names):
-			if "interval" in var or "source" in var or "true" in var:
-				var_names.pop(i)
-		
 		pdf = PdfPages(filename=dir_plots+"/Traces.pdf")
+
+
 		plt.figure(1)
-		pm.traceplot(self.trace,figsize=figure_size,
-			lines=lines,
-			var_names=var_names)
+		pm.plots.traceplot(self.trace,var_names=self.source_names,
+			coords=coords,
+			figsize=figsize,
+			textsize=textsize, 
+			lines=lines, 
+			combined=combined, 
+			plot_kwargs=plot_kwargs, 
+			hist_kwargs=hist_kwargs, 
+			trace_kwargs=trace_kwargs)
 			
 		#-------------- Save fig --------------------------
 		pdf.savefig(bbox_inches='tight')
 		plt.close(1)
+
+		if len(self.global_names) > 0:
+			plt.figure(2)
+			pm.plots.traceplot(self.trace,var_names=self.global_names,
+				figsize=figsize,
+				textsize=textsize, 
+				lines=lines, 
+				combined=combined, 
+				plot_kwargs=plot_kwargs, 
+				hist_kwargs=hist_kwargs, 
+				trace_kwargs=trace_kwargs)
+				
+			#-------------- Save fig --------------------------
+			pdf.savefig(bbox_inches='tight')
+			plt.close(2)
+
 		
 		pdf.close()
 
@@ -371,23 +424,6 @@ class Inference:
 							columns=["lower","upper"])
 		#---------------------------------------------------------------------
 
-
-		#------- Variable names -----------------------------------------------------------
-		source_name = list(filter(lambda x: "source" in x, self.trace.varnames))
-		global_name = list(filter(lambda x: "mu" in x or "sd" in x, self.trace.varnames))
-		for x in global_name :
-			if "log" in x :
-				global_name.remove(x)
-
-		for x in global_name :
-			if "interval" in x :
-				global_name.remove(x)
-		#-------------------------------------------------------------------------------------
-
-		#-------------- Adds the statistic to the file name ------------
-		source_csv = dir_csv +"/Sources_"+statistic+".csv"
-		global_csv = dir_csv +"/Cluster_"+statistic+".csv"
-
 		if statistic is "mean":
 			stat_funcs = [trace_mean, trace_quantiles]
 		elif statistic is "median":
@@ -398,11 +434,17 @@ class Inference:
 			sys.exit("Incorrect statistic:"+statistic)
 
 
-		df_source = pm.stats.summary(self.trace,varnames=source_name,stat_funcs=stat_funcs)
-		df_global = pm.stats.summary(self.trace,varnames=global_name,stat_funcs=stat_funcs)
+		#-------------- Source statistics ----------------------------------------------------
+		source_csv = dir_csv +"/Sources_"+statistic+".csv"
+		df_source = pm.stats.summary(self.trace,varnames=self.source_names,stat_funcs=stat_funcs)
+		df_source.set_index(np.array(self.ID),inplace=True)
+		df_source.to_csv(path_or_buf=source_csv,index_label="ID")
 
-		df_source.to_csv(path_or_buf=source_csv,index_label="Parameter")
-		df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
+		#-------------- Global statistics ------------------------
+		if len(self.global_names) > 0:
+			global_csv = dir_csv +"/Cluster_"+statistic+".csv"
+			df_global = pm.stats.summary(self.trace,varnames=self.global_names,stat_funcs=stat_funcs)
+			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
 		
 
 

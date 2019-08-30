@@ -32,8 +32,8 @@ dimension = 1
 
 #------------------------- Case----------------------------
 # If synthetic, comment the zero_point line in inference.
-case      = "Gauss_1"     # Case name
-file_csv  = "Gauss_1.csv" # Data file
+case      = "Gauss_2"     # Case name
+file_csv  = "Gauss_2.csv" # Data file
 id_name   = "ID"          # Identifier's name
 #-----------------------------------------------------------
 
@@ -48,8 +48,9 @@ sd     = np.array([1.15, 1.57, 0.14,0.64,0.72,10.0])
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-sample_iters    = 1000   # Number of iterations for the MCMC 
 burning_iters   = 2000
+sample_iters    = 1000   # Number of iterations for the MCMC 
+
 
 #------- Statistic ----------------------
 # Statistics to return after chain analysis 
@@ -70,10 +71,8 @@ file_data = dir_data + case +"/"+ file_csv
 #-------------------------------------
 
 #--------- Chains and plots ----------
-dir_ana    = dir_main + "Analysis/"
-dir_case   = dir_ana  + case +"/"
-dir_chains = dir_case + "Chains/"
-dir_plots  = dir_case + "Plots/"
+dir_out    = dir_main + "Outputs/"
+dir_case   = dir_out  + case +"/"
 #--------------------------------------
 #==================================================
 
@@ -81,10 +80,14 @@ dir_plots  = dir_case + "Plots/"
 #----------- Prior type -----------------------------
 # If Gaussian then hyper_gamma must be None
 # If GMM then hyper_delta must be set (see below).
+
 list_of_prior = [
-	"Gaussian"
-	# "GMM"
-	]
+	# "EDSD"]
+	# "Uniform",
+	# "Cauchy",
+	# "Gaussian",
+	"GMM"]
+
 #----------------------------------------------------
 
 #----------- Hyper Alpha -------------------------------------
@@ -106,15 +109,18 @@ hyp_beta_pc   = np.repeat(10,6).tolist()
 #------------ Hyper Gamma ---------------------------------
 # Hyper-parameter controlling the correlation distribution
 # Only used in D >= 3. See Pymc3 LKJCorr function.
-hyper_gamma = 1
+if dimension == 1:
+	hyper_gamma = None
+else:
+	hyper_gamma = 1
 #----------------------------------------------------------
 
 #------------ Hyper delta -------------------------------
 # Only for GMM prior. It represents the hyper-parameter 
 # of the Dirichlet distribution.
 # Its length indicate the number of components in the GMM.
-hyper_delta = None
-# hyper_delta = np.array([2,1])
+# hyper_delta = None
+hyper_delta = np.array([5,5])
 #----------------------------------------------------------
 
 #----------- Parameters -----------------------------------------------------
@@ -186,17 +192,15 @@ else:
 #======================= Inference and Analysis =====================================================
 
 #------- Create directories -------
-os.makedirs(dir_ana,exist_ok=True)
+os.makedirs(dir_out,exist_ok=True)
 os.makedirs(dir_case,exist_ok=True)
-os.makedirs(dir_chains,exist_ok=True)
-os.makedirs(dir_plots,exist_ok=True)
 #---------------------------------
 
 #--------------------- Loop over prior types ------------------------------------
 
 for prior in list_of_prior:
 	#----------- Output dir -------------------
-	dir_prior = dir_chains + prior
+	dir_prior = dir_case + prior
 	dir_out   = dir_prior + "/" + str(dimension)+"D"
 
 	os.makedirs(dir_prior,exist_ok=True)
@@ -210,20 +214,20 @@ for prior in list_of_prior:
 					hyper_beta=hyper_beta,
 					hyper_gamma=hyper_gamma,
 					hyper_delta=hyper_delta,
+					dir_out=dir_out,
 					transformation=transformation,
 					zero_point=zero_point,
 					indep_measures=indep_measures)
 	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
-	# p1d.run(sample_iters=sample_iters,
-	# 	burning_iters=burning_iters,
-	# 	dir_chains=dir_out)
+	p1d.run(sample_iters=sample_iters,
+			burning_iters=burning_iters)
 
 	#-------- Analyse chains --------------------------------
-	p1d.load_trace(burning_iters=burning_iters,
-					dir_chains=dir_out)
+	p1d.load_trace(burning_iters=burning_iters)
 	p1d.convergence()
-	# p1d.plot_chains(dir_out)
+	coords = {"flavour_1d_source_dim_0" : range(10)}
+	p1d.plot_chains(dir_out,coords=coords)
 	p1d.save_statistics(dir_csv=dir_out,
 						statistic=statistic,
 						quantiles=quantiles)

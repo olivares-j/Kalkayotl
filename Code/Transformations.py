@@ -152,7 +152,7 @@ def normalTriad(phi, theta):
 	return p, q, r
 
 
-def phaseSpaceToAstrometry(a):
+def phaseSpaceToAstrometry_and_RV(a):
 	"""
 	From the given phase space coordinates calculate the astrometric observables, including the radial
 	velocity, which here is seen as the sixth astrometric parameter. The phase space coordinates are
@@ -204,6 +204,58 @@ def phaseSpaceToAstrometry(a):
 
 	#------- Join ------
 	res = tt.stack([phi, theta, parallax, muphistar, mutheta, vrad],axis=1)
+	return res
+
+def phaseSpaceToAstrometry(a):
+	"""
+	From the given phase space coordinates calculate the astrometric observables, including the radial
+	velocity, which here is seen as the sixth astrometric parameter. The phase space coordinates are
+	assumed to represent barycentric (i.e. centred on the Sun) positions and velocities.
+	This function has no mechanism to deal with units. The velocity units are always assumed to be km/s,
+	and the code is set up such that for positions in pc, the return units for the astrometry are radians,
+	milliarcsec, milliarcsec/year and km/s. For positions in kpc the return units are: radians,
+	microarcsec, microarcsec/year, and km/s.
+	NOTE that the doppler factor k=1/(1-vrad/c) is NOT used in the calculations. This is not a problem for
+	sources moving at typical velocities of Galactic stars.
+	Parameters
+	----------
+	x - The x component of the barycentric position vector (in pc or kpc).
+	y - The y component of the barycentric position vector (in pc or kpc).
+	z - The z component of the barycentric position vector (in pc or kpc).
+	vx - The x component of the barycentric velocity vector (in km/s).
+	vy - The y component of the barycentric velocity vector (in km/s).
+	vz - The z component of the barycentric velocity vector (in km/s).
+	Returns
+	-------
+	phi       - The longitude-like angle of the position of the source (radians).
+	theta     - The latitude-like angle of the position of the source (radians).
+	parallax  - The parallax of the source (in mas or muas, see above)
+	muphistar - The proper motion in the longitude-like angle, multiplied by cos(theta) (mas/yr or muas/yr,
+	see above)
+	mutheta   - The proper motion in the latitude-like angle (mas/yr or muas/yr, see above)
+	"""
+	x  = a[:,0]
+	y  = a[:,1]
+	z  = a[:,2]
+	vx = a[:,3]
+	vy = a[:,4]
+	vz = a[:,5]
+
+	b        = cartesianToSpherical(a[:,:3])
+	
+	phi      = b[:,0]
+	theta    = b[:,1]
+	parallax = b[:,2]
+
+	p, q, r = normalTriad(tt.deg2rad(phi), tt.deg2rad(theta))
+
+	velocities= a[:,3:]
+
+	muphistar = tt.sum(p*velocities,axis=1)*parallax/_auKmYearPerSec
+	mutheta   = tt.sum(q*velocities,axis=1)*parallax/_auKmYearPerSec
+
+	#------- Join ------
+	res = tt.stack([phi, theta, parallax, muphistar, mutheta],axis=1)
 	return res
 
 ############################################### NUMPY ######################################################################
@@ -353,7 +405,7 @@ def test6D():
 	a = np.array([[10,10,10,10,10,10],
 				  [10,10,10,10,10,10]],dtype="float32")
 	A = theano.shared(a)
-	B = phaseSpaceToAstrometry(A)
+	B = phaseSpaceToAstrometry_and_RV(A)
 	b = np.array(B.eval())
 	c = astrometryToPhaseSpace(b)
 	assert np.allclose(c[0],a[0],atol=1e-5), "Should be [10,10,10,10,10,10] but is {0}".format(c[0])
