@@ -1,7 +1,6 @@
 docs/
 dist/
-Analysis/
-Example/
+Outputs/
 *.pyc
 *.pdf
 *.csv
