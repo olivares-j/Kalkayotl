@@ -19,12 +19,12 @@ order by random_index
 '''
 
 #----------------Mock data and MCMC parameters  --------------------
-case          = "Gauss_2"
+case          = "Gauss_1"
 random_state  = 1234     # Random state for the synthetic data
 mu            = np.array([96,-277,-86,7,-26,-48],dtype="float32")
 sd_0          = np.array([3,8,6,4,14,4],dtype="float32")
 sd_1          = 2.0*sd_0
-fraction      = np.array([0.8,0.2])
+fraction      = np.array([1.0,0.0])
 n_stars       = 1000         # Number of mock distances
 labels        = ["ID","r","x","y","z","vx","vy","vz",
 				"ra","dec","parallax","pmra","pmdec","radial_velocity",
