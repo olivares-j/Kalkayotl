@@ -28,12 +28,12 @@ from Transformations import astrometryToPhaseSpace
 from inference import Inference
 
 #--- Dimension---------------------
-dimension = 1
+dimension = 5
 
 #------------------------- Case----------------------------
 # If synthetic, comment the zero_point line in inference.
-case      = "Gauss_2"     # Case name
-file_csv  = "Gauss_2.csv" # Data file
+case      = "Gauss_1"     # Case name
+file_csv  = "Gauss_1.csv" # Data file
 id_name   = "ID"          # Identifier's name
 #-----------------------------------------------------------
 
@@ -48,7 +48,7 @@ sd     = np.array([1.15, 1.57, 0.14,0.64,0.72,10.0])
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 2000
+burning_iters   = 3000
 sample_iters    = 1000   # Number of iterations for the MCMC 
 
 
@@ -85,8 +85,8 @@ list_of_prior = [
 	# "EDSD"]
 	# "Uniform",
 	# "Cauchy",
-	# "Gaussian",
-	"GMM"]
+	"Gaussian"]
+	# "GMM"]
 
 #----------------------------------------------------
 
@@ -119,8 +119,10 @@ else:
 # Only for GMM prior. It represents the hyper-parameter 
 # of the Dirichlet distribution.
 # Its length indicate the number of components in the GMM.
-# hyper_delta = None
-hyper_delta = np.array([5,5])
+if "GMM" in list_of_prior:
+	hyper_delta = np.array([5,5])
+else:
+	hyper_delta = None
 #----------------------------------------------------------
 
 #----------- Parameters -----------------------------------------------------
@@ -128,7 +130,7 @@ hyper_delta = np.array([5,5])
 # Gaussian or Gaussians. If set to None these will be inferred by the model.
 # If set, attention must be paid to their shape in accordance to the model
 # dimension (i.e. if D=5 scale is a 5X5 matrix and location a 5-vector)
-parameters = {"location":None,"scale":None}
+parameters = {"location":None,"scale":None,"corr":False}
 #-----------------------------------------------------------------------------
 
 # --------- Transformation------------------------------------
@@ -175,8 +177,8 @@ elif dimension == 3:
 #--------------------- 5D ------------------------------------
 elif dimension == 5:
 	zero_point  = zero_point[:5]
-	hyper_alpha = hyp_alpha[:5]
-	hyper_beta  = hyp_beta[:5]
+	hyper_alpha = hyp_alpha
+	hyper_beta  = hyp_beta
 
 #-------------------- 6D -------------------------------------
 elif dimension == 6:
@@ -226,7 +228,7 @@ for prior in list_of_prior:
 	#-------- Analyse chains --------------------------------
 	p1d.load_trace(burning_iters=burning_iters)
 	p1d.convergence()
-	coords = {"flavour_1d_source_dim_0" : range(10)}
+	coords = {"flavour_5d_source_dim_0" : range(5)}
 	p1d.plot_chains(dir_out,coords=coords)
 	p1d.save_statistics(dir_csv=dir_out,
 						statistic=statistic,
