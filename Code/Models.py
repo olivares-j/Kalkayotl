@@ -125,7 +125,7 @@ class ModelND(pm.Model):
 	'''
 	def __init__(self,dimension,mu_data,sg_data,
 		prior="Gaussian",
-		parameters={"location":None,"scale":None},
+		parameters={"location":None,"scale":None,"corr":False},
 		hyper_alpha=None,
 		hyper_beta=None,
 		hyper_gamma=None,
@@ -182,7 +182,7 @@ class ModelND(pm.Model):
 		else:
 			shape = len(hyper_delta)
 
-		#------------------------ Location ----------------------------------
+		#--------- Location ----------------------------------
 		if parameters["location"] is None:
 
 			location = [ pm.Uniform("loc_{0}".format(i),
@@ -195,29 +195,36 @@ class ModelND(pm.Model):
 
 		else:
 			mu = parameters["location"]
+		#------------------------------------------------------
 
-		#------------------------ Scale ---------------------------------------
+		#------------- Scale --------------------------
 		if parameters["scale"] is None:
 
 			scale = [ pm.HalfCauchy("scl_{0}".format(i),
 						beta=hyper_beta[i],
 						shape=shape) for i in range(D) ]
 
+		else:
+			scale = parameters["scale"]
+		#--------------------------------------------------
 
+		#----------------------- Correlation -----------------------------------------
+		if parameters["corr"] :
 			pm.LKJCorr('chol_corr', eta=hyper_gamma, n=D)
 			C = tt.fill_diagonal(self.chol_corr[np.zeros((D, D),dtype=np.int64)], 1.)
-
-			sigma_diag  = pm.math.stack(scale,axis=1)
-
-			cov = theano.shared(np.zeros((shape,D,D)))
-
-			for i in range(shape):
-				sigma       = tt.nlinalg.diag(sigma_diag[i])
-				covi        = tt.nlinalg.matrix_dot(sigma, C, sigma)
-				cov         = tt.set_subtensor(cov[i],covi)
-		   
 		else:
-			cov = parameters["scale"]
+			C = np.eye(D)
+		#-----------------------------------------------------------------------------
+
+		#-------------------- Covariance -------------------------
+		sigma_diag  = pm.math.stack(scale,axis=1)
+		cov         = theano.shared(np.zeros((shape,D,D)))
+
+		for i in range(shape):
+			sigma       = tt.nlinalg.diag(sigma_diag[i])
+			covi        = tt.nlinalg.matrix_dot(sigma, C, sigma)
+			cov         = tt.set_subtensor(cov[i],covi)
+		#---------------------------------------------------------
 		#========================================================================
 
 		#===================== True values ============================================
