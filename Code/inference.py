@@ -298,14 +298,18 @@ class Inference:
 
 		#------- Variable names -----------------------------------------------------------
 		source_names = list(filter(lambda x: "source" in x, self.trace.varnames.copy()))
-		global_names = list(filter(lambda x: "loc" in x or "scl" in x or "weights" in x,
-							self.trace.varnames.copy()))
+		global_names = list(filter(lambda x: ( ("loc" in x) 
+											or ("scl" in x) 
+											or ("weights" in x)
+											or ("corr" in x)
+														  ),self.trace.varnames.copy()))
 		
 		names = global_names.copy()
 
 		for i,var in enumerate(names):
 			test = (("interval" in var) 
-					or ("log" in var))
+					or ("log" in var)
+					or ("stickbreaking") in var)
 			if test:
 				global_names.remove(var)
 
@@ -436,8 +440,24 @@ class Inference:
 
 		#-------------- Source statistics ----------------------------------------------------
 		source_csv = dir_csv +"/Sources_"+statistic+".csv"
-		df_source = pm.stats.summary(self.trace,varnames=self.source_names,stat_funcs=stat_funcs)
-		df_source.set_index(np.array(self.ID),inplace=True)
+		df_source  = pm.stats.summary(self.trace,varnames=self.source_names,stat_funcs=stat_funcs)
+
+		#------------- Replace parameter id by source ID--------------------
+		# If D is five we still infer six parameters
+		D = self.D
+		if self.D is 5 :
+			D = 6
+
+		n_sources = len(self.ID)
+		A = np.char.array(np.repeat(self.ID,D,axis=0))
+		B = np.char.array(np.repeat("__",D*n_sources))
+		C = np.char.array(np.tile(np.arange(D),n_sources).astype('str'))
+		ID = A + B + C
+
+		df_source.set_index(ID,inplace=True)
+		#---------------------------------------------------------------------
+
+		#---------- Save source data frame ----------------------
 		df_source.to_csv(path_or_buf=source_csv,index_label="ID")
 
 		#-------------- Global statistics ------------------------
