@@ -124,7 +124,7 @@ class Inference:
 			assert hyper_delta is None, "Parameter hyper_delta is only valid for GMM prior."
 
 
-	def load_data(self,file_data,id_name,radec_inflation=10.0,id_length=10,*args,**kwargs):
+	def load_data(self,file_data,id_name,radec_inflation=10.0,id_length=10,corr_func="Vasiliev+2018",*args,**kwargs):
 		"""
 		This function reads the data.
 
@@ -212,8 +212,15 @@ class Inference:
 			theta = AngularSeparation(positions)
 
 			#------ Covariance in parallax -----
-			cov_plx = CovarianceParallax(theta)
-			np.fill_diagonal(cov_plx,0.0)
+			print(corr_func)
+			cov_plx = CovarianceParallax(theta,case=corr_func)
+
+			#-------- Test positive definiteness ------------------------------------------------
+			try:
+				np.linalg.cholesky(cov_plx)
+			except np.linalg.LinAlgError as e:
+				sys.exit("Covariance matrix of parallax correlations is not positive definite!")
+			#------------------------------------------------------------------------------------
 
 			#------ Add parallax covariance -----------------------
 			ida_plx = [i*self.D + self.idx_plx for i in range(self.n_stars)]
@@ -223,8 +230,14 @@ class Inference:
 			if self.D > 3:
 				#------ Covariance in PM ----------------------------
 				# Same for mu_alpha and mu_delta
-				cov_pms = CovariancePM(theta)
-				np.fill_diagonal(cov_pms,0.0)
+				cov_pms = CovariancePM(theta,case=corr_func)
+
+				#-------- Test positive definiteness ------------------------------------------------
+				try:
+					np.linalg.cholesky(cov_pms)
+				except np.linalg.LinAlgError as e:
+					sys.exit("Covariance matrix of proper motions correlations is not positive definite!")
+				#------------------------------------------------------------------------------------
 
 				#------ Add PM covariances -----------------------
 				ida_pma = [i*self.D + self.idx_pma for i in range(self.n_stars)]
@@ -267,7 +280,7 @@ class Inference:
 
 
 		
-	def run(self,sample_iters,burning_iters):
+	def run(self,sample_iters,burning_iters,step=None,nuts_kwargs=None):
 		"""
 		Performs the MCMC run.
 		Arguments:
@@ -275,11 +288,24 @@ class Inference:
 		burning_iters (integer):    Number of burning iterations.
 		file_chains (string):      Path to storage file.
 		"""
+
 		print("Computing posterior")
-		with self.Model as model:
-			db = pm.backends.Text(self.dir_out)
-			trace = pm.sample(sample_iters, tune=burning_iters, trace=db,
-							  discard_tuned_samples=True)
+
+		if step is None:
+			with self.Model as model:
+				db = pm.backends.Text(self.dir_out)
+				trace = pm.sample(sample_iters, 
+								tune=burning_iters, 
+								trace=db,
+								nuts_kwargs=nuts_kwargs,
+								discard_tuned_samples=True)
+
+		elif step is "SMC":
+			with self.Model as model:
+				trace = pm.sample(sample_iters,step=pm.SMC())
+
+				print("Marginal likelihood is:")
+				print(model.marginal_likelihood)
 
 	def load_trace(self,burning_iters):
 		'''
@@ -449,12 +475,11 @@ class Inference:
 			D = 6
 
 		n_sources = len(self.ID)
-		A = np.char.array(np.repeat(self.ID,D,axis=0))
-		B = np.char.array(np.repeat("__",D*n_sources))
-		C = np.char.array(np.tile(np.arange(D),n_sources).astype('str'))
-		ID = A + B + C
+		ID  = np.repeat(self.ID,D,axis=0)
+		idx = np.tile(np.arange(D),n_sources).astype('str')
 
 		df_source.set_index(ID,inplace=True)
+		df_source.insert(loc=0,column="parameter",value=idx)
 		#---------------------------------------------------------------------
 
 		#---------- Save source data frame ----------------------
