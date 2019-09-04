@@ -28,7 +28,7 @@ from Transformations import astrometryToPhaseSpace
 from inference import Inference
 
 #--- Dimension---------------------
-dimension = 5
+dimension = 1
 
 #------------------------- Case----------------------------
 # If synthetic, comment the zero_point line in inference.
@@ -82,10 +82,10 @@ dir_case   = dir_out  + case +"/"
 # If GMM then hyper_delta must be set (see below).
 
 list_of_prior = [
-	# "EDSD"]
+	"EDSD"]
 	# "Uniform",
 	# "Cauchy",
-	"Gaussian"]
+	# "Gaussian"]
 	# "GMM"]
 
 #----------------------------------------------------
@@ -130,7 +130,7 @@ else:
 # Gaussian or Gaussians. If set to None these will be inferred by the model.
 # If set, attention must be paid to their shape in accordance to the model
 # dimension (i.e. if D=5 scale is a 5X5 matrix and location a 5-vector)
-parameters = {"location":None,"scale":None,"corr":False}
+parameters = {"location":0.0,"scale":1810.0,"corr":False}
 #-----------------------------------------------------------------------------
 
 # --------- Transformation------------------------------------
@@ -155,7 +155,7 @@ zero_point = np.zeros_like(zero_point)
 #------- Independent measurements--------
 # In Gaia real data the measurements of stars are correlated,
 # thus indep_measures must be set to False (default)
-indep_measures = True
+indep_measures = False
 #==========================================================
 
 
@@ -203,7 +203,7 @@ os.makedirs(dir_case,exist_ok=True)
 for prior in list_of_prior:
 	#----------- Output dir -------------------
 	dir_prior = dir_case + prior
-	dir_out   = dir_prior + "/" + str(dimension)+"D"
+	dir_out   = dir_prior + "/" + str(dimension)+"D"+"_correlated"
 
 	os.makedirs(dir_prior,exist_ok=True)
 	os.makedirs(dir_out,exist_ok=True)
@@ -228,7 +228,7 @@ for prior in list_of_prior:
 	#-------- Analyse chains --------------------------------
 	p1d.load_trace(burning_iters=burning_iters)
 	p1d.convergence()
-	coords = {"flavour_5d_source_dim_0" : range(5)}
+	coords = {"flavour_1d_source_dim_0" : range(5)}
 	p1d.plot_chains(dir_out,coords=coords)
 	p1d.save_statistics(dir_csv=dir_out,
 						statistic=statistic,
