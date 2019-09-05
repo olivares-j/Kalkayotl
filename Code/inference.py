@@ -212,7 +212,6 @@ class Inference:
 			theta = AngularSeparation(positions)
 
 			#------ Covariance in parallax -----
-			print(corr_func)
 			cov_plx = CovarianceParallax(theta,case=corr_func)
 
 			#-------- Test positive definiteness ------------------------------------------------
