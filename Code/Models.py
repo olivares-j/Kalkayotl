@@ -96,10 +96,10 @@ class Model1D(pm.Model):
 				comp_shape=1,
 				shape=self.N)
 		#---------- Galactic oriented prior ---------------------------------------------
-		elif prior is "Half-Cauchy":
+		elif prior == "Half-Cauchy":
 			pm.HalfCauchy("source",beta=self.scl,shape=self.N)
 
-		elif prior is "Half-Gaussian":
+		elif prior == "Half-Gaussian":
 			pm.HalfNormal("source",sigma=self.scl,shape=self.N)
 
 		elif prior is "EDSD":
@@ -212,6 +212,7 @@ class ModelND(pm.Model):
 		if parameters["corr"] :
 			pm.LKJCorr('chol_corr', eta=hyper_gamma, n=D)
 			C = tt.fill_diagonal(self.chol_corr[np.zeros((D, D),dtype=np.int64)], 1.)
+			# print_ = tt.printing.Print('C')(C)
 		else:
 			C = np.eye(D)
 		#-----------------------------------------------------------------------------
