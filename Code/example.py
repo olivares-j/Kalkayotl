@@ -27,8 +27,6 @@ from Transformations import astrometryToPhaseSpace
 #--------------- Inferer -------------------
 from inference import Inference
 
-#--- Dimension---------------------
-dimension = 1
 
 #------------------------- Case----------------------------
 # If synthetic, comment the zero_point line in inference.
@@ -48,7 +46,7 @@ sd     = np.array([1.15, 1.57, 0.14,0.64,0.72,10.0])
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 3000
+burning_iters   = 4000
 sample_iters    = 1000   # Number of iterations for the MCMC 
 
 
@@ -71,22 +69,42 @@ file_data = dir_data + case +"/"+ file_csv
 #-------------------------------------
 
 #--------- Chains and plots ----------
-dir_out    = dir_main + "Outputs/"
-dir_case   = dir_out  + case +"/"
+dir_outs   = dir_main + "Outputs/"
+dir_case   = dir_outs  + case +"/"
 #--------------------------------------
+
+#------- Create directories -------
+os.makedirs(dir_outs,exist_ok=True)
+os.makedirs(dir_case,exist_ok=True)
+#---------------------------------
 #==================================================
 
 #================== Posterior =============================
-#----------- Prior type -----------------------------
-# If Gaussian then hyper_gamma must be None
-# If GMM then hyper_delta must be set (see below).
+#----------- Prior type and parameters-----------------------------
+
+#----------- Parameters -----------------------------------------------------
+# Represent the mean and standard deviation of the
+# Gaussian or Gaussians. If set to None these will be inferred by the model.
+# If set, attention must be paid to their shape in accordance to the model
+# dimension (i.e. if D=5 scale is a 5X5 matrix and location a 5-vector)
+# parameters = {"location":0.0,"scale":1500,"corr":False}
+#-----------------------------------------------------------------------------
+
+#------------ Hyper delta -------------------------------
+# Only for GMM prior. It represents the hyper-parameter 
+# of the Dirichlet distribution.
+# Its length indicate the number of components in the GMM.
+#----------------------------------------------------------
 
 list_of_prior = [
-	"EDSD"]
-	# "Uniform",
-	# "Cauchy",
-	# "Gaussian"]
-	# "GMM"]
+	# {"type":"EDSD",          "parameters":{"location":0.0,"scale":1350.0, "corr":False}, "hyper_delta": None},
+	# {"type":"Half-Cauchy",   "parameters":{"location":0.0,"scale":1350.0, "corr":False}, "hyper_delta": None},
+	# {"type":"Half-Gaussian", "parameters":{"location":0.0,"scale":1350.0, "corr":False}, "hyper_delta": None},
+	# {"type":"Uniform",       "parameters":{"location":None,"scale":None,  "corr":False}, "hyper_delta": None},
+	# {"type":"Cauchy",        "parameters":{"location":None,"scale":None,  "corr":False}, "hyper_delta": None},
+	{"type":"Gaussian",      "parameters":{"location":None,"scale":None,  "corr":False}, "hyper_delta": None},
+	# {"type":"GMM",           "parameters":{"location":None,"scale":None,  "corr":False}, "hyper_delta": np.array([5,5])}
+	]
 
 #----------------------------------------------------
 
@@ -106,32 +124,6 @@ hyp_beta_mas  = (5.0*sd).tolist()
 hyp_beta_pc   = np.repeat(10,6).tolist()
 #-------------------------------------------------
 
-#------------ Hyper Gamma ---------------------------------
-# Hyper-parameter controlling the correlation distribution
-# Only used in D >= 3. See Pymc3 LKJCorr function.
-if dimension == 1:
-	hyper_gamma = None
-else:
-	hyper_gamma = 1
-#----------------------------------------------------------
-
-#------------ Hyper delta -------------------------------
-# Only for GMM prior. It represents the hyper-parameter 
-# of the Dirichlet distribution.
-# Its length indicate the number of components in the GMM.
-if "GMM" in list_of_prior:
-	hyper_delta = np.array([5,5])
-else:
-	hyper_delta = None
-#----------------------------------------------------------
-
-#----------- Parameters -----------------------------------------------------
-# Represent the mean and standard deviation of the
-# Gaussian or Gaussians. If set to None these will be inferred by the model.
-# If set, attention must be paid to their shape in accordance to the model
-# dimension (i.e. if D=5 scale is a 5X5 matrix and location a 5-vector)
-parameters = {"location":0.0,"scale":1810.0,"corr":False}
-#-----------------------------------------------------------------------------
 
 # --------- Transformation------------------------------------
 # Either "mas" or "pc" to indicate the observable or physical
@@ -148,89 +140,94 @@ elif transformation is "pc":
 
 #--------- Zero point ------------------- ------------
 # The zero point of the astrometry
-zero_point = np.array([0,0,-0.029,0.010,0.010,0.0])
-zero_point = np.zeros_like(zero_point)
+zero_point = np.array([0.0,0.0,0.0,0.0,0.0,0.0])
 #--------------------------------------------------------
 
 #------- Independent measurements--------
 # In Gaia real data the measurements of stars are correlated,
 # thus indep_measures must be set to False (default)
-indep_measures = False
+indep_measures = True
 #==========================================================
 
 
+#--- Loop over dimension---------------------
+for dimension in [3,6,5]:
 
-#========================== Models ==========================
-#------------------------ 1D ----------------------------
-if dimension == 1:
-	zero_point  = zero_point[2]
-	hyper_alpha = [[0,1000]]
-	hyper_beta  = [hyp_beta[2]]
-	
-#---------------------- 3D ---------------------------------
-elif dimension == 3:
-	zero_point  = zero_point[:3]
-	hyper_alpha = hyp_alpha[:3]
-	hyper_beta  = hyp_beta[:3]
+	#------------ Hyper Gamma ---------------------------------
+	# Hyper-parameter controlling the correlation distribution
+	# Only used in D >= 3. See Pymc3 LKJCorr function.
+	if dimension == 1:
+		hyper_gamma = None
+	else:
+		hyper_gamma = 1
+	#----------------------------------------------------------
+
+	#========================== Models ==========================
+	#------------------------ 1D ----------------------------
+	if dimension == 1:
+		zero_point  = zero_point[2]
+		hyper_alpha = [[0,1000]]
+		hyper_beta  = [hyp_beta[2]]
+		
+	#---------------------- 3D ---------------------------------
+	elif dimension == 3:
+		zero_point  = zero_point[:3]
+		hyper_alpha = hyp_alpha[:3]
+		hyper_beta  = hyp_beta[:3]
 
 
-#--------------------- 5D ------------------------------------
-elif dimension == 5:
-	zero_point  = zero_point[:5]
-	hyper_alpha = hyp_alpha
-	hyper_beta  = hyp_beta
+	#--------------------- 5D ------------------------------------
+	elif dimension == 5:
+		zero_point  = zero_point[:5]
+		hyper_alpha = hyp_alpha
+		hyper_beta  = hyp_beta
 
-#-------------------- 6D -------------------------------------
-elif dimension == 6:
-	zero_point  = zero_point
-	hyper_alpha = hyp_alpha
-	hyper_beta  = hyp_beta
+	#-------------------- 6D -------------------------------------
+	elif dimension == 6:
+		zero_point  = zero_point
+		hyper_alpha = hyp_alpha
+		hyper_beta  = hyp_beta
 
-else:
-	sys.exit("Dimension is not correct")
-#------------------------------------------
-#============================================================================================
+	else:
+		sys.exit("Dimension is not correct")
+	#------------------------------------------
+	#============================================================================================
 
-#======================= Inference and Analysis =====================================================
+	#======================= Inference and Analysis =====================================================
+	#--------------------- Loop over prior types ------------------------------------
 
-#------- Create directories -------
-os.makedirs(dir_out,exist_ok=True)
-os.makedirs(dir_case,exist_ok=True)
-#---------------------------------
+	for prior in list_of_prior:
+		#----------- Output dir -------------------
+		dir_prior = dir_case + prior["type"]
+		dir_out   = dir_prior + "/" + str(dimension)+"D"
 
-#--------------------- Loop over prior types ------------------------------------
+		os.makedirs(dir_prior,exist_ok=True)
+		os.makedirs(dir_out,exist_ok=True)
 
-for prior in list_of_prior:
-	#----------- Output dir -------------------
-	dir_prior = dir_case + prior
-	dir_out   = dir_prior + "/" + str(dimension)+"D"+"_correlated"
+		#--------- Run model -----------------------
+		p1d = Inference(dimension=dimension,
+						prior=prior["type"],
+						parameters=prior["parameters"],
+						hyper_alpha=hyper_alpha,
+						hyper_beta=hyper_beta,
+						hyper_gamma=hyper_gamma,
+						hyper_delta=prior["hyper_delta"],
+						dir_out=dir_out,
+						transformation=transformation,
+						zero_point=zero_point,
+						indep_measures=indep_measures)
+		p1d.load_data(file_data,id_name=id_name)
+		p1d.setup()
+		p1d.run(sample_iters=sample_iters,
+				burning_iters=burning_iters
+				)
 
-	os.makedirs(dir_prior,exist_ok=True)
-	os.makedirs(dir_out,exist_ok=True)
-
-	#--------- Run model -----------------------
-	p1d = Inference(dimension=dimension,
-					prior=prior,
-					parameters=parameters,
-					hyper_alpha=hyper_alpha,
-					hyper_beta=hyper_beta,
-					hyper_gamma=hyper_gamma,
-					hyper_delta=hyper_delta,
-					dir_out=dir_out,
-					transformation=transformation,
-					zero_point=zero_point,
-					indep_measures=indep_measures)
-	p1d.load_data(file_data,id_name=id_name)
-	p1d.setup()
-	p1d.run(sample_iters=sample_iters,
-			burning_iters=burning_iters)
-
-	#-------- Analyse chains --------------------------------
-	p1d.load_trace(burning_iters=burning_iters)
-	p1d.convergence()
-	coords = {"flavour_1d_source_dim_0" : range(5)}
-	p1d.plot_chains(dir_out,coords=coords)
-	p1d.save_statistics(dir_csv=dir_out,
-						statistic=statistic,
-						quantiles=quantiles)
-#=======================================================================================
+		#-------- Analyse chains --------------------------------
+		p1d.load_trace(burning_iters=burning_iters)
+		p1d.convergence()
+		coords = {"flavour_"+str(dimension)+"d_source_dim_0" : range(5)}
+		p1d.plot_chains(dir_out,coords=coords)
+		p1d.save_statistics(dir_csv=dir_out,
+							statistic=statistic,
+							quantiles=quantiles)
+	#=======================================================================================
