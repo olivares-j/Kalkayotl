@@ -279,7 +279,9 @@ class Inference:
 
 
 		
-	def run(self,sample_iters,burning_iters,step=None,nuts_kwargs=None):
+	def run(self,sample_iters,burning_iters,
+		chains=None,cores=None,
+		step=None,nuts_kwargs=None):
 		"""
 		Performs the MCMC run.
 		Arguments:
@@ -297,6 +299,7 @@ class Inference:
 								tune=burning_iters, 
 								trace=db,
 								nuts_kwargs=nuts_kwargs,
+								chains=chains, cores=cores,
 								discard_tuned_samples=True)
 
 		elif step is "SMC":
