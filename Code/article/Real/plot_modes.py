@@ -25,84 +25,78 @@ import pandas as pn
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
+import matplotlib.colors as mcolors
 
-case = "Rup147"
-#----------- prior --------
-list_of_priors = [
-# {"type":"EDSD",     "marker":"."},
-# {"type":"Uniform",  "marker":"v"},
-{"type":"Gaussian", "marker":"s"},
-# {"type":"Cauchy",   "marker":"d"},
+list_of_clusters  = [
+{"name":"Pleiades",     "prior":"King","distance":136.0},
+{"name":"Ruprecht_147", "prior":"King","distance":305.0},
+{"name":"NGC_1647",     "prior":"King","distance":589.0},
 ]
-
+xlims = [[126,146],[270,360],[510,690]]
+ylims = [[126,143],[280,325],[540,635]]
 #============ Directories and data =================
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_out    = dir_main  + "Outputs/"
-dir_chains = dir_out   + case + "/"
-file_plot  = dir_out   + "Plots/BJ_vs_Kalkayotl.pdf"
-file_data  = dir_main  + "Data/" + case + "/"  + case + ".csv"
-#=======================================================================================================================
 
-#-------- Read data ------------------------------------------------
-data = pn.read_csv(file_data,usecols=["ID","rest","b_rest","B_rest","parallax","parallax_error"])
-data.sort_values(by="ID",inplace=True)
-data.set_index("ID",inplace=True)
+file_plot  = dir_out   + "Plots/Distance_comparison.pdf"
 
 
-#--------------- Loop over priors ---------------------------------------------------------------------------
-for j,prior in enumerate(list_of_priors):
-	#------ Read modes --------------------------------------------------------
-	file_csv = dir_chains + prior["type"]+"/1D/Sources_mode.csv"
-	infered  = pn.read_csv(file_csv,usecols=["ID","mode","lower","upper"])
-	infered.rename(index=str,inplace=True, 
-		columns={"lower": prior["type"]+"_min","mode": prior["type"]+"_ctr","upper": prior["type"]+"_max"})
-	infered.sort_values(by="ID",inplace=True)
-	infered.set_index("ID",inplace=True)
-
-	#------------ Merge with data ---------------------------------------------------------
-	data     = pn.merge(data,infered,left_index=True, right_index=True,suffixes=("_","_b"))
-
-#================================== Plot points ==========================================================================
-
-#---------- Line --------------
-x_pts  = np.linspace(260,400)
-
-#-------- Figure ----------------------------
 pdf = PdfPages(filename=file_plot)
-plt.figure(figsize=(6,6))
-plt.plot(x_pts,x_pts,color="black",linewidth=0.5,zorder=0)
-for j,prior in enumerate(list_of_priors):
-	y     = data["rest"]
-	x     = data[prior["type"]+"_ctr"]
-	clr   = data["parallax_error"]/data["parallax"]
-	y_err = np.vstack((data["rest"]-data["b_rest"],
-		               data["B_rest"]-data["rest"]))
-	x_err = np.vstack((data[prior["type"]+"_ctr"]-data[prior["type"]+"_min"],
-		               data[prior["type"]+"_max"]-data[prior["type"]+"_ctr"]))
-	
-	plt.errorbar(x,y,yerr=y_err,xerr=x_err,
-		fmt='none',ls='none',marker="o",ms=5,
-		ecolor="grey",elinewidth=0.01,zorder=1,label=None)
-	
-	plt.scatter(x,y,s=20,c=clr,marker=prior["marker"],zorder=2,label=prior["type"],cmap="magma")
+fig, axes = plt.subplots(3, 1,num=0,figsize=(6,18))
+for i,cluster in enumerate(list_of_clusters):
+    dir_chains = dir_out   + cluster["name"] + "/"
+    file_data  = dir_main  + "Data/" + cluster["name"] + ".csv"
+    #=======================================================================================================================
 
-plt.xlabel("Kalkayotl distance [pc]")
-plt.ylabel("BJ+2018 distance [pc]")
-clrb = plt.colorbar()
+    #-------- Read data ------------------------------------------------
+    data = pn.read_csv(file_data,usecols=["ID","rest","b_rest","B_rest","parallax","parallax_error"])
+    data.sort_values(by="ID",inplace=True)
+    data.set_index("ID",inplace=True)
+
+    #------ Read modes --------------------------------------------------------
+    file_csv = dir_chains + cluster["prior"] +"/Sources_mode.csv"
+    infered  = pn.read_csv(file_csv,usecols=["ID","mode","lower","upper"])
+    infered.sort_values(by="ID",inplace=True)
+    infered.set_index("ID",inplace=True)
+
+    #------------ Merge with data ---------------------------------------------------------
+    df         = pn.merge(data,infered,left_index=True, right_index=True,suffixes=("_","_b"))
+
+    df["Frac"]      = df.apply(lambda x: x["parallax_error"]/x["parallax"], axis = 1)
+    df.sort_values(by="Frac",inplace=True,ascending=True)
+
+    #================================== Plot points ==========================================================================
+
+    #---------- Line --------------
+    x_pts  = np.linspace(xlims[i][0],xlims[i][1],100)
+
+    x     = df["rest"]
+    y     = df["mode"]
+    clr   = df["Frac"]
+    x_err = np.vstack((df["rest"]  -df["b_rest"],
+    	               df["B_rest"]-df["rest"]))
+    y_err = np.vstack((df["mode"]  -df["lower"],
+    	               df["upper"] -df["mode"]))
+
+    print("Kalkayotl uncertainties: {0:2.1f}+/-{1:2.1f}".format(np.mean(y_err.flatten()),np.std(y_err.flatten())))
+    print("BJ+2018   uncertainties: {0:2.1f}+/-{1:2.1f}".format(np.mean(x_err.flatten()),np.std(x_err.flatten())))
+
+    axes[i].errorbar(x,y,yerr=y_err,xerr=x_err,
+    	fmt='none',ls='none',marker="o",ms=5,
+    	ecolor="grey",elinewidth=0.01,zorder=0,label=None)
+    axes[i].plot(x_pts,x_pts,color="black",linestyle='--',linewidth=3,zorder=1)
+    points = axes[i].scatter(x,y,s=20,c=clr,marker="s",zorder=2,vmax=0.1,
+        cmap="viridis",norm=mcolors.LogNorm())
+    axes[i].annotate(cluster["name"],xy=(0.05,0.9),xycoords="axes fraction")
+    axes[i].set_ylabel("Kalkayotl distance [pc]")
+    axes[i].set_xlim(xlims[i])
+    axes[i].set_ylim(ylims[i])
+
+fig.subplots_adjust(hspace=0.1)
+clrb = fig.colorbar(points,orientation="horizontal",pad=0.05,ax=axes)
 clrb.set_label("Fractional uncertainty")
-plt.xlim(280,330)
-plt.ylim(260,380)
-# plt.legend(
-# 	title="Prior",
-# 	shadow = False,
-# 	bbox_to_anchor=(0.,1.01, 1., .1),
-# 	borderaxespad=0.,
-# 	frameon = True,
-# 	fancybox = True,
-# 	ncol = 4,
-# 	fontsize = 'smaller',
-# 	mode = 'expand',
-# 	loc = 'upper left')
+plt.xlabel("BJ+2018 distance [pc]")
 pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
 plt.close()
+
 pdf.close()

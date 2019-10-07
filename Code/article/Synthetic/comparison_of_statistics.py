@@ -28,7 +28,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 #===================== Knobs ====================================
 #----------- prior --------
-prior = "EDSD"
+prior = "Gaussian"
 
 #-------- Summary statistics ----------------------------------------
 list_of_statistics =[
@@ -39,14 +39,14 @@ list_of_statistics =[
 #---------------------------------------------------------------------
 
 #-----------------Directories and data -----------------------
-case       = "Gauss_1"
+case       = "Gauss_1000_1e3"
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
-dir_data   = dir_main  + "Data/"
-dir_out    = dir_main  + "Outputs/"
-dir_plots  = dir_out   + "Plots/"
+dir_data   = dir_main  + "Data/Synthetic/"
+dir_out    = dir_main  + "Outputs/Synthetic/"
+dir_plots  = dir_main  + "Outputs/Plots/"
 dir_chains = dir_out   + case + "/" + prior + "/" + "1D/"
 file_data  = dir_data  + case + "/" +case+".csv"
-file_plot  = dir_plots + "Comparison_of_summaries.pdf"
+file_plot  = dir_plots + "Comparison_of_statistics.pdf"
 #====================================================================
 
 #=========== Data and directories ==================
@@ -87,8 +87,8 @@ plt.ylabel("Fractional error")
 plt.xlabel("Fractional uncertainty")
 plt.xscale("log")
 plt.yscale("log")
-plt.xlim(0.01,0.5)
-plt.ylim(0.01,5)
+plt.xlim(0.01,1.0)
+plt.ylim(1e-3,0.01)
 plt.legend(
 	shadow = False,
 	bbox_to_anchor=(0.0, 1.07, 1., .0),

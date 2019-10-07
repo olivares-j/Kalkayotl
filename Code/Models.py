@@ -7,7 +7,8 @@ from theano import tensor as tt, printing
 from Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
 
 from EDSD import EDSD
-
+from EFF import EFF
+from King import King
 
 ##################################3 Model 1D ####################################
 class Model1D(pm.Model):
@@ -61,8 +62,8 @@ class Model1D(pm.Model):
 
 		#------------------------ Location ----------------------------------
 		if parameters["location"] is None:
-			pm.Uniform("loc",lower=hyper_alpha[0][0],
-							upper=hyper_alpha[0][1],
+			pm.Normal("loc",mu=hyper_alpha[0][0],
+							sd=hyper_alpha[0][1],
 							shape=shape)
 
 		else:
@@ -95,6 +96,7 @@ class Model1D(pm.Model):
 				sigma=self.scl,
 				comp_shape=1,
 				shape=self.N)
+			
 		#---------- Galactic oriented prior ---------------------------------------------
 		elif prior == "Half-Cauchy":
 			pm.HalfCauchy("source",beta=self.scl,shape=self.N)
@@ -104,12 +106,29 @@ class Model1D(pm.Model):
 
 		elif prior is "EDSD":
 			EDSD("source",scale=self.scl,shape=self.N)
+
+		elif prior is "EFF":
+			pm.TruncatedNormal("gamma",mu=hyper_gamma[0],sigma=hyper_gamma[1],
+								lower=2.0,upper=100.0,
+								shape=shape)
+			EFF("source",r0=self.loc,rc=self.scl,gamma=self.gamma,
+						shape=self.N)
+
+		elif prior is "King":
+			pm.HalfNormal("add",sigma=hyper_gamma[0],
+								shape=shape)
+
+			pm.Deterministic("rt",self.scl+self.add)
+
+			BoundedKing = pm.Bound(King, lower=self.loc-self.rt,upper=self.loc+self.rt)
+			source = BoundedKing("source",r0=self.loc,rc=self.scl,rt=self.rt,
+						shape=self.N)
 		
 		else:
 			sys.exit("The specified prior is not supported")
 		#-----------------------------------------------------------------------------
 		#=======================================================================================
-
+		# print_ = tt.printing.Print("sources")(self.source)
 		#----------------- Transformations ----------------------
 		true = Transformation(self.source)
 

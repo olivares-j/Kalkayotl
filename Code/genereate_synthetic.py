@@ -1,3 +1,4 @@
+import sys
 import os
 import numpy  as np
 import pandas as pn
@@ -19,45 +20,36 @@ order by random_index
 '''
 
 #----------------Mock data and MCMC parameters  --------------------
-case          = "Gauss_1"
-random_state  = 1234     # Random state for the synthetic data
-mu            = np.array([96,-277,-86,7,-26,-48],dtype="float32")
-sd_0          = np.array([3,8,6,4,14,4],dtype="float32")
-sd_1          = 2.0*sd_0
-fraction      = np.array([1.0,0.0])
-n_stars       = 1000         # Number of mock distances
-labels        = ["ID","r","x","y","z","vx","vy","vz",
-				"ra","dec","parallax","pmra","pmdec","radial_velocity",
-				"ra_error","dec_error","parallax_error","pmra_error",
-				"pmdec_error","radial_velocity_error",
-				"ra_dec_corr","ra_parallax_corr","ra_pmra_corr","ra_pmdec_corr",
-                "dec_parallax_corr","dec_pmra_corr","dec_pmdec_corr",
-                "parallax_pmra_corr","parallax_pmdec_corr",
-                "pmra_pmdec_corr"]
+case             = "Gauss_300_1e3"
+random_state     = 1234     # Random state for the synthetic data
+# mu               = np.array([866,866,866,7,-26,-48],dtype="float32")
+mu               = np.array([96,-277,-86,7,-26,-48],dtype="float32")
+sd_0             = np.array([3,8,6,4,14,4],dtype="float32")
+sd_1             = 2.0*sd_0
+fraction         = np.array([1.0,0.0])
+n_stars          = 1000         # Number of mock distances
+labels           = ["ID","r","x","y","z","vx","vy","vz",
+				    "ra","dec","parallax","pmra","pmdec","radial_velocity",
+				    "ra_error","dec_error","parallax_error","pmra_error",
+				    "pmdec_error","radial_velocity_error",
+				    "ra_dec_corr","ra_parallax_corr","ra_pmra_corr","ra_pmdec_corr",
+                    "dec_parallax_corr","dec_pmra_corr","dec_pmdec_corr",
+                    "parallax_pmra_corr","parallax_pmdec_corr",
+                    "pmra_pmdec_corr"]
 #--------------------------------------------------------------------------------------
 
 #------ Directories and files --------------------------------
 dir_main  = os.getcwd()[:-4]
-dir_data  = dir_main  + "Data/"
-file_data = dir_data  + "Gaia_DR2_uncertainty.csv"
+dir_data  = dir_main  + "Data/Synthetic/"
 dir_case  = dir_data  + case +"/"
 file_plot = dir_case  + case + "_plot.pdf"
 file_syn  = dir_case  + case + ".csv"
-#-----------------------------------------------------
 
+file_uncertainty_general    = dir_main  + "Data/Gaia_DR2_uncertainty.csv"
+#-----------------------------------------------------
 
 #------- Create directories -------
 os.makedirs(dir_case,exist_ok=True)
-
-#----- Reads observed uncertainties --------
-u_obs = pn.read_csv(file_data)
-
-#----- Drop missing values ----------
-u_obs.dropna(how='any',inplace=True)
-u_obs = u_obs.to_numpy()
-
-#----- Choose only the needed uncertainties --------
-u_obs = u_obs[np.random.choice(len(u_obs),n_stars)]
 
 #====================== Generate Synthetic Data ==================================================
 #---------- True stars--------------------------------------------------------
@@ -79,19 +71,33 @@ if N != n_stars:
 dist  = np.sqrt(true[:,0]**2 + true[:,1]**2 + true[:,2]**2)
 
 #--- Notice that  phaseSpace... returns a theano tensor---
-true = np.array(phaseSpaceToAstrometry_and_RV(true).eval())
+true_obs = np.array(phaseSpaceToAstrometry_and_RV(true).eval())
 #----------------------------------------------------
 
-#------- Observed ------------------------------
-print("Generating observables ...")
-obs = np.zeros_like(true)
-for i in range(N):
-	for j in range(D):
-		obs[i,j] = st.norm.rvs(loc=true[i,j],scale=u_obs[i,j],size=1)
-#--------------------------------------------------------
+#=================== Uncertainties =================================
+#----- Reads observed uncertainties --------
+u_obs = pn.read_csv(file_uncertainty_general)
+
+#----- Drop missing values ----------
+u_obs.dropna(how='any',inplace=True)
+u_obs = u_obs.to_numpy()
+
+#----- Choose only the needed uncertainties --------
+u_obs = u_obs[np.random.choice(len(u_obs),n_stars)]
+
+#------------ Create covariance matrices ---------------
+cov_obs = np.apply_along_axis(np.diag,1,u_obs)
 
 #--------- Correlations --------
 corrs = np.zeros((true.shape[0],10))
+
+
+#------- Observed ------------------------------
+print("Generating observables ...")
+obs = np.zeros_like(true_obs)
+for i in range(N):
+		obs[i] = st.multivariate_normal.rvs(mean=true_obs[i],cov=cov_obs[i],size=1)
+#--------------------------------------------------------
 
 #========== Saves the synthetic data ====================
 data = np.column_stack((dist,true,obs,u_obs,corrs))
@@ -100,8 +106,8 @@ df.to_csv(path_or_buf=file_syn,index_label=labels[0])
 #=====================================================
 
 #---------------- Plot ----------------------------------------------------
-n_bins = 100
 pdf = PdfPages(filename=file_plot)
+n_bins = 100
 plt.hist(obs[:,2],density=False,bins=n_bins,alpha=0.5,label="Observed")
 plt.hist(1000.0/dist,density=False,bins=n_bins,alpha=0.5,label="True")
 plt.legend()

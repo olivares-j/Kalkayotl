@@ -18,21 +18,23 @@ This file is part of Kalkayotl.
 '''
 from __future__ import absolute_import, unicode_literals, print_function
 import sys
+import random
 import pymc3 as pm
 import numpy as np
 import pandas as pn
-from Models import Model1D,ModelND
-
-from Functions import AngularSeparation,CovarianceParallax,CovariancePM
-
+import scipy.stats as st
 
 import matplotlib
 matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-import random
 
-import scipy.stats as st
+#------------ Local libraries ------------------------------------------
+from Models import Model1D,ModelND
+from Functions import AngularSeparation,CovarianceParallax,CovariancePM
+from Evidence import Evidence1D
+#------------------------------------------------------------------------
+
 
 
 class Inference:
@@ -48,6 +50,7 @@ class Inference:
 				transformation,
 				zero_point,
 				indep_measures=False,
+				quantiles=[0.05,0.95],
 				**kwargs):
 		"""
 		Arguments:
@@ -76,6 +79,8 @@ class Inference:
 		self.dir_out          = dir_out
 		self.transformation   = transformation
 		self.indep_measures   = indep_measures
+
+		self.quantiles        = quantiles
 
 		self.idx_pma    = 3
 		self.idx_pmd    = 4
@@ -281,7 +286,7 @@ class Inference:
 		
 	def run(self,sample_iters,burning_iters,
 		chains=None,cores=None,
-		step=None,nuts_kwargs=None):
+		step=None,nuts_kwargs=None,*args,**kwargs):
 		"""
 		Performs the MCMC run.
 		Arguments:
@@ -300,7 +305,8 @@ class Inference:
 								trace=db,
 								nuts_kwargs=nuts_kwargs,
 								chains=chains, cores=cores,
-								discard_tuned_samples=True)
+								discard_tuned_samples=True,
+								*args,**kwargs)
 
 		elif step is "SMC":
 			with self.Model as model:
@@ -330,6 +336,9 @@ class Inference:
 											or ("scl" in x) 
 											or ("weights" in x)
 											or ("corr" in x)
+											or ("beta" in x)
+											or ("gamma" in x)
+											or ("rt" in x)
 														  ),self.trace.varnames.copy()))
 		
 		names = global_names.copy()
@@ -337,7 +346,8 @@ class Inference:
 		for i,var in enumerate(names):
 			test = (("interval" in var) 
 					or ("log" in var)
-					or ("stickbreaking") in var)
+					or ("stickbreaking" in var)
+					or ("lowerbound") in var)
 			if test:
 				global_names.remove(var)
 
@@ -421,7 +431,7 @@ class Inference:
 		
 		pdf.close()
 
-	def save_statistics(self,dir_csv,statistic,quantiles=[0.159,0.841]):
+	def save_statistics(self,dir_csv,statistic):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -452,7 +462,7 @@ class Inference:
 			return pn.Series(np.apply_along_axis(my_mode,0,x), name='mode')
 
 		def trace_quantiles(x):
-			return pn.DataFrame(np.quantile(x, quantiles,axis=0).T,
+			return pn.DataFrame(np.quantile(x, self.quantiles,axis=0).T,
 							columns=["lower","upper"])
 		#---------------------------------------------------------------------
 
@@ -492,6 +502,44 @@ class Inference:
 			global_csv = dir_csv +"/Cluster_"+statistic+".csv"
 			df_global = pm.stats.summary(self.trace,varnames=self.global_names,stat_funcs=stat_funcs)
 			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
+
+
+	def evidence(self,N_samples,M_samples,dlogz,nlive,file="Evidence.csv",plot=False):
+		quantiles = [self.quantiles[0],0.5,self.quantiles[1]]
+		print(50*"=")
+		print("Estimating evidence of prior: ",self.prior)
+
+		#------- Initialize evidence module ----------------
+		dyn = Evidence1D(self.mu_data,self.sg_data,
+				prior=self.prior,
+				hyper_alpha=self.hyper_alpha,
+				hyper_beta=self.hyper_beta,
+				hyper_gamma=self.hyper_gamma,
+				hyper_delta=self.hyper_delta,
+				N_samples=N_samples,
+				M_samples=M_samples,
+				transformation=self.transformation,
+				quantiles=quantiles)
+		#  Compute evidence 
+		results = dyn.run(dlogz=dlogz,nlive=nlive)
+
+		logZ    = results["logz"][-1]
+		logZerr = results["logzerr"][-1]
+
+		print("Log Z: {0:.3f} +/- {1:.3f}".format(logZ,logZerr))
+		print(50*"=")
+
+		evidence   = pn.DataFrame(data={"lower":logZ-logZerr,"median":logZ,"upper":logZ+logZerr}, index=["logZ"])
+		parameters = dyn.parameters_statistics(results)
+		summary    = parameters.append(evidence)
+
+		summary.to_csv(file,index_label="Parameter")
+
+		if plot:
+			dyn.plots(results,file=file.replace(".csv",".pdf"))
+		
+		return
+
 		
 
 
