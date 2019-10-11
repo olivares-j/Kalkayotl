@@ -33,7 +33,7 @@ list_of_cases = [
 # {"name":"Ruprecht_147","location":100,"size":50},
 # {"name":"Ruprecht_147","location":120,"size":50},
 # {"name":"Ruprecht_147","location":300,"size":50},
-{"name":"Ruprecht_147","location":500,"size":50},
+# {"name":"Ruprecht_147","location":500,"size":50},
 # {"name":"Ruprecht_147","location":700,"size":50},
 # {"name":"Pleiades","location":200,"size":50},
 # {"name":"Pleiades","location":400,"size":50},
@@ -43,6 +43,7 @@ list_of_cases = [
 # {"name":"NGC_1647","location":1000,"size":50},
 # {"name":"M67","location":900,"size":50},
 # {"name":"M67","location":1000,"size":50}
+{"name":"IC_1848","location":2260,"size":50},
 ]
 
 list_of_prior = [
@@ -56,10 +57,10 @@ list_of_prior = [
 	# 						"hyper_gamma":None, 
 	# 						"hyper_delta": None},
 
-	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100.],
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta": None},
+	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+							"hyper_beta":[1000.],
+							"hyper_gamma":None,
+							"hyper_delta": None},
 
 	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
 	# 						"hyper_beta":[100.], 
@@ -76,23 +77,23 @@ list_of_prior = [
 	# 						"hyper_gamma":[2.0,1.0],
 	# 						"hyper_delta": None},
 
-	{"type":"King",         "parameters":{"location":None,"scale":None},
-							"hyper_beta":[100.], 
-							"hyper_gamma":[20.0],
-							"hyper_delta": None},
+	# {"type":"King",         "parameters":{"location":None,"scale":None},
+	# 						"hyper_beta":[100.], 
+	# 						"hyper_gamma":[20.0],
+	# 						"hyper_delta": None},
 	]
 
 
 
 indep_measures = [
 			{"bool":True, "name":"indep"},
-			# {"bool":False,"name":"corr"}
+			{"bool":False,"name":"corr"}
 			]
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 10000
-sample_iters    = 5000   # Number of iterations for the MCMC 
+burning_iters   = 20000
+sample_iters    = 10000   # Number of iterations for the MCMC 
 
 
 #------- Statistic ----------------------

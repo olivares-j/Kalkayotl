@@ -41,16 +41,17 @@ clusters = [
 			{"name":"Pleiades",     "distance":600, "plot":False,"marker":"d","color":"royalblue",   "zorder":1},
 			{"name":"NGC_1647",     "distance":800, "plot":False,"marker":"s","color":"forestgreen", "zorder":1},
 			{"name":"NGC_1647",     "distance":1000, "plot":False,"marker":"s","color":"forestgreen","zorder":1},
+			{"name":"IC_1848",      "distance":2260, "plot":False,"marker":"s","color":"orange","zorder":1},
 			]
 
 iocs      = [
-			{"name":"Correlation off","value":"indep","marker":"d","sft":-5, "add":40},
-			{"name":"Correlation on", "value":"corr", "marker":"s","sft":5,"add":0}
+			{"name":"Correlation off","value":"indep","marker":"d","sft":-10, "add":40},
+			{"name":"Correlation on", "value":"corr", "marker":"s","sft":10,  "add":0}
 			]
 
 #============ Directories and data =================
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
-dir_out    = dir_main  + "Outputs/Synthetic/HalfCauchy/"
+dir_out    = dir_main  + "Outputs/Synthetic/"
 file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision.pdf"
 #=======================================================================================================================
 
@@ -216,8 +217,8 @@ fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, h
 axes[1].set_xlabel("Distance [pc]")
 axes[1].set_ylabel("Location bias [pc]")
 axes[0].set_ylabel("Scale bias [pc]")
-axes[0].set_ylim(-9,9)
-axes[1].set_ylim(-7,7)
+axes[0].set_xscale("log")
+axes[1].set_xscale("log")
 pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
 plt.close(0)
 

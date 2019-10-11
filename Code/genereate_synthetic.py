@@ -8,108 +8,68 @@ from Transformations import phaseSpaceToAstrometry_and_RV
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+from EFF import eff
+from King import king
 
-'''
-TAP QUERY at
-http://gea.esac.esa.int/tap-server/tap
-
-SELECT TOP 10000000 ra_error,dec_error,parallax_error,pmra_error,pmdec_error,radial_velocity_error
-FROM gaiadr2.gaia_source
-order by random_index
-
-'''
 
 #----------------Mock data and MCMC parameters  --------------------
-case             = "Gauss_300_1e3"
-random_state     = 1234     # Random state for the synthetic data
-# mu               = np.array([866,866,866,7,-26,-48],dtype="float32")
-mu               = np.array([96,-277,-86,7,-26,-48],dtype="float32")
-sd_0             = np.array([3,8,6,4,14,4],dtype="float32")
-sd_1             = 2.0*sd_0
-fraction         = np.array([1.0,0.0])
-n_stars          = 1000         # Number of mock distances
-labels           = ["ID","r","x","y","z","vx","vy","vz",
-				    "ra","dec","parallax","pmra","pmdec","radial_velocity",
-				    "ra_error","dec_error","parallax_error","pmra_error",
-				    "pmdec_error","radial_velocity_error",
-				    "ra_dec_corr","ra_parallax_corr","ra_pmra_corr","ra_pmdec_corr",
-                    "dec_parallax_corr","dec_pmra_corr","dec_pmdec_corr",
-                    "parallax_pmra_corr","parallax_pmdec_corr",
-                    "pmra_pmdec_corr"]
+case             = "IC_1848"
+random_state     = 12345     # Random state for the synthetic data
+loc              = 2700.0
+scl              = 150.0
+rt               = 20
+dist_name        = "norm"
+distribution     = st.norm(loc=loc,scale=scl)
+# distribution     = eff(r0=loc,rc=scl,gamma=3.0)
+# distribution     = king(r0=loc,rc=scl,rt=rt)
+n_stars          = None
+labels           = ["ID","r","parallax","parallax_error",
+				    "ra","dec"]
 #--------------------------------------------------------------------------------------
 
 #------ Directories and files --------------------------------
-dir_main  = os.getcwd()[:-4]
-dir_data  = dir_main  + "Data/Synthetic/"
-dir_case  = dir_data  + case +"/"
-file_plot = dir_case  + case + "_plot.pdf"
-file_syn  = dir_case  + case + ".csv"
-
-file_uncertainty_general    = dir_main  + "Data/Gaia_DR2_uncertainty.csv"
-#-----------------------------------------------------
+dir_main     = os.getcwd()[:-4]
+dir_out      = dir_main  + "Data/Synthetic/" + case
+file_data    = dir_main  + "Data/"+case+".csv"
+file_name    = dir_out   + "/{0}_{1}".format(case,str(int(loc)))
+file_plot    = file_name + ".pdf"
+file_syn     = file_name + ".csv"
 
 #------- Create directories -------
-os.makedirs(dir_case,exist_ok=True)
+os.makedirs(dir_out,exist_ok=True)
 
-#====================== Generate Synthetic Data ==================================================
+#====================== Read true cluster data ===================================================
+data = pn.read_csv(file_data,usecols=labels[3:],nrows=n_stars)
+data.dropna(inplace=True)
 #---------- True stars--------------------------------------------------------
-n_0  = int(np.ceil(fraction[0]*n_stars))
-n_1  = int(np.floor(fraction[1]*n_stars))
+n_stars = data.shape[0]
 
-true = st.multivariate_normal.rvs(mean=mu, cov=np.diag(sd_0**2), 
-						size=n_0,random_state=random_state)
-if n_1 > 0:
-	true_1  = st.multivariate_normal.rvs(mean=mu, cov=np.diag(sd_1**2), 
-						size=n_1,random_state=random_state)
-	true = np.vstack((true,true_1))
 
-N,D = np.shape(true)
-if N != n_stars:
-	sys.exit("Incorrect number of objects")
-
-#---- Physical to observed quantities-------
-dist  = np.sqrt(true[:,0]**2 + true[:,1]**2 + true[:,2]**2)
-
-#--- Notice that  phaseSpace... returns a theano tensor---
-true_obs = np.array(phaseSpaceToAstrometry_and_RV(true).eval())
+print("Generating observables ...")
+#====================== Generate Synthetic Data ==================================================
+dist     = distribution.rvs(size=n_stars,random_state=random_state)
+true_plx = 1000.0/dist
 #----------------------------------------------------
 
 #=================== Uncertainties =================================
-#----- Reads observed uncertainties --------
-u_obs = pn.read_csv(file_uncertainty_general)
-
-#----- Drop missing values ----------
-u_obs.dropna(how='any',inplace=True)
-u_obs = u_obs.to_numpy()
-
-#----- Choose only the needed uncertainties --------
-u_obs = u_obs[np.random.choice(len(u_obs),n_stars)]
-
-#------------ Create covariance matrices ---------------
-cov_obs = np.apply_along_axis(np.diag,1,u_obs)
-
-#--------- Correlations --------
-corrs = np.zeros((true.shape[0],10))
-
-
 #------- Observed ------------------------------
-print("Generating observables ...")
-obs = np.zeros_like(true_obs)
-for i in range(N):
-		obs[i] = st.multivariate_normal.rvs(mean=true_obs[i],cov=cov_obs[i],size=1)
+obs_plx = np.zeros_like(true_plx)
+for i,(true_loc,true_scl) in enumerate(zip(true_plx,data["parallax_error"])):
+	obs_plx[i] = st.norm.rvs(loc=true_loc,scale=true_scl,size=1)
 #--------------------------------------------------------
 
 #========== Saves the synthetic data ====================
-data = np.column_stack((dist,true,obs,u_obs,corrs))
-df = pn.DataFrame(data=data,columns=labels[1:])
+df = data.copy(deep=True)
+df.insert(loc=0,column="r",value=dist)
+df.insert(loc=1,column="parallax",value=obs_plx)
 df.to_csv(path_or_buf=file_syn,index_label=labels[0])
 #=====================================================
 
 #---------------- Plot ----------------------------------------------------
 pdf = PdfPages(filename=file_plot)
 n_bins = 100
-plt.hist(obs[:,2],density=False,bins=n_bins,alpha=0.5,label="Observed")
-plt.hist(1000.0/dist,density=False,bins=n_bins,alpha=0.5,label="True")
+plt.hist(obs_plx,density=False,bins=n_bins,alpha=0.5,label="Observed")
+plt.hist(true_plx,density=False,bins=n_bins,alpha=0.5,label="True")
 plt.legend()
 plt.ylabel("Density")
 plt.xlabel("Parallax [mas]")

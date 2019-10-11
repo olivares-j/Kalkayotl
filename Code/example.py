@@ -105,7 +105,7 @@ file_data = dir_main + "Data/" + file_csv
 #-------------------------------------
 
 #--------- Chains and plots ----------
-dir_out    = dir_main + "Outputs/"
+dir_out    = dir_main + "Test/"
 dir_case   = dir_out  + case +"/"
 #--------------------------------------
 #==================================================
