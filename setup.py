@@ -5,8 +5,7 @@ setup(
     version='0.3.0',
     author='Javier Olivares',
     author_email='javier.olivares-romero@u-bordeaux.fr',
-    packages=['Code'],
-    url='http://perso.astrophy.u-bordeaux.fr/JOlivares/kalkayotl/index.html',
+    packages=['Kalkayotl'],
     license='COPYING',
     description='Star distance inference code',
     long_description=open('README.md').read(),
@@ -19,7 +18,10 @@ setup(
     ],
     python_requires='>=3.6',
     install_requires=[
-
+        'pymc3==3.7',
+        'matplotlib==3.1.1',
+        'dynesty==1.0.0',
+        'arviz==0.5.1'
     ],
     zip_safe=True
 )

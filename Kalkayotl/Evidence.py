@@ -10,10 +10,10 @@ from dynesty import plotting as dyplot
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from Transformations import Iden,pc2mas
+from Kalkayotl.Transformations import Iden,pc2mas
+from Kalkayotl.EFF import eff
+from Kalkayotl.King import king
 
-from EFF import eff
-from King import king
 
 ################################## Evidence 1D ####################################
 class Evidence1D():

@@ -4,11 +4,10 @@ import pymc3 as pm
 import theano
 from theano import tensor as tt, printing
 
-from Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
-
-from EDSD import EDSD
-from EFF import EFF
-from King import King
+from Kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
+from Kalkayotl.EFF import EFF
+from Kalkayotl.EDSD import EDSD
+from Kalkayotl.King import King
 
 ##################################3 Model 1D ####################################
 class Model1D(pm.Model):

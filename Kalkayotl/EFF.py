@@ -2,7 +2,7 @@
 """
 Elson, Fall and Freeman distance prior. Inspired by Ellson et al. 1987
 """
-
+__all__ = ['eff', 'EFF']
 import numpy as np
 import theano.tensor as tt
 

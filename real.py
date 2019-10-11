@@ -23,17 +23,15 @@ import os
 import shutil
 import numpy as np
 import pandas as pn
-from Transformations import astrometryToPhaseSpace
 
-#--------------- Inferer -------------------
-from inference import Inference
+from  Kalkayotl.inference import kalkayotl
 
 
 #------------------------- Case----------------------------
 # If synthetic, comment the zero_point line in inference.
-case      = "Ruprecht_147"    # Case name
-file_csv  = "Ruprecht_147.csv" # Data file
-dst       = 305.0
+case      = "NGC_6791"    # Case name
+file_csv  = "NGC_6791.csv" # Data file
+dst       = 4530.
 id_name   = "ID"          # Identifier's name
 #-----------------------------------------------------------
 
@@ -44,11 +42,11 @@ list_of_prior = [
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta": None},
 
-	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]],
-	# 						"hyper_beta":[100.],
-	# 						"hyper_gamma":None, 
-	# 						"hyper_delta":None},
+	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
+							"hyper_alpha":[[dst,50.]],
+							"hyper_beta":[100.],
+							"hyper_gamma":None, 
+							"hyper_delta":None},
 
 	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
 							"hyper_alpha":[[dst,50.]], 
@@ -56,35 +54,35 @@ list_of_prior = [
 							"hyper_gamma":None,
 							"hyper_delta":None},
 
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]], 
-	# 						"hyper_beta":[100.], 
-	# 						"hyper_gamma":[2.0,1.0],
-	# 						"hyper_delta":None},
+	{"type":"EFF",          "parameters":{"location":None,"scale":None},
+							"hyper_alpha":[[dst,50.]], 
+							"hyper_beta":[100.], 
+							"hyper_gamma":[2.0,1.0],
+							"hyper_delta":None},
 
-	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]], 
-	# 						"hyper_beta":[100.], 
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":np.array([0.5,0.5])},
+	{"type":"GMM",          "parameters":{"location":None,"scale":None},
+							"hyper_alpha":[[dst,50.]], 
+							"hyper_beta":[100.], 
+							"hyper_gamma":None,
+							"hyper_delta":np.array([0.9,0.1])},
 
-	# {"type":"King",         "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]], 
-	# 						"hyper_beta":[100.], 
-	# 						"hyper_gamma":[20.],
-	# 						"hyper_delta":None},
+	{"type":"King",         "parameters":{"location":None,"scale":None},
+							"hyper_alpha":[[dst,50.]], 
+							"hyper_beta":[100.], 
+							"hyper_gamma":[20.],
+							"hyper_delta":None},
 
-	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]], 
-	# 						"hyper_beta":[100.], 
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":None},
+	{"type":"Cauchy",       "parameters":{"location":None,"scale":None},
+							"hyper_alpha":[[dst,50.]], 
+							"hyper_beta":[100.], 
+							"hyper_gamma":None,
+							"hyper_delta":None},
 	]
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 10000
-sample_iters    = 5000   # Number of iterations for the MCMC 
+burning_iters   = 20000
+sample_iters    = 10000   # Number of iterations for the MCMC 
 
 
 #------- Statistic ----------------------
@@ -105,7 +103,7 @@ file_data = dir_main + "Data/" + file_csv
 #-------------------------------------
 
 #--------- Chains and plots ----------
-dir_out    = dir_main + "Test/"
+dir_out    = dir_main + "Outputs/"
 dir_case   = dir_out  + case +"/"
 #--------------------------------------
 #==================================================
@@ -143,10 +141,14 @@ for prior in list_of_prior:
 	file_Z    = dir_out   + "Cluster_Z.csv"
 
 	os.makedirs(dir_prior,exist_ok=True)
+
+	# if os.path.exists(dir_out):
+	# 	shutil.rmtree(dir_out)
+	
 	os.makedirs(dir_out,exist_ok=True)
 
 	#--------- Run model -----------------------
-	p1d = Inference(dimension=1,
+	p1d = kalkayotl(dimension=1,
 					prior=prior["type"],
 					parameters=prior["parameters"],
 					hyper_alpha=prior["hyper_alpha"],
@@ -160,7 +162,7 @@ for prior in list_of_prior:
 					quantiles=quantiles)
 	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
-	# p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
+	p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
 	
 	p1d.run(sample_iters=sample_iters,
 			burning_iters=burning_iters,

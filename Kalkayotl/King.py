@@ -2,7 +2,7 @@
 """
 King distance prior. Inspired by King 1962
 """
-
+__all__ = ['king', 'King']
 import numpy as np
 import theano.tensor as tt
 

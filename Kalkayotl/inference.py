@@ -30,14 +30,14 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 #------------ Local libraries ------------------------------------------
-from Models import Model1D,ModelND
-from Functions import AngularSeparation,CovarianceParallax,CovariancePM
-from Evidence import Evidence1D
+from Kalkayotl.Models import Model1D,ModelND
+from Kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM
+from Kalkayotl.Evidence import Evidence1D
 #------------------------------------------------------------------------
 
 
 
-class Inference:
+class kalkayotl:
 	"""
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
 	"""

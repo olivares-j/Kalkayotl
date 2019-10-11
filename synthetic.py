@@ -22,10 +22,9 @@ import sys
 import os
 import numpy as np
 import pandas as pn
-from Transformations import astrometryToPhaseSpace
 
-#--------------- Inferer -------------------
-from inference import Inference
+
+from  Kalkayotl.inference import kalkayotl
 
 
 #------------------------- Case----------------------------
@@ -141,7 +140,7 @@ for case in list_of_cases:
 			os.makedirs(dir_out,exist_ok=True)
 
 			#--------- Run model -----------------------
-			p1d = Inference(dimension=1,
+			p1d = kalkayotl(dimension=1,
 							prior=prior["type"],
 							parameters=prior["parameters"],
 							hyper_alpha=[[case["location"],case["size"]]],
