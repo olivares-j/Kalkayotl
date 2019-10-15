@@ -17,8 +17,8 @@ class Model1D(pm.Model):
 	def __init__(self,mu_data,sg_data,
 		prior="Gaussian",
 		parameters={"location":None,"scale": None},
-		hyper_alpha=[[0,10]],
-		hyper_beta=[0.5],
+		hyper_alpha=[100,10],
+		hyper_beta=[10],
 		hyper_gamma=None,
 		hyper_delta=None,
 		transformation="mas",
@@ -61,9 +61,7 @@ class Model1D(pm.Model):
 
 		#------------------------ Location ----------------------------------
 		if parameters["location"] is None:
-			pm.Normal("loc",mu=hyper_alpha[0][0],
-							sd=hyper_alpha[0][1],
-							shape=shape)
+			pm.Normal("loc",mu=hyper_alpha[0],sigma=hyper_alpha[1],shape=shape)
 
 		else:
 			self.loc = parameters["location"]

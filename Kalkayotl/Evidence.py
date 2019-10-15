@@ -68,11 +68,8 @@ class Evidence1D():
 		#==================================================================
 
 		#================ Hyper-prior =====================================
-		# a_loc, b_loc =  hyper_alpha[0][0] / hyper_alpha[0][1], 1000. / hyper_alpha[0][1]
-		# hp_loc = st.truncnorm(a=a_loc,b=b_loc,loc=hyper_alpha[0][0],scale=hyper_alpha[0][1])
-		hp_loc = st.norm(loc=hyper_alpha[0][0],scale=hyper_alpha[0][1])
+		hp_loc = st.norm(loc=hyper_alpha[0],scale=hyper_alpha[1])
 		hp_scl = st.halfcauchy(loc=0.1,scale=hyper_beta[0])
-		# hp_scl = st.gamma(a=2.0,scale=hyper_beta[0])
 		#========================================================================
 
 		#================= Prior ========================================================

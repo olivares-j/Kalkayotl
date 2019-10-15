@@ -297,23 +297,15 @@ class kalkayotl:
 
 		print("Computing posterior")
 
-		if step is None:
-			with self.Model as model:
-				db = pm.backends.Text(self.dir_out)
-				trace = pm.sample(sample_iters, 
-								tune=burning_iters, 
-								trace=db,
-								nuts_kwargs=nuts_kwargs,
-								chains=chains, cores=cores,
-								discard_tuned_samples=True,
-								*args,**kwargs)
-
-		elif step is "SMC":
-			with self.Model as model:
-				trace = pm.sample(sample_iters,step=pm.SMC())
-
-				print("Marginal likelihood is:")
-				print(model.marginal_likelihood)
+		with self.Model as model:
+			db = pm.backends.Text(self.dir_out)
+			trace = pm.sample(sample_iters, 
+							tune=burning_iters, 
+							trace=db,
+							nuts_kwargs=nuts_kwargs,
+							chains=chains, cores=cores,
+							discard_tuned_samples=True,
+							*args,**kwargs)
 
 	def load_trace(self,burning_iters):
 		'''

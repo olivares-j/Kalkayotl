@@ -31,17 +31,33 @@ prior = "Gaussian"
 colors    = ["orange","green"]
 
 clusters = [
-			{"name":"Pleiades",     "distance":200, "plot":False,"marker":"v","color":"royalblue",   "zorder":1},
-			{"name":"Ruprecht_147", "distance":100, "plot":True, "marker":"v","color":"maroon",      "zorder":4},
-			{"name":"NGC_1647",     "distance":600, "plot":False,"marker":"s","color":"forestgreen", "zorder":1},
-			{"name":"Ruprecht_147", "distance":300, "plot":True, "marker":"o","color":"maroon",      "zorder":3},
-			{"name":"Ruprecht_147", "distance":500, "plot":True, "marker":"d","color":"maroon",      "zorder":2},
-			{"name":"Ruprecht_147", "distance":700, "plot":True, "marker":"s","color":"maroon",      "zorder":1},
-			{"name":"Pleiades",     "distance":400, "plot":False,"marker":"d","color":"royalblue",   "zorder":1},
-			{"name":"Pleiades",     "distance":600, "plot":False,"marker":"d","color":"royalblue",   "zorder":1},
-			{"name":"NGC_1647",     "distance":800, "plot":False,"marker":"s","color":"forestgreen", "zorder":1},
-			{"name":"NGC_1647",     "distance":1000, "plot":False,"marker":"s","color":"forestgreen","zorder":1},
-			{"name":"IC_1848",      "distance":2260, "plot":False,"marker":"s","color":"orange","zorder":1},
+			{"name":"Gaussian",     "distance":100, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":200, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":300, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":400, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":500, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":600, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":700, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":800, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":2500, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":3000, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":3500, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			# {"name":"Gaussian",     "distance":4000, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":4500, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":5000, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+			{"name":"Gaussian",     "distance":10000, "plot":False,"marker":"v","color":"blue",   "zorder":1},
+
+			# {"name":"Pleiades",     "distance":200, "plot":False,"marker":"v","color":"royalblue",   "zorder":1},
+			# {"name":"Ruprecht_147", "distance":100, "plot":True, "marker":"v","color":"maroon",      "zorder":4},
+			# {"name":"NGC_1647",     "distance":600, "plot":False,"marker":"s","color":"forestgreen", "zorder":1},
+			# {"name":"Ruprecht_147", "distance":300, "plot":True, "marker":"o","color":"maroon",      "zorder":3},
+			# {"name":"Ruprecht_147", "distance":500, "plot":True, "marker":"d","color":"maroon",      "zorder":2},
+			# {"name":"Ruprecht_147", "distance":700, "plot":True, "marker":"s","color":"maroon",      "zorder":1},
+			# {"name":"Pleiades",     "distance":400, "plot":False,"marker":"d","color":"royalblue",   "zorder":1},
+			# {"name":"Pleiades",     "distance":600, "plot":False,"marker":"d","color":"royalblue",   "zorder":1},
+			# {"name":"NGC_1647",     "distance":800, "plot":False,"marker":"s","color":"forestgreen", "zorder":1},
+			# {"name":"NGC_1647",     "distance":1000, "plot":False,"marker":"s","color":"forestgreen","zorder":1},
+			# {"name":"IC_1848",      "distance":2260, "plot":False,"marker":"s","color":"orange","zorder":1},
 			]
 
 iocs      = [
@@ -52,6 +68,7 @@ iocs      = [
 #============ Directories and data =================
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_out    = dir_main  + "Outputs/Synthetic/"
+dir_data   = dir_main  + "Data/Synthetic/Gaussian_20/"
 file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision.pdf"
 #=======================================================================================================================
 
@@ -74,7 +91,7 @@ for cluster in clusters:
 		dir_chains    = dir_out    + cluster["name"] +"_"+str(cluster["distance"])+"/"+prior+"/"+ioc["value"]+"/" 
 		file_par      = dir_chains + "Cluster_mode.csv"
 		file_src      = dir_chains + "Sources_mode.csv"
-		file_true     = dir_main   + "Data/Synthetic/"+cluster["name"]+"/"+cluster["name"]+"_"+str(cluster["distance"])+".csv"
+		file_true     = dir_data   + cluster["name"]+"_"+str(cluster["distance"])+".csv"
 		#-----------------------------------------------------------------------------------------------------
 
 		#-------- Read data --------------------------------
@@ -219,6 +236,7 @@ axes[1].set_ylabel("Location bias [pc]")
 axes[0].set_ylabel("Scale bias [pc]")
 axes[0].set_xscale("log")
 axes[1].set_xscale("log")
+axes[0].set_ylim(-10,80)
 pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
 plt.close(0)
 
@@ -228,27 +246,27 @@ distance_mrk = [mlines.Line2D([], [],color="grey",
 								marker=cluster["marker"],
 								linewidth=0,
 								label=str(cluster["distance"])) for cluster in plot_distances]
-plt.figure(1)
-plt.plot([-30,30],[70,10],linestyle=":",color="black",lw=1,zorder=-1)
-plt.plot([-30,30],[30,-30],linestyle=":",color="black",lw=1,zorder=-1)
-plt.legend(handles=distance_mrk,
-	title="Distances [pc]",
-	shadow = False,
-	bbox_to_anchor=(0.0, 1.005, 1.0, .1),
-	borderaxespad=0.,
-	frameon = True,
-	fancybox = True,
-	ncol = 4,
-	fontsize = 'smaller',
-	mode = 'expand',
-	loc = 'upper left')
+# plt.figure(1)
+# plt.plot([-30,30],[70,10],linestyle=":",color="black",lw=1,zorder=-1)
+# plt.plot([-30,30],[30,-30],linestyle=":",color="black",lw=1,zorder=-1)
+# plt.legend(handles=distance_mrk,
+# 	title="Distances [pc]",
+# 	shadow = False,
+# 	bbox_to_anchor=(0.0, 1.005, 1.0, .1),
+# 	borderaxespad=0.,
+# 	frameon = True,
+# 	fancybox = True,
+# 	ncol = 4,
+# 	fontsize = 'smaller',
+# 	mode = 'expand',
+# 	loc = 'upper left')
 
-clrb = plt.colorbar()
-# clrb.set_label("Posterior width [pc]")
-clrb.set_label("Fractional uncertainty")
-plt.xlabel("Offset from cluster centre [pc]")
-plt.ylabel("Distance bias [pc]")
-plt.xlim(-30,30)
-pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
-plt.close(1)
+# clrb = plt.colorbar()
+# # clrb.set_label("Posterior width [pc]")
+# clrb.set_label("Fractional uncertainty")
+# plt.xlabel("Offset from cluster centre [pc]")
+# plt.ylabel("Distance bias [pc]")
+# plt.xlim(-30,30)
+# pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
+# plt.close(1)
 pdf.close()

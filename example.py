@@ -28,9 +28,12 @@ from  Kalkayotl.inference import kalkayotl
 # If synthetic, comment the zero_point line in inference.
 case      = "Ruprecht_147"    # Case name
 file_csv  = "Ruprecht_147.csv" # Data file
-dst       = 305.0
 id_name   = "ID"          # Identifier's name
 #-----------------------------------------------------------
+
+
+#========= Hyper-prior ============================
+hyper_alpha = [305,50.]
 
 list_of_prior = [
 	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
@@ -40,37 +43,37 @@ list_of_prior = [
 	# 						"hyper_delta": None},
 
 	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]],
+	# 						"hyper_alpha":hyper_alpha,
 	# 						"hyper_beta":[100.],
 	# 						"hyper_gamma":None, 
 	# 						"hyper_delta":None},
 
 	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-							"hyper_alpha":[[dst,50.]], 
+							"hyper_alpha":hyper_alpha,
 							"hyper_beta":[100.],
 							"hyper_gamma":None,
 							"hyper_delta":None},
 
 	# {"type":"EFF",          "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]], 
+	# 						"hyper_alpha":hyper_alpha,
 	# 						"hyper_beta":[100.], 
 	# 						"hyper_gamma":[2.0,1.0],
 	# 						"hyper_delta":None},
 
 	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]], 
+	# 						"hyper_alpha":hyper_alpha, 
 	# 						"hyper_beta":[100.], 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta":np.array([0.5,0.5])},
 
 	# {"type":"King",         "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]], 
+	# 						"hyper_alpha":hyper_alpha, 
 	# 						"hyper_beta":[100.], 
 	# 						"hyper_gamma":[20.],
 	# 						"hyper_delta":None},
 
 	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":[[dst,50.]], 
+	# 						"hyper_alpha":hyper_alpha, 
 	# 						"hyper_beta":[100.], 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta":None},
@@ -155,7 +158,7 @@ for prior in list_of_prior:
 					quantiles=quantiles)
 	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
-	p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
+	# p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
 	
 	p1d.run(sample_iters=sample_iters,
 			burning_iters=burning_iters,
