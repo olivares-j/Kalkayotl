@@ -34,8 +34,12 @@ list_of_cases =[
 {"name":"Ruprecht_147","loc":400},
 {"name":"Ruprecht_147","loc":500},
 {"name":"NGC_1647",    "loc":600},
-{"name":"M67",         "loc":700},
-{"name":"M67",         "loc":800},
+{"name":"NGC_2264",    "loc":700},
+{"name":"NGC_2264",    "loc":800},
+{"name":"NGC_2682",    "loc":900},
+{"name":"NGC_2682",    "loc":1000},
+{"name":"NGC_2244",    "loc":1500},
+{"name":"NGC_188",    "loc":2000},
 {"name":"IC_1848",     "loc":2500},
 {"name":"IC_1848",     "loc":3000},
 {"name":"IC_1848",     "loc":3500},
@@ -56,6 +60,8 @@ os.makedirs(dir_out,exist_ok=True)
 #================= Loop over cases ==============================================
 print("Generating observables ...")
 for case in list_of_cases:
+	print(30*"=")
+	print(case["name"])
 
 	#------- Local files -----------------------------------------------------
 	file_data    = dir_main  + case['name'] + ".csv"
