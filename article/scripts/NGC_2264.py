@@ -34,10 +34,11 @@ dir_main  = "/home/javier/Repositories/Kalkayotl/"
 case      = "NGC_2264"    # Case name
 file_csv  = "NGC_2264.csv" # Data file
 id_name   = "ID"          # Identifier's name
+distance  = 720.
 #-----------------------------------------------------------
 
 #===================== Hyper-prior=========================================
-hyper_alpha = [720.,50.]
+hyper_alpha = [distance,0.1*distance] 
 hyper_beta  = [100.] 
 
 list_of_prior = [
@@ -71,7 +72,7 @@ list_of_prior = [
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 30000
+burning_iters   = 40000
 sample_iters    = 10000   # Number of iterations for the MCMC 
 
 

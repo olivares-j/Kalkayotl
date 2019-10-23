@@ -34,10 +34,11 @@ dir_main  = "/home/javier/Repositories/Kalkayotl/"
 case      = "NGC_1647"    # Case name
 file_csv  = "NGC_1647.csv" # Data file
 id_name   = "ID"          # Identifier's name
+distance  = 586.
 #-----------------------------------------------------------
 
 #===================== Hyper-prior=========================================
-hyper_alpha = [590.,50.]
+hyper_alpha = [distance,0.1*distance] 
 hyper_beta  = [100.] 
 
 list_of_prior = [
@@ -71,7 +72,7 @@ list_of_prior = [
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 30000
+burning_iters   = 40000
 sample_iters    = 10000   # Number of iterations for the MCMC 
 
 
@@ -144,7 +145,7 @@ for prior in list_of_prior:
 					quantiles=quantiles)
 	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
-	p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
+	# p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
 	
 	p1d.run(sample_iters=sample_iters,
 			burning_iters=burning_iters,

@@ -29,25 +29,25 @@ from  Kalkayotl.inference import kalkayotl
 
 #------------------------- Case----------------------------
 list_of_cases = [
-# {"name":"Gaussian","location":100,"size":50},
-# {"name":"Gaussian","location":200,"size":50},
-# {"name":"Gaussian","location":300,"size":50},
-# {"name":"Gaussian","location":400,"size":50},
-# {"name":"Gaussian","location":500,"size":50},
-# {"name":"Gaussian","location":600,"size":50},
-{"name":"Gaussian","location":700,"size":50},
-{"name":"Gaussian","location":800,"size":50},
-{"name":"Gaussian","location":900,"size":50},
-{"name":"Gaussian","location":1000,"size":50},
-{"name":"Gaussian","location":1500,"size":50},
-# {"name":"Gaussian","location":2000,"size":50},
-# {"name":"Gaussian","location":2500,"size":50},
-# {"name":"Gaussian","location":3000,"size":50},
-# {"name":"Gaussian","location":3500,"size":50},
-# {"name":"Gaussian","location":4000,"size":50},
-# {"name":"Gaussian","location":4500,"size":50},
-# {"name":"Gaussian","location":5000,"size":50},
-# {"name":"Gaussian","location":10000,"size":50},
+{"name":"Gaussian","location":100,"size":10},
+{"name":"Gaussian","location":200,"size":20},
+{"name":"Gaussian","location":300,"size":30},
+{"name":"Gaussian","location":400,"size":40},
+{"name":"Gaussian","location":500,"size":50},
+{"name":"Gaussian","location":600,"size":60},
+{"name":"Gaussian","location":700,"size":70},
+{"name":"Gaussian","location":800,"size":80},
+{"name":"Gaussian","location":900,"size":90},
+{"name":"Gaussian","location":1000,"size":100},
+{"name":"Gaussian","location":1500,"size":150},
+{"name":"Gaussian","location":2000,"size":200},
+{"name":"Gaussian","location":2500,"size":250},
+{"name":"Gaussian","location":3000,"size":300},
+{"name":"Gaussian","location":3500,"size":350},
+{"name":"Gaussian","location":4000,"size":400},
+{"name":"Gaussian","location":4500,"size":450},
+{"name":"Gaussian","location":5000,"size":500},
+{"name":"Gaussian","location":10000,"size":1000},
 ]
 
 list_of_prior = [
@@ -67,7 +67,7 @@ list_of_prior = [
 							"hyper_delta": None},
 
 	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[1000],
+	# 						"hyper_beta":[100],
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta": None},
 
@@ -96,7 +96,7 @@ list_of_prior = [
 
 indep_measures = [
 			{"bool":True, "name":"indep"},
-			{"bool":False,"name":"corr"}
+			# {"bool":False,"name":"corr"}
 			]
 
 #===================== Chains =================================
@@ -120,7 +120,7 @@ transformation = "pc"
 
 #============ Directories =============================
 #-------Main directory ---------------
-dir_main  = os.getcwd() +"/"
+dir_main  = "/home/javier/Repositories/Kalkayotl/"
 #----------- Data --------------------
 dir_data  = dir_main + "Data/Synthetic"+"/Gaussian_20/"
 dir_outs  = dir_main + "Outputs/Synthetic/"
@@ -144,7 +144,7 @@ for case in list_of_cases:
 		for indep in indep_measures:
 			#----------- Output dir -------------------
 			dir_prior = dir_case + prior["type"]
-			dir_out   = dir_prior + "/" +indep["name"]#+"_beta_"+str(prior["hyper_beta"][0])
+			dir_out   = dir_prior + "/" +indep["name"]
 
 			os.makedirs(dir_prior,exist_ok=True)
 			os.makedirs(dir_out,exist_ok=True)

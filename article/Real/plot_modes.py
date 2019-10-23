@@ -30,10 +30,10 @@ import matplotlib.colors as mcolors
 list_of_clusters  = [
 {"name":"Pleiades",     "prior":"King","distance":136.0},
 {"name":"Ruprecht_147", "prior":"King","distance":305.0},
-{"name":"NGC_1647",     "prior":"King","distance":589.0},
+{"name":"NGC_3603",     "prior":"King","distance":9493.0},
 ]
-xlims = [[126,146],[270,360],[510,690]]
-ylims = [[126,143],[280,325],[540,635]]
+xlims = [[126,146],[270,360],[3000,14000]]
+ylims = [[126,143],[280,325],[3000,15000]]
 #============ Directories and data =================
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_out    = dir_main  + "Outputs/"
@@ -78,8 +78,8 @@ for i,cluster in enumerate(list_of_clusters):
     y_err = np.vstack((df["mode"]  -df["lower"],
     	               df["upper"] -df["mode"]))
 
-    print("Kalkayotl uncertainties: {0:2.1f}+/-{1:2.1f}".format(np.mean(y_err.flatten()),np.std(y_err.flatten())))
-    print("BJ+2018   uncertainties: {0:2.1f}+/-{1:2.1f}".format(np.mean(x_err.flatten()),np.std(x_err.flatten())))
+    print("Kalkayotl mean uncertainties: {0:2.1f}+/-{1:2.1f}".format(np.mean(y_err.flatten()),np.std(y_err.flatten())))
+    print("BJ+2018   mean uncertainties: {0:2.1f}+/-{1:2.1f}".format(np.mean(x_err.flatten()),np.std(x_err.flatten())))
 
     axes[i].errorbar(x,y,yerr=y_err,xerr=x_err,
     	fmt='none',ls='none',marker="o",ms=5,

@@ -31,13 +31,14 @@ dir_main  = "/home/javier/Repositories/Kalkayotl/"
 
 #------------------------- Case----------------------------
 # If synthetic, comment the zero_point line in inference.
-case      = "NGC_2264"    # Case name
-file_csv  = "NGC_2264.csv" # Data file
+case      = "NGC_2244"    # Case name
+file_csv  = "NGC_2244.csv" # Data file
 id_name   = "ID"          # Identifier's name
+distance  = 1550.
 #-----------------------------------------------------------
 
 #===================== Hyper-prior=========================================
-hyper_alpha = [1550.,50.]
+hyper_alpha = [distance,0.1*distance] 
 hyper_beta  = [100.] 
 
 list_of_prior = [
@@ -71,7 +72,7 @@ list_of_prior = [
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 30000
+burning_iters   = 40000
 sample_iters    = 10000   # Number of iterations for the MCMC 
 
 
@@ -144,7 +145,7 @@ for prior in list_of_prior:
 					quantiles=quantiles)
 	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
-	p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
+	# p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
 	
 	p1d.run(sample_iters=sample_iters,
 			burning_iters=burning_iters,
