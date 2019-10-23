@@ -120,7 +120,7 @@ transformation = "pc"
 
 #============ Directories =============================
 #-------Main directory ---------------
-dir_main  = "/home/javier/Repositories/Kalkayotl/"
+dir_main  = os.getcwd() +"/"
 #----------- Data --------------------
 dir_data  = dir_main + "Data/Synthetic"+"/Gaussian_20/"
 dir_outs  = dir_main + "Outputs/Synthetic/"

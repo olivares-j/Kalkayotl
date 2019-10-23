@@ -27,7 +27,7 @@ import pandas as pn
 from  Kalkayotl.inference import kalkayotl
 
 #-------Main directory ---------------
-dir_main  = "/home/javier/Repositories/Kalkayotl/"
+dir_main  = os.getcwd() +"/"
 
 #------------------------- Case----------------------------
 # If synthetic, comment the zero_point line in inference.
