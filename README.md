@@ -15,18 +15,22 @@ conda create -n myenv python=3.6
 ```
 with `myenv` the name of your choice.
 
-3. Install the following packages:
-```
-conda install -n myenv -c conda-forge pymc3
-conda install -n myenv -c conda-forge matplotlib
-conda install -n myenv -c conda-forge dynesty
-conda install -n myenv -c conda-forge arviz
-```
-replace `myenv` with the name of the new environment.
+3. Move into the new environment
 
-4. Move into the new environment (i.e. `conda activate myenv`), and navigate to the Kalkayotl folder.
+```conda activate myenv```
 
-5. Install the package with
+with `myenv` the name of the environment.
+
+4. Install the following packages:
+
+```
+conda install -c conda-forge pymc3
+conda install -c conda-forge matplotlib
+conda install -c conda-forge dynesty
+conda install -c conda-forge arviz
+```
+
+5. Navigate to the Kalkayotl folder and install the package:
 
 ```
 pip install dist/Kalkayotl-0.3.0.tar.gz
@@ -37,7 +41,8 @@ pip install dist/Kalkayotl-0.3.0.tar.gz
 ```
 python example.py
 ```
+
 It will compute cluster and star distances using the Ruprecht_147.csv data from the Data folder. You must get a Test folder with the outputs.
 
-Whenever you run Kalkayotl, remember to move into its environment (step 4).
+Whenever you run Kalkayotl, remember to move into its environment (step 3).
 

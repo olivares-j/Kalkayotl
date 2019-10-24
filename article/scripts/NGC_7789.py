@@ -149,6 +149,7 @@ for prior in list_of_prior:
 	
 	p1d.run(sample_iters=sample_iters,
 			burning_iters=burning_iters,
+			chains=2,cores=2,
 			# target_accept=0.95,
 			)
 

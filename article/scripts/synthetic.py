@@ -51,52 +51,17 @@ list_of_cases = [
 ]
 
 list_of_prior = [
-	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
-	# 						"hyper_beta":None, 
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta": None},
-
-	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100.],
-	# 						"hyper_gamma":None, 
-	# 						"hyper_delta": None},
-
 	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
 							"hyper_beta":[100],
 							"hyper_gamma":None,
 							"hyper_delta": None},
-
-	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta": None},
-
-	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100.], 
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta": np.array([0.5,0.5])},
-
-	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100.], 
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta": None},
-
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100.], 
-	# 						"hyper_gamma":[2.0,1.0],
-	# 						"hyper_delta": None},
-
-	# {"type":"King",         "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100.], 
-	# 						"hyper_gamma":[20.0],
-	# 						"hyper_delta": None},
 	]
 
 
 
 indep_measures = [
 			{"bool":True, "name":"indep"},
-			# {"bool":False,"name":"corr"}
+			{"bool":False,"name":"corr"}
 			]
 
 #===================== Chains =================================
@@ -165,6 +130,7 @@ for case in list_of_cases:
 			p1d.setup()
 			p1d.run(sample_iters=sample_iters,
 					burning_iters=burning_iters,
+					chains=2,cores=2,
 					target_accept=0.95
 					)
 
