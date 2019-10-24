@@ -39,3 +39,5 @@ python example.py
 ```
 It will compute cluster and star distances using the Ruprecht_147.csv data from the Data folder. You must get a Test folder with the outputs.
 
+Whenever you run Kalkayotl, remember to move into its environment (step 4).
+
