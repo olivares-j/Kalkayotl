@@ -13,17 +13,26 @@ You can do this by Anaconda with the following command:
 ```
 conda create -n myenv python=3.6
 ```
-with `myenv` the name of your choice, like kalkayotl ;).
+with `myenv` the name of your choice.
 
-3. Move into the new environment (i.e. `conda activate myenv`), and navigate to the Kalkayotl folder.
+3. Install the following packages:
+```
+conda install -n myenv -c conda-forge pymc3
+conda install -n myenv -c conda-forge matplotlib
+conda install -n myenv -c conda-forge dynesty
+conda install -n myenv -c conda-forge arviz
+```
+replace `myenv` with the name of the new environment.
 
-4. Install the package with
+4. Move into the new environment (i.e. `conda activate myenv`), and navigate to the Kalkayotl folder.
+
+5. Install the package with
 
 ```
 pip install dist/Kalkayotl-0.3.0.tar.gz
 ```
 
-5. Test the installation by running
+6. Test the installation by running
 
 ```
 python example.py

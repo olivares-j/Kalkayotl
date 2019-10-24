@@ -85,7 +85,7 @@ for i,cluster in enumerate(list_of_clusters):
     	fmt='none',ls='none',marker="o",ms=5,
     	ecolor="grey",elinewidth=0.01,zorder=0,label=None)
     axes[i].plot(x_pts,x_pts,color="black",linestyle='--',linewidth=3,zorder=1)
-    points = axes[i].scatter(x,y,s=20,c=clr,marker="s",zorder=2,vmax=0.1,
+    points = axes[i].scatter(x,y,s=20,c=clr,marker="s",zorder=2,vmax=0.5,
         cmap="viridis",norm=mcolors.LogNorm())
     axes[i].annotate(cluster["name"],xy=(0.05,0.9),xycoords="axes fraction")
     axes[i].set_ylabel("Kalkayotl distance [pc]")
