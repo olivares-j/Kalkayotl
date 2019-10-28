@@ -81,8 +81,8 @@ list_of_prior = [
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 10000
-sample_iters    = 5000   # Number of iterations for the MCMC 
+burning_iters   = 40000
+sample_iters    = 10000   # Number of iterations for the MCMC 
 
 
 #------- Statistic ----------------------

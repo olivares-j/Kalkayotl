@@ -38,8 +38,8 @@ prior = "Gaussian"
 colors    = ["orange","green"]
 
 clusters = [
-			{"name":"Gaussian",     "distance":100, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
-			{"name":"Gaussian",     "distance":200, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
+			# {"name":"Gaussian",     "distance":100, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
+			# {"name":"Gaussian",     "distance":200, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
 			{"name":"Gaussian",     "distance":300, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
 			{"name":"Gaussian",     "distance":400, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
 			{"name":"Gaussian",     "distance":500, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
@@ -183,7 +183,7 @@ axes[1].set_ylabel("Location bias [pc]")
 axes[0].set_ylabel("Scale bias [pc]")
 axes[0].set_xscale("log")
 axes[1].set_xscale("log")
-axes[0].set_ylim(-20,60)
+axes[0].set_ylim(-50,100)
 axes[1].set_ylim(-100,100)
 axes[0].axhline(y=0,linestyle="--",color="grey",lw=1,zorder=-1)
 axes[1].axhline(y=0,linestyle="--",color="grey",lw=1,zorder=-1)
