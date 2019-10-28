@@ -68,7 +68,8 @@ class Model1D(pm.Model):
 
 		#------------------------ Scale ---------------------------------------
 		if parameters["scale"] is None:
-			pm.HalfCauchy("scl",beta=hyper_beta[0],shape=shape)
+			pm.Gamma("scl",alpha=2.0,beta=2.0/hyper_beta[0],shape=shape)
+			# pm.HalfCauchy("scl",beta=hyper_beta[0],shape=shape)
 		else:
 			self.scl = parameters["scale"]
 		#========================================================================
