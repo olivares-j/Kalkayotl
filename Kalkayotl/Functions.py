@@ -4,8 +4,8 @@ import numpy as np
 
 def AngularSeparation(a):
 
-	ra  = a[:,0]
-	dec = a[:,1]
+	ra  = np.radians(a[:,0])
+	dec = np.radians(a[:,1])
 
 	N   = len(ra)
 
@@ -13,7 +13,7 @@ def AngularSeparation(a):
 
 	for i in range(N):
 		for j in range(i+1,N):
-			A[i,j] = np.arccos(np.sin(dec[i])*np.sin(dec[j]) + np.cos(dec[i])*np.cos(dec[j])*np.cos(ra[i] - ra[j]))
+			A[i,j] = np.degrees(np.arccos(np.sin(dec[i])*np.sin(dec[j]) + np.cos(dec[i])*np.cos(dec[j])*np.cos(ra[i] - ra[j])))
 
 	A = A + A.T
 
