@@ -69,7 +69,7 @@ class Evidence1D():
 
 		#================ Hyper-prior =====================================
 		hp_loc = st.norm(loc=hyper_alpha[0],scale=hyper_alpha[1])
-		hp_scl = st.halfcauchy(loc=0.1,scale=hyper_beta[0])
+		hp_scl = st.gamma(a=2.0,scale=hyper_beta[0]/2.0)
 		#========================================================================
 
 		#================= Prior ========================================================
