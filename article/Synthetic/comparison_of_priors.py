@@ -49,7 +49,7 @@ burnin     = 40000
 n_samples  = 1000
 n_bins     = 200
 range_dist = -150,150
-window     = 40
+window     = 30
 xs = np.linspace(-100,100,1000)
 
 statistic        = "mode"

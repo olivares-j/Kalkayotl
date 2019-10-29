@@ -38,8 +38,8 @@ prior = "Gaussian"
 colors    = ["orange","green"]
 
 clusters = [
-			# {"name":"Gaussian",     "distance":100, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
-			# {"name":"Gaussian",     "distance":200, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
+			{"name":"Gaussian",     "distance":100, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
+			{"name":"Gaussian",     "distance":200, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
 			{"name":"Gaussian",     "distance":300, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
 			{"name":"Gaussian",     "distance":400, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
 			{"name":"Gaussian",     "distance":500, "plot":False,"marker":"v",  "color":"black",   "zorder":1},
@@ -60,13 +60,20 @@ clusters = [
 			]
 
 iocs      = [
-			{"name":"off","value":"indep","marker":"d","sft":-0.05, "add":40},
-			{"name":"on", "value":"corr", "marker":"o","sft":+0.0,  "add":0}
+			{"name":"off","value":"indep","marker":"d","color":"brown","sft":-0.05, "add":40},
+			{"name":"on", "value":"corr", "marker":"o","color":"green","sft":+0.0,  "add":0}
+			]
+
+statistics = [
+			{"name":"Credibility","color":"green"},
+			{"name":"RMS",        "color":"brown"},
+			{"name":"95%CI",      "color":"blue"},
+
 			]
 #================================== Plot points ==========================================================================
 n_cluster = len(clusters)
 distances = [cluster["distance"] for cluster in clusters]
-rho = np.zeros((n_cluster,2))
+sts       = np.zeros((n_cluster,5,3))
 
 
 #-------- Figure ----------------------------
@@ -76,8 +83,6 @@ fig, axes = plt.subplots(num=0,nrows=2, ncols=1, sharex=True,figsize=(6,12))
 for j,cluster in enumerate(clusters):
 	print(40*"=")
 	print(cluster["name"],cluster["distance"])
-
-	sts = np.zeros((4,3))
 	for i,ioc in enumerate(iocs):
 		#------------- Files ----------------------------------------------------------------------------------
 		dir_chains    = dir_out    + cluster["name"] +"_"+str(cluster["distance"])+"/"+prior+"/"+ioc["value"]+"/" 
@@ -117,13 +122,12 @@ for j,cluster in enumerate(clusters):
 		df["In"]   = df.apply(lambda x: ((x["r"]>=x["lower"]) and (x["r"]<=x["upper"])), axis = 1)
 		df.sort_values(by="Frac",inplace=True,ascending=False)
 		source_err  = np.vstack((df["mode"]-df["lower"],df["upper"]-df["mode"]))
-
-		rho[j,i] = np.corrcoef(df["Offset"],df["Bias"])[0,1]
 		
-		sts[0,i] = 100.*np.sum(df["In"])/len(df)
-		sts[1,i] = np.sqrt(np.mean(df["Bias"]**2))
-		sts[2,i] = np.mean(df["Span"])
-		sts[3,i] = np.mean(df_pars["Span"])
+		sts[j,0,i] = 100.*np.sum(df["In"])/len(df)
+		sts[j,1,i] = np.sqrt(np.mean(df["Bias"]**2))
+		sts[j,2,i] = np.mean(df["Span"])
+		sts[j,3,i] = np.mean(df_pars["Span"])
+		sts[j,4,i] = np.corrcoef(df["Offset"],df["Bias"])[0,1]
 
 
 		#--------- Plot parameter bias ----------------------------
@@ -135,7 +139,7 @@ for j,cluster in enumerate(clusters):
 		
 		axes[1].scatter(cluster["distance"]*(1+ioc["sft"]),df_pars["Bias"][0],
 			s=15,
-			c=cluster["color"],
+			c=ioc["color"],
 			marker=ioc["marker"],zorder=2)
 
 		axes[0].errorbar(cluster["distance"]*(1+ioc["sft"]),df_pars["Bias"][1],
@@ -145,18 +149,19 @@ for j,cluster in enumerate(clusters):
 		
 		axes[0].scatter(cluster["distance"]*(1+ioc["sft"]),df_pars["Bias"][1],
 			s=15,
-			c=cluster["color"],
+			c=ioc["color"],
 			marker=ioc["marker"],zorder=2)
 
-	sts[:,2] = 100.*(sts[:,0] - sts[:,1])/sts[:,1]
-	print("Correlations|-- OFF --|-- ON --| -- Delta --|")
-	print("Reliable:   |    {0:2.1f}%|   {1:2.1f}%|   {2:0.3}% |".format(sts[0,0],sts[0,1],sts[0,2]))
-	print("RMS:        |    {0:0.3} |   {1:0.3} |   {2:0.3} |".format(sts[1,0],sts[1,1],sts[1,2]))
-	print("Span:       |    {0:0.3} |   {1:0.3} |   {2:0.3} |".format(sts[2,0],sts[2,1],sts[2,2]))
-	print("Params span |    {0:0.3} |   {1:0.3} |   {2:0.3} |".format(sts[3,0],sts[3,1],sts[3,2]))
+	delta = 100.*(sts[j,:,0] - sts[j,:,1])/sts[j,:,1]
+	print("Correlations|-- OFF --|-- ON --   | -- Delta --|")
+	print("Credible:   |{0:2.1f}%|  {1:2.1f}%|   {2:0.3}% |".format(sts[j,0,0],sts[j,0,1],delta[0]))
+	print("RMS:        | {0:0.3f} |   {1:0.3f} |   {2:0.3}  |".format(sts[j,1,0],sts[j,1,1],delta[1]))
+	print("Span:       | {0:0.3f} |   {1:0.3f} |   {2:0.3}  |".format(sts[j,2,0],sts[j,2,1],delta[2]))
+	print("Params span | {0:0.3f} |   {1:0.3f} |   {2:0.3}  |".format(sts[j,3,0],sts[j,3,1],delta[3]))
+	print("Rho         | {0:0.3f} |   {1:0.3f} |   {2:0.3}  |".format(sts[j,4,0],sts[j,4,1],delta[4]))
 	print("---------------------------------------")
 
-correlation_mrk = [mlines.Line2D([], [],color="black",
+correlation_mrk = [mlines.Line2D([], [],color=ioc["color"],
 								linestyle=None,
 								marker=ioc["marker"],
 								linewidth=0,
@@ -183,22 +188,38 @@ axes[1].set_ylabel("Location bias [pc]")
 axes[0].set_ylabel("Scale bias [pc]")
 axes[0].set_xscale("log")
 axes[1].set_xscale("log")
-axes[0].set_ylim(-50,100)
-axes[1].set_ylim(-100,100)
+axes[0].set_ylim(-20,70)
+axes[1].set_ylim(-100,150)
 axes[0].axhline(y=0,linestyle="--",color="grey",lw=1,zorder=-1)
 axes[1].axhline(y=0,linestyle="--",color="grey",lw=1,zorder=-1)
 pdf.savefig(bbox_inches='tight')
 plt.close(0)
 
 
-plt.figure(1)
-plt.plot(distances,rho[:,0],linestyle="-",label="Correlation "+iocs[0]["name"])
-plt.plot(distances,rho[:,1],linestyle="--",label="Correlation "+iocs[1]["name"])
-plt.xscale('log')
-plt.legend()
-plt.xlabel("Distance [pc]")
-plt.ylabel("Correlation coefficient")
+lines = [mlines.Line2D([], [],  color=sts["color"],
+								linestyle=None,
+								label=sts["name"]) for sts in statistics]
 
-pdf.savefig(bbox_inches='tight')  # saves the current figure into a pdf page
+fig = plt.figure(1)
+for i,stats in enumerate(statistics):
+	plt.plot(distances,sts[:,i,0],color=stats["color"],linestyle='-')
+	plt.plot(distances,sts[:,i,1],color=stats["color"],linestyle='--')
+
+plt.xscale('log')
+plt.yscale('log')
+fig.legend(title="Statistics",
+	handles=lines,
+	shadow = False,
+	bbox_to_anchor=(0.12,1.0, 0.8, 0.1),
+	bbox_transform = fig.transFigure,
+	borderaxespad=0.,
+	frameon = True,
+	fancybox = True,
+	ncol = 2,
+	fontsize = 'smaller',
+	mode = 'expand',
+	loc = 'upper right')
+pdf.savefig(bbox_inches='tight')
 plt.close(1)
+
 pdf.close()
