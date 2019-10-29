@@ -33,7 +33,7 @@ list_of_cases = [
 # {"name":"Gaussian","location":200,"size":20},
 # {"name":"Gaussian","location":300,"size":30},
 # {"name":"Gaussian","location":400,"size":40},
-# {"name":"Gaussian","location":500,"size":50},
+{"name":"Gaussian","location":500,"size":50},
 # {"name":"Gaussian","location":600,"size":60},
 # {"name":"Gaussian","location":700,"size":70},
 # {"name":"Gaussian","location":800,"size":80},
@@ -47,26 +47,58 @@ list_of_cases = [
 # {"name":"Gaussian","location":4000,"size":400},
 # {"name":"Gaussian","location":4500,"size":450},
 # {"name":"Gaussian","location":5000,"size":500},
-{"name":"Gaussian","location":10000,"size":1000},
+# {"name":"Gaussian","location":10000,"size":1000},
 ]
 
 list_of_prior = [
+	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
+	# 						"hyper_alpha":None, 
+	# 						"hyper_beta":None, 
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta": None},
+
+	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
+	# 						"hyper_beta":[100],
+	# 						"hyper_gamma":None, 
+	# 						"hyper_delta":None},
+
 	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
 							"hyper_beta":[100],
 							"hyper_gamma":None,
-							"hyper_delta": None},
+							"hyper_delta":None},
+
+	# {"type":"EFF",          "parameters":{"location":None,"scale":None}, 
+	# 						"hyper_beta":[100],
+	# 						"hyper_gamma":[2.0,1.0],
+	# 						"hyper_delta":None},
+
+
+	# {"type":"King",         "parameters":{"location":None,"scale":None},
+	# 						"hyper_beta":[100],
+	# 						"hyper_gamma":[20.],
+	# 						"hyper_delta":None},
+
+	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
+	# 						"hyper_beta":[100],
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":np.array([0.9,0.1])},
+
+	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
+	# 						"hyper_beta":[100],
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":None},
 	]
 
 
 
 indep_measures = [
 			{"bool":True, "name":"indep"},
-			# {"bool":False,"name":"corr"}
+			{"bool":False,"name":"corr"}
 			]
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 40000
+burning_iters   = 50000
 sample_iters    = 10000   # Number of iterations for the MCMC 
 
 
