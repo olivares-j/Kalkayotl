@@ -44,7 +44,7 @@ def CovariancePM(a,case="Lindegren+2018"):
 
 	return result
 
-def CovarianceParallax(a,case="Lindegren+2018"):
+def CovarianceParallax(a,case="Vasiliev+2018"):
 	'''
 	Covariance matrix of the parallax
 	microarcsec^2 -> 1e-6 mas^2
