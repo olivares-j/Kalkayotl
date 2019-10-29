@@ -8,6 +8,8 @@ from Transformations import phaseSpaceToAstrometry_and_RV
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+from Functions import AngularSeparation,CovarianceParallax
+
 from EFF import eff
 from King import king
 
@@ -39,14 +41,14 @@ list_of_cases =[
 {"name":"NGC_2682",    "loc":900},
 {"name":"NGC_2682",    "loc":1000},
 {"name":"NGC_2244",    "loc":1500},
-{"name":"NGC_188",    "loc":2000},
-{"name":"IC_1848",     "loc":2500},
+{"name":"NGC_188",     "loc":2000},
+{"name":"NGC_7789",    "loc":2500},
 {"name":"IC_1848",     "loc":3000},
 {"name":"IC_1848",     "loc":3500},
 {"name":"IC_1848",     "loc":4000},
-{"name":"NGC_6791",     "loc":4500},
-{"name":"NGC_6791",     "loc":5000},
-{"name":"NGC_3603",     "loc":10000},
+{"name":"NGC_6791",    "loc":4500},
+{"name":"NGC_6791",    "loc":5000},
+{"name":"NGC_3603",    "loc":10000},
 ]
 
 #------ Directories and files --------------------------------
@@ -61,7 +63,7 @@ os.makedirs(dir_out,exist_ok=True)
 print("Generating observables ...")
 for case in list_of_cases:
 	print(30*"=")
-	print(case["name"])
+	print(case["name"]+" at "+str(case["loc"])+" pc")
 
 	#------- Local files -----------------------------------------------------
 	file_data    = dir_main  + case['name'] + ".csv"
@@ -83,19 +85,33 @@ for case in list_of_cases:
 	#====================== Read true cluster data ===================================================
 	data = pn.read_csv(file_data,usecols=labels[3:],nrows=n_stars)
 	data.dropna(inplace=True)
-	#---------- True stars--------------------------------------------------------
+
+	#---------- Number of stars --------------------------------------------------------
 	n_stars = data.shape[0]
 
+	#------ Obtain array of positions ------------
+	positions = data[["ra","dec"]].to_numpy()
+
+	#------ Angular separations ----------
+	theta = AngularSeparation(positions)
+
+	#------ Covariance of spatial correlations -------------------
+	cov_corr_plx = CovarianceParallax(theta,case="Vasiliev+2018")
+
+	#------ Covariance of observational uncertainties --------
+	cov_obs_plx = np.diag(data["parallax_error"]**2)
+
+	#------ Total covariance is the convolution of the previous ones
+	cov_plx = cov_corr_plx + cov_obs_plx
+
 	#====================== Generate Synthetic Data ==================================================
+	#-------- True values ---------------------------------------
 	dist     = distribution.rvs(size=n_stars,random_state=random_state)
-	true_plx = 1000.0/dist
+	true_plx = 1000.0/dist # distance to parallax in mas
 	#----------------------------------------------------
 
-	#=================== Uncertainties =================================
 	#------- Observed ------------------------------
-	obs_plx = np.zeros_like(true_plx)
-	for i,(true_loc,true_scl) in enumerate(zip(true_plx,data["parallax_error"])):
-		obs_plx[i] = st.norm.rvs(loc=true_loc,scale=true_scl,size=1)
+	obs_plx = st.multivariate_normal.rvs(mean=true_plx,cov=cov_plx,size=1)
 	#--------------------------------------------------------
 
 	#========== Saves the synthetic data ====================
