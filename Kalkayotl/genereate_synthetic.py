@@ -15,45 +15,33 @@ from King import king
 
 
 #----------------Mock data and MCMC parameters  --------------------
-random_state     = 12345     # Random state for the synthetic data
-dist_name        = "Gaussian"
-scl              = 20.0
-#----- Only if King profile-----
-rt    = 20.0
-#----- Only if EFF profile -----
-gamma = 3.0
-
-#--------- Stars ----------------
-n_stars          = None
-labels           = ["ID","r","parallax","parallax_error",
-				    "ra","dec"]
+random_seed  = 12345    # Random state for the synthetic data
+dist_name    = "Gaussian"
+labels       = ["ID","r","parallax","parallax_error","ra","dec"]
 #--------------------------------------------------------------------------------------
 
 list_of_cases =[
-{"name":"Pleiades",    "loc":100},
-{"name":"Pleiades",    "loc":200},
-{"name":"Ruprecht_147","loc":300},
-{"name":"Ruprecht_147","loc":400},
-{"name":"Ruprecht_147","loc":500},
-{"name":"NGC_1647",    "loc":600},
-{"name":"NGC_2264",    "loc":700},
-{"name":"NGC_2264",    "loc":800},
-{"name":"NGC_2682",    "loc":900},
-{"name":"NGC_2682",    "loc":1000},
-{"name":"NGC_2244",    "loc":1500},
-{"name":"NGC_188",     "loc":2000},
-{"name":"NGC_7789",    "loc":2500},
-{"name":"IC_1848",     "loc":3000},
-{"name":"IC_1848",     "loc":3500},
-{"name":"IC_1848",     "loc":4000},
-{"name":"NGC_6791",    "loc":4500},
-{"name":"NGC_6791",    "loc":5000},
-{"name":"NGC_3603",    "loc":10000},
+{"name":"Pleiades",    "loc":100 ,"scl":3},
+{"name":"Pleiades",    "loc":200 ,"scl":3},
+{"name":"Ruprecht_147","loc":300 ,"scl":8},
+{"name":"Ruprecht_147","loc":400 ,"scl":8},
+{"name":"Ruprecht_147","loc":500 ,"scl":8},
+{"name":"NGC_1647",    "loc":600 ,"scl":17},
+{"name":"NGC_2264",    "loc":700 ,"scl":30},
+{"name":"NGC_2264",    "loc":800 ,"scl":30},
+{"name":"NGC_2682",    "loc":900 ,"scl":15},
+{"name":"NGC_2682",    "loc":1000,"scl":15},
+{"name":"NGC_2244",    "loc":1600,"scl":220},
+{"name":"NGC_188",     "loc":1800,"scl":60},
+# {"name":"NGC_7789",    "loc":2000,"scl":},
+# {"name":"IC_1848",     "loc":2300,"scl":160}
+# {"name":"NGC_6791",    "loc":4500,"scl":400},
+# {"name":"NGC_3603",    "loc":5800,"scl":900},
 ]
 
 #------ Directories and files --------------------------------
-dir_main     = os.getcwd()[:-10] + "/Data/"
-dir_out      = dir_main  + "Synthetic/" + dist_name + "_" + str(int(scl))
+dir_main     = os.getcwd() + "/Data/"
+dir_out      = dir_main  + "Synthetic/" + dist_name + "_" + str(random_seed)
 
 #------- Create directories -------
 os.makedirs(dir_out,exist_ok=True)
@@ -73,17 +61,19 @@ for case in list_of_cases:
 
 	#---------- Select distribution --------------------------
 	if dist_name is "Gaussian":
-		distribution     = st.norm(loc=case["loc"],scale=scl)
+		distribution     = st.norm(loc=case["loc"],scale=case["scl"])
 	elif dist_name is "EFF":
-		distribution     = eff(r0=case["loc"],rc=scl,gamma=gamma)
+		distribution     = eff(r0=case["loc"],rc=case["scl"],gamma=case["gamma"])
 	elif dist_name is "King":
-		distribution     = king(r0=case["loc"],rc=scl,rt=rt)
+		distribution     = king(r0=case["loc"],rc=case["scl"],rt=case["rt"])
 	else:
 		sys.exit("Distribution not recognized")
 
 
+	random_state = random_seed
+
 	#====================== Read true cluster data ===================================================
-	data = pn.read_csv(file_data,usecols=labels[3:],nrows=n_stars)
+	data = pn.read_csv(file_data,usecols=labels[3:])
 	data.dropna(inplace=True)
 
 	#---------- Number of stars --------------------------------------------------------
@@ -92,7 +82,7 @@ for case in list_of_cases:
 	#------ Obtain array of positions ------------
 	positions = data[["ra","dec"]].to_numpy()
 
-	#------ Angular separations ----------
+	#------ Angular separations ----------t
 	theta = AngularSeparation(positions)
 
 	#------ Covariance of spatial correlations -------------------
@@ -102,7 +92,7 @@ for case in list_of_cases:
 	cov_obs_plx = np.diag(data["parallax_error"]**2)
 
 	#------ Total covariance is the convolution of the previous ones
-	cov_plx = cov_corr_plx + cov_obs_plx
+	cov_plx =  cov_obs_plx + cov_corr_plx 
 
 	#====================== Generate Synthetic Data ==================================================
 	#-------- True values ---------------------------------------
@@ -111,7 +101,8 @@ for case in list_of_cases:
 	#----------------------------------------------------
 
 	#------- Observed ------------------------------
-	obs_plx = st.multivariate_normal.rvs(mean=true_plx,cov=cov_plx,size=1)
+	obs_plx = st.multivariate_normal.rvs(mean=true_plx,cov=cov_plx,size=1,
+		random_state=random_state)
 	#--------------------------------------------------------
 
 	#========== Saves the synthetic data ====================
