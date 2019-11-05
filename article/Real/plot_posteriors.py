@@ -27,8 +27,8 @@ import scipy.stats as st
 dir_main  = os.getcwd().replace("Code/article/Real","")
 sys.path.insert(0,dir_main)
 
-from Code.EFF import eff
-from Code.King import king
+# from Code.EFF import eff
+# from Code.King import king
 
 
 import matplotlib.pyplot as plt
@@ -47,15 +47,15 @@ list_of_priors = [
 # {"type":"EDSD",     "color":"black",  },
 {"type":"Uniform",  "loc":590.0,"scl":28.5,"color":"blue"   },
 {"type":"Gaussian", "loc":589.9,"scl":16.8, "color":"orange" },
-# {"type":"Cauchy",   "loc":304.4,"scl":2.6, "color":"pink" },
-{"type":"GMM",      "loc":305.2,"scl":7.7, "color":"green"  },
-{"type":"EFF",      "loc":587.1,"scl":16.6, "color":"purple", "extra":3.6  },
-{"type":"King",     "loc":589.2,"scl":46.9, "color":"olive" , "extra":50.4 }
+# # {"type":"Cauchy",   "loc":304.4,"scl":2.6, "color":"pink" },
+# {"type":"GMM",      "loc":305.2,"scl":7.7, "color":"green"  },
+# {"type":"EFF",      "loc":587.1,"scl":16.6, "color":"purple", "extra":3.6  },
+# {"type":"King",     "loc":589.2,"scl":46.9, "color":"olive" , "extra":50.4 }
 ]
 
-case = "NGC_1647"
-dst  = 590.0
-dlt  = 100.
+case = "NGC_3603"
+dst  = 5993.0
+dlt  = 5000.
 
 # list_of_priors = [
 # # {"type":"EDSD",     "color":"black",  },
@@ -114,16 +114,16 @@ for j,prior in enumerate(list_of_priors):
 	plt.hist(samples.flatten(),bins=n_bins,range=(dst-dlt,dst+dlt),
 		histtype='step',density=True,
 		color=prior["color"],label=prior["type"])
-	if prior["type"] is "Uniform":
-		plt.plot(x,st.uniform.pdf(x,loc=prior["loc"]-prior["scl"],scale=2*prior["scl"]),linestyle="--",color=prior["color"])
-	if prior["type"] is "Gaussian":
-		plt.plot(x,st.norm.pdf(x,loc=prior["loc"],scale=prior["scl"]),linestyle="--",color=prior["color"])
-	if prior["type"] is "Cauchy":
-		plt.plot(x,st.cauchy.pdf(x,loc=prior["loc"],scale=prior["scl"]),linestyle="--",color=prior["color"])
-	if prior["type"] is "EFF":
-		plt.plot(x,eff.pdf(x,r0=prior["loc"],rc=prior["scl"],gamma=prior["extra"]),linestyle="--",color=prior["color"])
-	if prior["type"] is "King":
-		plt.plot(x,king.pdf(x,r0=prior["loc"],rc=prior["scl"],rt=prior["extra"]),linestyle="--",color=prior["color"])
+	# if prior["type"] is "Uniform":
+	# 	plt.plot(x,st.uniform.pdf(x,loc=prior["loc"]-prior["scl"],scale=2*prior["scl"]),linestyle="--",color=prior["color"])
+	# if prior["type"] is "Gaussian":
+	# 	plt.plot(x,st.norm.pdf(x,loc=prior["loc"],scale=prior["scl"]),linestyle="--",color=prior["color"])
+	# if prior["type"] is "Cauchy":
+	# 	plt.plot(x,st.cauchy.pdf(x,loc=prior["loc"],scale=prior["scl"]),linestyle="--",color=prior["color"])
+	# if prior["type"] is "EFF":
+	# 	plt.plot(x,eff.pdf(x,r0=prior["loc"],rc=prior["scl"],gamma=prior["extra"]),linestyle="--",color=prior["color"])
+	# if prior["type"] is "King":
+	# 	plt.plot(x,king.pdf(x,r0=prior["loc"],rc=prior["scl"],rt=prior["extra"]),linestyle="--",color=prior["color"])
 
 plt.xlabel("Distance [pc]")
 plt.ylabel("Density")

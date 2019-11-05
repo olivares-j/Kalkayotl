@@ -29,22 +29,21 @@ import matplotlib.colors as mcolors
 
 list_of_clusters  = [
 {"name":"Pleiades",     "prior":"King","distance":136.0},
-{"name":"Ruprecht_147", "prior":"King","distance":305.0},
+{"name":"NGC_2682",     "prior":"King","distance":860.0},
 {"name":"NGC_3603",     "prior":"King","distance":9493.0},
 ]
-xlims = [[126,146],[270,360],[3000,14000]]
-ylims = [[126,143],[280,325],[3000,15000]]
+xlims = [[126,146],[800,900],[3000,14000]]
+ylims = [[126,143],[800,900],[3000,15000]]
 #============ Directories and data =================
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_out    = dir_main  + "Outputs/"
-
 file_plot  = dir_out   + "Plots/Distance_comparison.pdf"
 
 
 pdf = PdfPages(filename=file_plot)
 fig, axes = plt.subplots(3, 1,num=0,figsize=(6,18))
 for i,cluster in enumerate(list_of_clusters):
-    dir_chains = dir_out   + cluster["name"] + "/"
+    dir_chains = dir_out   + "Real/" + cluster["name"] + "/"
     file_data  = dir_main  + "Data/" + cluster["name"] + ".csv"
     #=======================================================================================================================
 

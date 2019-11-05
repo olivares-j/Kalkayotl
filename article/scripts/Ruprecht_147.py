@@ -38,8 +38,12 @@ distance  = 305.
 #-----------------------------------------------------------
 
 #===================== Hyper-prior=========================================
-hyper_alpha = [distance,0.1*distance] 
-hyper_beta  = [100.] 
+# hyper_alpha = [distance,0.1*distance] 
+# hyper_beta  = [10.] 
+
+#----------- Evidence --------------
+hyper_alpha = [distance,5] 
+hyper_beta  = [8.] 
 
 list_of_prior = [
 	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
@@ -146,19 +150,17 @@ for prior in list_of_prior:
 					quantiles=quantiles)
 	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
-	# p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
-	
-	p1d.run(sample_iters=sample_iters,
-			burning_iters=burning_iters,
-			chains=2,cores=2
-			# target_accept=0.95,
-			)
+	# p1d.run(sample_iters=sample_iters,
+	# 		burning_iters=burning_iters,
+	# 		chains=2,cores=2
+	# 		# target_accept=0.95,
+	# 		)
 
-	#-------- Analyse chains --------------------------------
-	p1d.load_trace(burning_iters=burning_iters)
-	p1d.convergence()
-	coords = {"flavour_1d_source_dim_0" : range(5)}
-	p1d.plot_chains(dir_out,coords=coords)
-	p1d.save_statistics(dir_csv=dir_out,
-						statistic=statistic) 
+	# #-------- Analyse chains --------------------------------
+	# p1d.load_trace(burning_iters=burning_iters)
+	# p1d.convergence()
+	# coords = {"flavour_1d_source_dim_0" : range(5)}
+	# p1d.plot_chains(dir_out,coords=coords)
+	# p1d.save_statistics(statistic=statistic) 
+	p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
 #=======================================================================================

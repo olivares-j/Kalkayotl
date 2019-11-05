@@ -158,6 +158,5 @@ for prior in list_of_prior:
 	p1d.convergence()
 	coords = {"flavour_1d_source_dim_0" : range(5)}
 	p1d.plot_chains(dir_out,coords=coords)
-	p1d.save_statistics(dir_csv=dir_out,
-						statistic=statistic) 
+	p1d.save_statistics(statistic=statistic) 
 #=======================================================================================

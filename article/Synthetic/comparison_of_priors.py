@@ -41,16 +41,17 @@ list_of_priors = [
 ]
 
 list_of_cases = [
-{"name":"Gaussian_500","scale":20.0,"linestyle":"-"},
-# {"name":"Ruprecht_147","scale":8.0,"linestyle":"--"}
+{"name":"Gaussian_500","scale":20.0,"linestyle":"-", "linewidth":1, "type":"corr" ,"plot_bias":True, "plot_density":True},
+{"name":"Gaussian_500","scale":20.0,"linestyle":"--","linewidth":1, "type":"indep","plot_bias":False,"plot_density":False},
 ]
 
-burnin     = 40000
 n_samples  = 1000
-n_bins     = 200
+n_bins     = 150
 range_dist = -150,150
+range_bias = -55,55
 window     = 30
-xs = np.linspace(-100,100,1000)
+xs = np.linspace(range_dist[0],range_dist[1],1000)
+bias = np.empty((len(list_of_cases),len(list_of_priors),3))
 
 statistic        = "mode"
 list_observables = ["ID","r","parallax","parallax_error"]
@@ -59,14 +60,17 @@ list_observables = ["ID","r","parallax","parallax_error"]
 #============ Directories and data =================
 
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
-dir_data   = dir_main  + "Data/Synthetic/Gaussian_20/"
-dir_out    = dir_main  + "Outputs/Synthetic/"
+dir_data   = dir_main  + "Data/Synthetic/Gaussian_12345/"
+dir_out    = dir_main  + "Outputs/Synthetic/Gaussian_12345/"
 dir_plots  = dir_main  + "Outputs/Plots/"
 file_plot  = dir_plots + "Comparison_of_priors.pdf"
 file_tex   = dir_plots + "Table_rms_bias.tex"
 
-
-for case in list_of_cases:
+#================================== Plots ===============================================
+pdf = PdfPages(filename=file_plot)
+#--------- Plot bias ----------------------------
+fig, axes = plt.subplots(num=2,nrows=3, ncols=2, sharex=True,sharey=True,figsize=(12,12))
+for c,case in enumerate(list_of_cases):
 
 	file_data  = dir_data  + case["name"]+".csv"
 	#------- Data ------
@@ -81,18 +85,12 @@ for case in list_of_cases:
 				linewidth=1,
 				color="red",label="True")
 
-
-	bias = np.empty((len(list_of_priors),3))
-	#--------- Plot bias ----------------------------
-	fig, axes = plt.subplots(num=2,nrows=3, ncols=2, sharex=True,sharey=True,figsize=(12,12))
-	#================================== Plots ===============================================
-	pdf = PdfPages(filename=file_plot)
 	for j,prior in enumerate(list_of_priors):
 		print(30*"-")
 		print(prior["type"])
 
 		#----------- Files --------------------------------------------------------------
-		dir_chains = dir_out    + case["name"] + "/" + prior["type"] + "/" + "indep/"
+		dir_chains = dir_out    + case["name"] + "/" + prior["type"] + "/" + case["type"]+"/"
 		file_stats = dir_chains + "Sources_"+statistic+".csv"
 		file_chain = dir_chains + "chain-0.csv"
 		#-------------------------------------------------------------------------------
@@ -105,14 +103,6 @@ for case in list_of_cases:
 		#-------- Cross-identify --------------------------------------------------
 		df    = data.join(infered,on="ID",lsuffix="_data",rsuffix="_chain")
 		#--------------------------------------------------------------------------
-
-		#----------------- Red chains -------------------------------------------------
-		chain = pn.read_csv(file_chain,usecols=lambda x: (("source" in x) 
-							and ("interval" not in x) and ("log" not in x)))[burnin:]
-		samples = np.zeros((len(chain.columns),len(chain)))
-		for i,name in enumerate(chain.columns):
-			samples[i] = chain[name]
-		#-----------------------------------------------------------------------------
 
 		#----------- Compute fractional error and uncertainty -----------------------------
 		df["Diff"] = df.apply(lambda x: (x[statistic] - x["r"])/x["r"], axis = 1)
@@ -135,55 +125,68 @@ for case in list_of_cases:
 		print("Rho: {1:0.4f}".format(prior["type"],
 			np.corrcoef(df["Offset"],df["Bias"])[0,1]))
 
-		bias[j,0] = np.sqrt(np.mean(df.loc[df["Frac"]<0.05,"Bias"]**2))
-		bias[j,1] = np.sqrt(np.mean(df.loc[(df["Frac"]>0.05)&(df["Frac"]<0.1),"Bias"]**2))
-		bias[j,2] = np.sqrt(np.mean(df.loc[df["Frac"]>0.1,"Bias"]**2))
+		bias[c,j,0] = np.sqrt(np.mean(df.loc[df["Frac"]<0.05,"Bias"]**2))
+		bias[c,j,1] = np.sqrt(np.mean(df.loc[(df["Frac"]>0.05)&(df["Frac"]<0.1),"Bias"]**2))
+		bias[c,j,2] = np.sqrt(np.mean(df.loc[df["Frac"]>0.1,"Bias"]**2))
 
 
 		#---------- Plot fractional error ----------------------
 		plt.figure(0,figsize=(6,6))
-		plt.plot(mean["Frac"],mean["Diff"],lw=2,
+		plt.plot(mean["Frac"],mean["Diff"],lw=case["linewidth"],
 					linestyle=case["linestyle"],
 					color=prior["color"],
 					label=prior["type"])
 
 		#---------- Plot posteriors----------------------
-		plt.figure(1)	
-		plt.hist(samples.flatten()-mean_dist,bins=n_bins,range=range_dist,
-			histtype='step',density=True,linewidth=1,
-			linestyle=case["linestyle"],
-			color=prior["color"])
+		if case["plot_density"]:
 
-		if j <6:
-			#--------- Plot bias ----------------------------
-			if j <3:
-				k = 0
-				l = j
-			else:
-				k = 1
-				l = j-3
-			axes[l,k].plot([-50,50],[50,-50],color="grey",linestyle="--",zorder=0)
-			axes[l,k].errorbar(df["Offset"],df["Bias"],yerr=y_err,
-				fmt='none',ls='none',marker="o",ms=5,
-				ecolor="grey",elinewidth=0.01,zorder=1,label=None)
-			
-			points = axes[l,k].scatter(df["Offset"],df["Bias"],s=20,c=df["Frac"],
-				zorder=2,
-				vmax=0.1,
-				cmap="viridis")
-			axes[l,k].set_ylim(-50,50)
-			axes[l,k].annotate(prior["type"],xy=(0.1,0.1),xycoords="axes fraction")
+			#----------------- Red chains -------------------------------------------------
+			chain = pn.read_csv(file_chain,usecols=lambda x: (("source" in x) 
+								and ("interval" not in x) and ("log" not in x)))[-n_samples:]
+			samples = np.zeros((len(chain.columns),len(chain)))
+			for i,name in enumerate(chain.columns):
+				samples[i] = chain[name]
+			#-----------------------------------------------------------------------------
+
+			plt.figure(1)	
+			plt.hist(samples.flatten()-mean_dist,bins=n_bins,range=range_dist,
+				histtype='step',density=True,linewidth=case["linewidth"],
+				linestyle=case["linestyle"],
+				color=prior["color"])
+
+		if case["plot_bias"]:
+
+			if j <6:
+				#--------- Plot bias ----------------------------
+				if j <3:
+					k = 0
+					l = j
+				else:
+					k = 1
+					l = j-3
+				axes[l,k].plot(range_bias,np.flip(range_bias),color="grey",linestyle="--",zorder=0)
+				axes[l,k].errorbar(df["Offset"],df["Bias"],yerr=y_err,
+					fmt='none',ls='none',marker="o",ms=5,
+					ecolor="grey",elinewidth=0.01,zorder=1,label=None)
+				
+				points = axes[l,k].scatter(df["Offset"],df["Bias"],s=20,c=df["Frac"],
+					zorder=2,
+					vmax=0.1,
+					cmap="viridis")
+				axes[l,k].set_ylim(range_bias[0],range_bias[1])
+				axes[l,k].set_xlim(range_bias[0],range_bias[1])
+				axes[l,k].annotate(prior["type"],xy=(0.1,0.1),xycoords="axes fraction")
 
 
 priors_hdl = [mlines.Line2D([], [],color=prior["color"],
 								linestyle='-',
-								linewidth=1,
+								linewidth=2,
 								label=prior["type"]) for prior in list_of_priors]
 plt.figure(0)	
 plt.xlabel("Fractional uncertainty")
 plt.ylabel("Fractional error")
 plt.xscale("log")
-plt.ylim(-0.02,0.1)
+plt.ylim(-0.02,0.2)
 locs = [0.02,0.05,0.1,0.2]
 labs = [str(loc) for loc in locs]
 plt.xticks(locs,labs)
@@ -203,7 +206,7 @@ pdf.savefig(bbox_inches='tight')
 plt.close()
 
 plt.figure(1)
-plt.vlines(x=0,ymin=0,ymax=1,colors=['grey'],linestyles=['--'])
+plt.vlines(x=0,ymin=0,ymax=1,colors=['grey'],linestyles=['--'],zorder=0)
 plt.xlabel("Offset from centre [pc]")
 plt.ylabel("Density")
 plt.yscale("log")
@@ -250,7 +253,7 @@ with open(file_tex, "w") as tex_file:
 	for j,prior in enumerate(list_of_priors):
 		str_cols = [prior["type"]]
 		for i in range(3):
-			str_cols.append("{0:2.1f}".format(bias[j,i]))
+			str_cols.append("{0:2.1f}({1:2.1f})".format(bias[0,j,i],bias[1,j,i]))
 		print("  &  ".join(str_cols) + "  \\\\", file=tex_file)
 	print("\\hline", file=tex_file)
 	print("\\end{tabular}", file=tex_file)

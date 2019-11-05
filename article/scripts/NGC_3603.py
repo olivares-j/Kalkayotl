@@ -42,12 +42,13 @@ hyper_alpha = [distance,0.1*distance]
 hyper_beta  = [100.] 
 
 list_of_prior = [
-	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
-							"hyper_gamma":None, 
-							"hyper_delta":None},
 
 	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
 							"hyper_gamma":None,
+							"hyper_delta":None},
+
+	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
+							"hyper_gamma":None, 
 							"hyper_delta":None},
 
 	{"type":"EFF",          "parameters":{"location":None,"scale":None}, 
@@ -59,20 +60,20 @@ list_of_prior = [
 							"hyper_gamma":[20.],
 							"hyper_delta":None},
 
-	{"type":"GMM",          "parameters":{"location":None,"scale":None},
-							"hyper_gamma":None,
-							"hyper_delta":np.array([0.9,0.1])},
+	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":np.array([0.9,0.1])},
 
-	{"type":"Cauchy",       "parameters":{"location":None,"scale":None},
-							"hyper_gamma":None,
-							"hyper_delta":None},
+	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":None},
 	] 
 #========================================================================
 
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 40000
+burning_iters   = 50000
 sample_iters    = 10000   # Number of iterations for the MCMC 
 
 
@@ -90,7 +91,7 @@ file_data = dir_main + "Data/" + file_csv
 #-------------------------------------
 
 #--------- Chains and plots ----------
-dir_out    = dir_main + "Outputs/"
+dir_out    = dir_main + "Outputs/Real/"
 dir_case   = dir_out  + case +"/"
 #--------------------------------------
 #==================================================
@@ -145,19 +146,19 @@ for prior in list_of_prior:
 					quantiles=quantiles)
 	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
-	# p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
-	
-	p1d.run(sample_iters=sample_iters,
-			burning_iters=burning_iters,
-			chains=2,cores=2,
-			# target_accept=0.95,
-			)
+	# p1d.run(sample_iters=sample_iters,
+	# 		burning_iters=burning_iters,
+	# 		chains=2,cores=2,
+	# 		target_accept=0.95,
+	# 		)
 
-	#-------- Analyse chains --------------------------------
-	p1d.load_trace(burning_iters=burning_iters)
-	p1d.convergence()
-	coords = {"flavour_1d_source_dim_0" : range(5)}
-	p1d.plot_chains(dir_out,coords=coords)
-	p1d.save_statistics(dir_csv=dir_out,
-						statistic=statistic) 
+	# #-------- Analyse chains --------------------------------
+	# p1d.load_trace(burning_iters=burning_iters)
+	# p1d.convergence()
+	# coords = {"flavour_1d_source_dim_0" : range(5)}
+	# p1d.plot_chains(dir_out,coords=coords)
+	# p1d.save_statistics(statistic=statistic) 
+
+	#------------------ Evidence ---------------------------
+	p1d.evidence(M_samples=1000,dlogz=1.0,nlive=500,file=file_Z)
 #=======================================================================================

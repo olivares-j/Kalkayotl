@@ -25,17 +25,21 @@ import pandas as pn
 list_of_cases = [
 # "Pleiades",
 # "Ruprecht_147",
-"NGC_1647",
-"IC_1848",
+# "NGC_1647",
+# "NGC_2682",
+# "NGC_2264",
+# "IC_1848",
+# "NGC_2244",
+# "NGC_188",
 "NGC_3603",
-"NGC_6791",
+# "NGC_6791",
 ]
 #----------- prior --------
 priors = [
 "Uniform",
 # "Cauchy",
 "Gaussian",
-"GMM",
+# "GMM",
 "EFF",
 "King"
 ]
@@ -48,7 +52,7 @@ for case in list_of_cases:
 	#============ Directories and data =================
 	dir_main   = "/home/javier/Repositories/Kalkayotl/"
 	dir_out    = dir_main  + "Outputs/"
-	dir_chains = dir_out   + case + "/"
+	dir_chains = dir_out   + "Real/" +case + "/"
 	file_tex   = dir_out   + "Tables/Parameters_"+case+".tex"
 	#=======================================================================================================================
 
