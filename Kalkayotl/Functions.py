@@ -69,5 +69,46 @@ def CovarianceParallax(a,case="Vasiliev+2018"):
 	return result
 
 
+if __name__ == "__main__":
+	"""
+	Test the correlation functions
+	"""
+	import matplotlib.pyplot as plt
+	from matplotlib.backends.backend_pdf import PdfPages
+
+	file_plot = "./Spatial_correlations.pdf"
+
+	theta = np.linspace(0,6,1000)
+
+	X_l   = CovariancePM(theta,case="Lindegren+2018")
+	X_v   = CovariancePM(theta,case="Vasiliev+2018")
+
+	Y_l   = CovarianceParallax(theta,case="Lindegren+2018")
+	Y_v   = CovarianceParallax(theta,case="Vasiliev+2018")
+
+	pdf = PdfPages(filename=file_plot)
+	plt.figure(0)
+	plt.suptitle("Covariance of proper motions")
+	plt.plot(theta,X_l,label="Lindegren+2018")
+	plt.plot(theta,X_v,label="Vasiliev+2018")
+	plt.xlabel("Angular separation [deg]")
+	plt.ylabel("Covariance [(mas/yr)^2]")
+	plt.legend()
+	pdf.savefig(bbox_inches='tight')
+	plt.close(0)
+
+	plt.figure(0)
+	plt.suptitle("Covariance of parallax")
+	plt.plot(theta,Y_l,label="Lindegren+2018")
+	plt.plot(theta,Y_v,label="Vasiliev+2018")
+	plt.xlabel("Angular separation [deg]")
+	plt.ylabel("Covariance [mas^2]")
+	plt.legend()
+	pdf.savefig(bbox_inches='tight')
+	plt.close(0)
+	pdf.close()
+
+
+
 
 
