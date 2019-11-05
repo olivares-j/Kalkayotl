@@ -29,9 +29,9 @@ list_of_cases = [
 # "NGC_2682",
 # "NGC_2264",
 # "IC_1848",
-# "NGC_2244",
-# "NGC_188",
-"NGC_3603",
+"NGC_2244",
+"NGC_188",
+# "NGC_3603",
 # "NGC_6791",
 ]
 #----------- prior --------
@@ -39,7 +39,7 @@ priors = [
 "Uniform",
 # "Cauchy",
 "Gaussian",
-# "GMM",
+"GMM",
 "EFF",
 "King"
 ]

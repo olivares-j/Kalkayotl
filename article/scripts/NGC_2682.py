@@ -156,33 +156,6 @@ for prior in list_of_prior:
 	p1d.convergence()
 	coords = {"flavour_1d_source_dim_0" : range(5)}
 	p1d.plot_chains(dir_out,coords=coords)
-	p1d.save_statistics(dir_csv=dir_out,
-						statistic=statistic) 
-#=======================================================================================
-
-for prior in list_of_prior:
-	#----------- Output dir -------------------
-	dir_prior = dir_case + prior["type"]
-	dir_out   = dir_prior + "/" 
-	file_Z    = dir_out   + "Cluster_Z.csv"
-
-	os.makedirs(dir_prior,exist_ok=True)	
-	os.makedirs(dir_out,exist_ok=True)
-
-	#--------- Run model -----------------------
-	p1d = kalkayotl(dimension=1,
-					prior=prior["type"],
-					parameters=prior["parameters"],
-					hyper_alpha=hyper_alpha,
-					hyper_beta=hyper_beta,
-					hyper_gamma=prior["hyper_gamma"],
-					hyper_delta=prior["hyper_delta"],
-					dir_out=dir_out,
-					transformation=transformation,
-					zero_point=zero_point,
-					indep_measures=indep_measures,
-					quantiles=quantiles)
-	p1d.load_data(file_data,id_name=id_name)
-	p1d.setup()
+	p1d.save_statistics(statistic=statistic) 
 	p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
 #=======================================================================================
