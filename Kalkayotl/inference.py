@@ -22,6 +22,7 @@ import random
 import pymc3 as pm
 import numpy as np
 import pandas as pn
+import h5py
 import scipy.stats as st
 
 import matplotlib
@@ -260,6 +261,8 @@ class kalkayotl:
 		Set-up the model with the corresponding dimensions and data
 		'''
 
+		print("Configuring "+self.prior+" prior")
+
 		if self.D == 1:
 			self.Model = Model1D(mu_data=self.mu_data,sg_data=self.sg_data,
 								  prior=self.prior,
@@ -283,6 +286,8 @@ class kalkayotl:
 			sys.exit("Dimension not valid!")
 
 
+
+
 		
 	def run(self,sample_iters,burning_iters,
 		chains=None,cores=None,
@@ -299,7 +304,7 @@ class kalkayotl:
 
 		with self.Model as model:
 			db = pm.backends.Text(self.dir_out)
-			trace = pm.sample(sample_iters, 
+			trace = pm.sample(draws=sample_iters, 
 							tune=burning_iters, 
 							trace=db,
 							nuts_kwargs=nuts_kwargs,
@@ -318,9 +323,6 @@ class kalkayotl:
 
 			#-------- Discard burn -----
 			self.trace = all_trace[burning_iters:]
-
-		print("The following chains have been loaded:")
-		print(self.trace)
 
 		#------- Variable names -----------------------------------------------------------
 		source_names = list(filter(lambda x: "source" in x, self.trace.varnames.copy()))
@@ -423,14 +425,12 @@ class kalkayotl:
 		
 		pdf.close()
 
-	def save_statistics(self,dir_csv,statistic):
+	def save_statistics(self,statistic):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
 		dir_csv (string) Directory where to save the statistics
 		statistic (string) Type of statistic (mean,median or mode)
-		quantiles (list of floats) Quantile values to return
-
 		'''
 		print("Saving statistics ...")
 
@@ -469,7 +469,7 @@ class kalkayotl:
 
 
 		#-------------- Source statistics ----------------------------------------------------
-		source_csv = dir_csv +"/Sources_"+statistic+".csv"
+		source_csv = self.dir_out +"/Sources_"+statistic+".csv"
 		df_source  = pm.stats.summary(self.trace,varnames=self.source_names,stat_funcs=stat_funcs)
 
 		#------------- Replace parameter id by source ID--------------------
@@ -491,12 +491,37 @@ class kalkayotl:
 
 		#-------------- Global statistics ------------------------
 		if len(self.global_names) > 0:
-			global_csv = dir_csv +"/Cluster_"+statistic+".csv"
+			global_csv = self.dir_out +"/Cluster_"+statistic+".csv"
 			df_global = pm.stats.summary(self.trace,varnames=self.global_names,stat_funcs=stat_funcs)
 			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
 
+	def save_samples(self):
+		'''
+		Saves the chain samples to an h5 file.
+		Arguments:
+		dir_csv (string) Directory where to save the samples
+		'''
+		print("Saving samples ...")
 
-	def evidence(self,N_samples,M_samples,dlogz,nlive,file="Evidence.csv",plot=False):
+		#------ Open h5 file -------------------
+		file_h5 = self.dir_out + "/Samples.h5"
+
+		source_trace = self.trace[self.source_names[0]].T
+		with h5py.File(file_h5,'w') as hf:
+			grp_glb = hf.create_group("Cluster")
+			grp_src = hf.create_group("Sources")
+
+			#------ Loop over global parameters ---
+			for name in self.global_names:
+				label = name.replace(self.Model.name+"_","")
+				grp_glb.create_dataset(label, data=self.trace[name])
+
+			#------ Loop over source parameters ---
+			for i,name in enumerate(self.ID):
+				grp_src.create_dataset(name, data=source_trace[i])
+
+
+	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,file="Evidence.csv",plot=False):
 		quantiles = [self.quantiles[0],0.5,self.quantiles[1]]
 		print(50*"=")
 		print("Estimating evidence of prior: ",self.prior)
