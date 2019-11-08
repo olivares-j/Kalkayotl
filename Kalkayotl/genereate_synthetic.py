@@ -15,7 +15,7 @@ from King import king
 
 
 #----------------Mock data and MCMC parameters  --------------------
-random_seed  = 12345    # Random state for the synthetic data
+random_state = 123    # Random state for the synthetic data
 dist_name    = "Gaussian"
 labels       = ["ID","r","parallax","parallax_error","ra","dec"]
 #--------------------------------------------------------------------------------------
@@ -31,17 +31,17 @@ list_of_cases =[
 {"name":"NGC_2264",    "loc":800 ,"scl":30},
 {"name":"NGC_2682",    "loc":900 ,"scl":15},
 {"name":"NGC_2682",    "loc":1000,"scl":15},
-{"name":"NGC_2244",    "loc":1600,"scl":220},
+{"name":"NGC_2244",    "loc":1600,"scl":90},
 {"name":"NGC_188",     "loc":1800,"scl":60},
-# {"name":"NGC_7789",    "loc":2000,"scl":},
-# {"name":"IC_1848",     "loc":2300,"scl":160}
-# {"name":"NGC_6791",    "loc":4500,"scl":400},
-# {"name":"NGC_3603",    "loc":5800,"scl":900},
+{"name":"IC_1848",     "loc":2300,"scl":70},
+{"name":"NGC_2420",    "loc":2500,"scl":100},
+{"name":"NGC_6791",    "loc":4000,"scl":400},
+{"name":"NGC_3603",    "loc":5800,"scl":900},
 ]
 
 #------ Directories and files --------------------------------
 dir_main     = os.getcwd() + "/Data/"
-dir_out      = dir_main  + "Synthetic/" + dist_name + "_" + str(random_seed)
+dir_out      = dir_main  + "Synthetic/" + dist_name + "_" + str(random_state)
 
 #------- Create directories -------
 os.makedirs(dir_out,exist_ok=True)
@@ -70,11 +70,11 @@ for case in list_of_cases:
 		sys.exit("Distribution not recognized")
 
 
-	random_state = random_seed
-
 	#====================== Read true cluster data ===================================================
 	data = pn.read_csv(file_data,usecols=labels[3:])
 	data.dropna(inplace=True)
+	#----- Sample ------------
+	data = data.sample(frac=1,random_state=random_state)
 
 	#---------- Number of stars --------------------------------------------------------
 	n_stars = data.shape[0]

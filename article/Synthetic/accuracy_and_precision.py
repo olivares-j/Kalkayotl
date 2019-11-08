@@ -50,24 +50,28 @@ clusters = [
 			{"name":"Gaussian",     "distance":1000 },
 			{"name":"Gaussian",     "distance":1600 },
 			{"name":"Gaussian",     "distance":1800 },
-			# {"name":"Gaussian",     "distance":2000 },
 			{"name":"Gaussian",     "distance":2300 },
-			# {"name":"Gaussian",     "distance":4500 },
-			# {"name":"Gaussian",     "distance":5800 },
+			{"name":"Gaussian",     "distance":2500 },
+			{"name":"Gaussian",     "distance":4000 },
+			{"name":"Gaussian",     "distance":5800 },
 			]
 
 iocs      = [
 			{"name":"off","value":"indep","marker":"d","color":"brown","linestyle":"--","sft":-0.05},
 			{"name":"on", "value":"corr", "marker":"o","color":"green","linestyle":"-","sft":+0.0}
 			]
+parameters =[
+			{"name":"loc","label":"Location bias [pc]","inset_y_pos":0.5,"ylim":[-100,300]},
+			{"name":"scl","label":"Scale bias [pc]",   "inset_y_pos":0.1,"ylim":[-50 ,200]},
+
+]
 
 statistics = [
-			{"name":"Credibility [%]",   "color":"green"},
-			{"name":"RMS [pc]",          "color":"brown"},
-			{"name":"Source CI [pc]",    "color":"blue"},
-			{"name":"Parameter CI [pc]", "color":"cyan"},
-			{"name":"Correlation",       "color":"red"},
-
+			{"name":"Credibility [%]",   "color":"green","scale":"linear"},
+			{"name":"RMS [pc]",          "color":"brown","scale":"log"},
+			{"name":"Source CI [pc]",    "color":"blue", "scale":"log"},
+			{"name":"Parameter CI [pc]", "color":"cyan", "scale":"log"},
+			{"name":"Correlation",       "color":"red",  "scale":"linear"},
 			]
 #================================== Plot points ==========================================================================
 n_cluster = len(clusters)
@@ -143,31 +147,27 @@ pdf = PdfPages(filename=file_plot)
 fig, axes = plt.subplots(num=0,nrows=2, ncols=1, sharex=True,figsize=(6,12))
 fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=0.05)
 #--------- Plot parameter bias ----------------------------
-for i,ioc in enumerate(iocs):
-	axes[0].errorbar(distances*(1+ioc["sft"]),bias[i,0,0],
-		yerr=bias[i,0,1:],
-		fmt='none',ls='none',marker="o",ms=5,
-		ecolor="grey",elinewidth=0.01,zorder=1,label=None)
+for j,par in enumerate(parameters):
+	axes[j].set_xscale("log")
+	axes[j].set_yscale("symlog")
+	axes[j].set_ylabel(par["label"])
+	axes[j].axhline(y=0,linestyle="--",color="grey",lw=1,zorder=-1)
 
-	axes[1].errorbar(distances*(1+ioc["sft"]),bias[i,1,0],
-		yerr=bias[i,1,1:],
-		fmt='none',ls='none',marker="o",ms=5,
-		ecolor="grey",elinewidth=0.01,zorder=1,label=None)
+	for i,ioc in enumerate(iocs):
+		axes[j].errorbar(distances*(1+ioc["sft"]),bias[i,j,0],
+			yerr=bias[i,0,1:],
+			fmt='none',ls='none',marker="o",ms=5,
+			ecolor="grey",elinewidth=0.01,zorder=1,label=None)
 
-	axes[0].scatter(distances*(1+ioc["sft"]),bias[i,0,0],
-		s=15,
-		c=ioc["color"],
-		marker=ioc["marker"],zorder=2,label=ioc["name"])
-
-	axes[1].scatter(distances*(1+ioc["sft"]),bias[i,1,0],
-		s=15,
-		c=ioc["color"],
-		marker=ioc["marker"],zorder=2)
-
-fig.legend(
+		axes[j].scatter(distances*(1+ioc["sft"]),bias[i,j,0],
+			s=15,
+			c=ioc["color"],
+			marker=ioc["marker"],zorder=2,label=ioc["name"])
+	
+axes[0].legend(
 	title="Spatial correlations",
 	shadow = False,
-	bbox_to_anchor=(0.12,0.82, 0.7, 0.1),
+	bbox_to_anchor=(0.12,0.82, 0.75, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,
@@ -178,16 +178,6 @@ fig.legend(
 	loc = 'upper right'
 	)
 axes[1].set_xlabel("Distance [pc]")
-axes[0].set_ylabel("Location bias [pc]")
-axes[1].set_ylabel("Scale bias [pc]")
-axes[0].set_xscale("log")
-axes[1].set_xscale("log")
-# axes[0].set_yscale("log")
-# axes[1].set_yscale("log")
-# axes[0].set_ylim(1e-3,1e3)
-# axes[1].set_ylim(1e-3,1e3)
-axes[0].axhline(y=0,linestyle="--",color="grey",lw=1,zorder=-1)
-axes[1].axhline(y=0,linestyle="--",color="grey",lw=1,zorder=-1)
 pdf.savefig(bbox_inches='tight')
 plt.close(0)
 
@@ -203,11 +193,12 @@ for i,stats in enumerate(statistics):
 		axes[i].plot(distances,sts[:,i,j],color=ioc["color"],linestyle=ioc["linestyle"])
 	axes[i].set_ylabel(stats["name"])
 	axes[i].set_xscale('log')
+	axes[i].set_yscale(stats["scale"])
 plt.xlabel('Distance [pc]')
 fig.legend(title="Spatial correlations",
 	handles=lines,
 	shadow = False,
-	bbox_to_anchor=(0.12,0.82, 0.7, 0.1),
+	bbox_to_anchor=(0.12,0.82, 0.75, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,

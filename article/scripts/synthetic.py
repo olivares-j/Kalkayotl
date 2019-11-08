@@ -26,7 +26,7 @@ import pandas as pn
 from  Kalkayotl.inference import kalkayotl
 
 
-generic_name = "Gaussian_12345"
+generic_name = "Gaussian_123"
 
 
 #------------------------- Case----------------------------
@@ -43,10 +43,10 @@ list_of_cases = [
 {"name":"Gaussian","location":1000,"size":100,"burning_iters":40000},
 {"name":"Gaussian","location":1600,"size":160,"burning_iters":40000},
 {"name":"Gaussian","location":1800,"size":180,"burning_iters":40000},
-# {"name":"Gaussian","location":2000,"size":200,"burning_iters":40000},
-# {"name":"Gaussian","location":2300,"size":230,"burning_iters":40000}, 
-# {"name":"Gaussian","location":4500,"size":450,"burning_iters":50000},
-# {"name":"Gaussian","location":5800,"size":900,"burning_iters":50000},
+{"name":"Gaussian","location":2300,"size":230,"burning_iters":40000}, 
+{"name":"Gaussian","location":2500,"size":200,"burning_iters":40000},
+{"name":"Gaussian","location":4000,"size":450,"burning_iters":50000},
+{"name":"Gaussian","location":5800,"size":580,"burning_iters":50000},
 ]
 
 list_of_prior = [

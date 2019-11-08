@@ -31,10 +31,10 @@ dir_main  = os.getcwd() +"/"
 
 #------------------------- Case----------------------------
 # If synthetic, comment the zero_point line in inference.
-case      = "NGC_1647"    # Case name
-file_csv  = "NGC_1647.csv" # Data file
+case      = "NGC_2420"    # Case name
+file_csv  = "NGC_2420.csv" # Data file
 id_name   = "ID"          # Identifier's name
-distance  = 586.
+distance  = 2552.
 #-----------------------------------------------------------
 
 #===================== Hyper-prior=========================================
@@ -42,22 +42,22 @@ hyper_alpha = [distance,0.1*distance]
 hyper_beta  = [100.] 
 
 list_of_prior = [
-	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
-	# 						"hyper_gamma":None, 
-	# 						"hyper_delta":None},
+	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
+							"hyper_gamma":None, 
+							"hyper_delta":None},
 
-	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":None},
+	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+							"hyper_gamma":None,
+							"hyper_delta":None},
 
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None}, 
-	# 						"hyper_gamma":[2.0,1.0],
-	# 						"hyper_delta":None},
+	{"type":"EFF",          "parameters":{"location":None,"scale":None}, 
+							"hyper_gamma":[2.0,1.0],
+							"hyper_delta":None},
 
 
-	# {"type":"King",         "parameters":{"location":None,"scale":None},
-	# 						"hyper_gamma":[20.],
-	# 						"hyper_delta":None},
+	{"type":"King",         "parameters":{"location":None,"scale":None},
+							"hyper_gamma":[20.],
+							"hyper_delta":None},
 
 	{"type":"GMM",          "parameters":{"location":None,"scale":None},
 							"hyper_gamma":None,
@@ -146,7 +146,6 @@ for prior in list_of_prior:
 	p1d.load_data(file_data,id_name=id_name)
 	p1d.setup()
 	
-	
 	# p1d.run(sample_iters=sample_iters,
 	# 		burning_iters=burning_iters,
 	# 		chains=2,cores=2,
@@ -159,6 +158,5 @@ for prior in list_of_prior:
 	# coords = {"flavour_1d_source_dim_0" : range(5)}
 	# p1d.plot_chains(dir_out,coords=coords)
 	# p1d.save_statistics(statistic=statistic) 
-
 	p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
 #=======================================================================================

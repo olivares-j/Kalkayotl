@@ -63,9 +63,9 @@ list_of_prior = [
 							"hyper_gamma":None,
 							"hyper_delta":np.array([0.9,0.1])},
 
-	{"type":"Cauchy",       "parameters":{"location":None,"scale":None},
-							"hyper_gamma":None,
-							"hyper_delta":None},
+	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":None},
 	] 
 #========================================================================
 
@@ -158,5 +158,5 @@ for prior in list_of_prior:
 	coords = {"flavour_1d_source_dim_0" : range(5)}
 	p1d.plot_chains(dir_out,coords=coords)
 	p1d.save_statistics(statistic=statistic) 
-	p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
+	# p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,plot=True)
 #=======================================================================================

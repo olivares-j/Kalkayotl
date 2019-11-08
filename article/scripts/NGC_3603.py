@@ -43,26 +43,26 @@ hyper_beta  = [100.]
 
 list_of_prior = [
 
-	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-							"hyper_gamma":None,
-							"hyper_delta":None},
-
-	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
-							"hyper_gamma":None, 
-							"hyper_delta":None},
-
-	{"type":"EFF",          "parameters":{"location":None,"scale":None}, 
-							"hyper_gamma":[2.0,1.0],
-							"hyper_delta":None},
-
-
-	{"type":"King",         "parameters":{"location":None,"scale":None},
-							"hyper_gamma":[20.],
-							"hyper_delta":None},
-
-	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
+	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
 	# 						"hyper_gamma":None,
-	# 						"hyper_delta":np.array([0.9,0.1])},
+	# 						"hyper_delta":None},
+
+	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
+	# 						"hyper_gamma":None, 
+	# 						"hyper_delta":None},
+
+	# {"type":"EFF",          "parameters":{"location":None,"scale":None}, 
+	# 						"hyper_gamma":[2.0,1.0],
+	# 						"hyper_delta":None},
+
+
+	# {"type":"King",         "parameters":{"location":None,"scale":None},
+	# 						"hyper_gamma":[20.],
+	# 						"hyper_delta":None},
+
+	{"type":"GMM",          "parameters":{"location":None,"scale":None},
+							"hyper_gamma":None,
+							"hyper_delta":np.array([0.9,0.1])},
 
 	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
 	# 						"hyper_gamma":None,
@@ -152,13 +152,15 @@ for prior in list_of_prior:
 	# 		target_accept=0.95,
 	# 		)
 
-	# #-------- Analyse chains --------------------------------
-	# p1d.load_trace(burning_iters=burning_iters)
+	#-------- Analyse chains --------------------------------
+	p1d.load_trace(burning_iters=burning_iters)
+	p1d.save_statistics(statistic=statistic) 
+	
 	# p1d.convergence()
 	# coords = {"flavour_1d_source_dim_0" : range(5)}
 	# p1d.plot_chains(dir_out,coords=coords)
-	# p1d.save_statistics(statistic=statistic) 
+	
 
 	#------------------ Evidence ---------------------------
-	p1d.evidence(M_samples=1000,dlogz=1.0,nlive=500,file=file_Z)
+	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=500,file=file_Z)
 #=======================================================================================
