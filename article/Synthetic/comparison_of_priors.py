@@ -33,7 +33,7 @@ import matplotlib.lines as mlines
 list_of_priors = [
 {"type":"Uniform",  "color":"blue",    "marker":"v"},
 {"type":"Gaussian", "color":"orange",  "marker":"+"},
-{"type":"Cauchy",   "color":"green",   "marker":"s"},
+# {"type":"Cauchy",   "color":"green",   "marker":"s"},
 {"type":"GMM",      "color":"maroon",  "marker":"h"},
 {"type":"EFF",      "color":"violet",  "marker":"d"},
 {"type":"King",     "color":"cyan",    "marker":"^"},
@@ -69,7 +69,7 @@ file_tex   = dir_plots + "Table_rms_bias.tex"
 #================================== Plots ===============================================
 pdf = PdfPages(filename=file_plot)
 #--------- Plot bias ----------------------------
-fig, axes = plt.subplots(num=2,nrows=3, ncols=2, sharex=True,sharey=True,figsize=(12,12))
+fig, axes = plt.subplots(num=2,nrows=3, ncols=2, sharex=True,sharey=True,figsize=(10,10))
 for c,case in enumerate(list_of_cases):
 
 	file_data  = dir_data  + case["name"]+".csv"
@@ -183,8 +183,8 @@ priors_hdl = [mlines.Line2D([], [],color=prior["color"],
 								linewidth=2,
 								label=prior["type"]) for prior in list_of_priors]
 plt.figure(0)	
-plt.xlabel("Fractional uncertainty")
-plt.ylabel("Fractional error")
+plt.xlabel("Parallax fractional uncertainty")
+plt.ylabel("Distance fractional error")
 plt.xscale("log")
 plt.ylim(-0.02,0.2)
 locs = [0.02,0.05,0.1,0.2]
@@ -230,7 +230,7 @@ plt.close()
 plt.figure(2)
 plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
 clrb = fig.colorbar(points,orientation="horizontal",pad=0.05,ax=axes)
-clrb.set_label("Fractional uncertainty")
+clrb.set_label("Parallax fractional uncertainty")
 for i in range(2):
 	axes[2,i].set_xlabel("Offset from centre [pc]")
 for i in range(3):

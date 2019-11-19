@@ -4,17 +4,17 @@ import pymc3 as pm
 import theano
 from theano import tensor as tt, printing
 
-from Kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
-from Kalkayotl.EFF import EFF
-from Kalkayotl.EDSD import EDSD
-from Kalkayotl.King import King
+from kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
+from kalkayotl.EFF import EFF
+from kalkayotl.EDSD import EDSD
+from kalkayotl.King import King
 
-##################################3 Model 1D ####################################
+################################## Model 1D ####################################
 class Model1D(pm.Model):
 	'''
 	Model to infer the distance of a series of stars
 	'''
-	def __init__(self,mu_data,sg_data,
+	def __init__(self,mu_data,tau_data,
 		prior="Gaussian",
 		parameters={"location":None,"scale": None},
 		hyper_alpha=[100,10],
@@ -22,15 +22,8 @@ class Model1D(pm.Model):
 		hyper_gamma=None,
 		hyper_delta=None,
 		transformation="mas",
-		name='flavour_1d', model=None):
-		# 2) call super's init first, passing model and name
-		# to it name will be prefix for all variables here if
-		# no name specified for model there will be no prefix
+		name='1D', model=None):
 		super().__init__(name, model)
-		# now you are in the context of instance,
-		# `modelcontext` will return self you can define
-		# variables in several ways note, that all variables
-		# will get model's name prefix
 
 		#------------------- Data ------------------------------------------------------
 		self.N = len(mu_data)
@@ -38,7 +31,6 @@ class Model1D(pm.Model):
 		if self.N == 0:
 			sys.exit("Data has length zero!. You must provide at least one data point")
 
-		self.T = np.linalg.inv(sg_data)
 		#-------------------------------------------------------------------------------
 
 		#============= Transformations ====================================
@@ -69,7 +61,6 @@ class Model1D(pm.Model):
 		#------------------------ Scale ---------------------------------------
 		if parameters["scale"] is None:
 			pm.Gamma("scl",alpha=2.0,beta=2.0/hyper_beta[0],shape=shape)
-			# pm.HalfCauchy("scl",beta=hyper_beta[0],shape=shape)
 		else:
 			self.scl = parameters["scale"]
 		#========================================================================
@@ -77,23 +68,51 @@ class Model1D(pm.Model):
 		#================= True values ========================================================
 		#--------- Cluster oriented prior-----------------------------------------------
 		if prior is "Uniform":
-			pm.Uniform("source",lower=self.loc-self.scl,
-								upper=self.loc+self.scl,shape=self.N)
+			pm.Uniform("offset",lower=-1.,upper=1.,shape=self.N)
+			pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior is "Cauchy":
-			pm.Cauchy("source",alpha=self.loc,beta=self.scl,shape=self.N)
+			pm.Cauchy("offset",alpha=0.0,beta=1.0,shape=self.N)
+			pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior is "Gaussian":
-			pm.Normal("source",mu=self.loc,sd=self.scl,shape=self.N)
+			pm.Normal("offset",mu=0.0,sd=1.0,shape=self.N)
+			pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior is "GMM":
-			pm.Dirichlet("weights",a=hyper_delta)
+			if parameters["weights"] is None:
+				pm.Dirichlet("weights",a=hyper_delta)
+			else:
+				self.weights = parameters["weights"]
 
 			pm.NormalMixture("source",w=self.weights,
 				mu=self.loc,
 				sigma=self.scl,
 				comp_shape=1,
 				shape=self.N)
+
+		elif prior is "EFF":
+			if parameters["gamma"] is None:
+				pm.TruncatedNormal("gamma",mu=hyper_gamma[0],sigma=hyper_gamma[1],
+									lower=2.0,upper=10.0,shape=shape)
+			else:
+				self.gamma = parameters["gamma"]
+
+			EFF("offset",gamma=self.gamma,shape=self.N)
+
+			pm.Deterministic("source",self.loc + self.scl*self.offset)
+
+		elif prior is "King":
+			if parameters["rt"] is None:
+				pm.Beta("y",alpha=hyper_gamma[0],beta=hyper_gamma[1])
+				pm.Deterministic("x",0.5*np.sqrt(2)*self.y)
+				pm.Deterministic("rt",self.scl*np.sqrt(self.x**(-2) - 1.))
+
+			else:
+				pm.Deterministic("x",1.0/tt.sqrt(1.0+(parameters["rt"]/self.scl)**2))
+
+			King("offset",x=self.x,shape=self.N)
+			pm.Deterministic("source",self.loc + self.scl*self.offset)
 			
 		#---------- Galactic oriented prior ---------------------------------------------
 		elif prior == "Half-Cauchy":
@@ -104,26 +123,9 @@ class Model1D(pm.Model):
 
 		elif prior is "EDSD":
 			EDSD("source",scale=self.scl,shape=self.N)
-
-		elif prior is "EFF":
-			pm.TruncatedNormal("gamma",mu=hyper_gamma[0],sigma=hyper_gamma[1],
-								lower=2.0,upper=100.0,
-								shape=shape)
-			EFF("source",r0=self.loc,rc=self.scl,gamma=self.gamma,
-						shape=self.N)
-
-		elif prior is "King":
-			pm.HalfNormal("add",sigma=hyper_gamma[0],
-								shape=shape)
-
-			pm.Deterministic("rt",self.scl+self.add)
-
-			BoundedKing = pm.Bound(King, lower=self.loc-self.rt,upper=self.loc+self.rt)
-			source = BoundedKing("source",r0=self.loc,rc=self.scl,rt=self.rt,
-						shape=self.N)
 		
 		else:
-			sys.exit("The specified prior is not supported")
+			sys.exit("The specified prior is not implemented")
 		#-----------------------------------------------------------------------------
 		#=======================================================================================
 		# print_ = tt.printing.Print("sources")(self.source)
@@ -131,7 +133,7 @@ class Model1D(pm.Model):
 		true = Transformation(self.source)
 
 		#----------------------- Likelihood ----------------------------------------
-		pm.MvNormal('obs', mu=true, tau=self.T,observed=mu_data)
+		pm.MvNormal('obs', mu=true, tau=tau_data,observed=mu_data)
 		#------------------------------------------------------------------------------
 ####################################################################################################
 
@@ -140,7 +142,7 @@ class ModelND(pm.Model):
 	'''
 	Model to infer the N-dimensional parameter vector of a cluster
 	'''
-	def __init__(self,dimension,mu_data,sg_data,
+	def __init__(self,dimension,mu_data,tau_data,
 		prior="Gaussian",
 		parameters={"location":None,"scale":None,"corr":False},
 		hyper_alpha=None,
@@ -167,12 +169,8 @@ class ModelND(pm.Model):
 
 		#------------------- Data ------------------------------------------------------
 		N = int(len(mu_data)/D)
-
-
 		if N == 0:
 			sys.exit("Data has length zero!. You must provide at least one data point")
-
-		T = np.linalg.inv(sg_data)
 		#-------------------------------------------------------------------------------
 
 		#============= Transformations ====================================
@@ -269,5 +267,5 @@ class ModelND(pm.Model):
 		#----------------------------------------------------------------------------
 
 		#----------------------- Likelihood ----------------------------------------
-		pm.MvNormal('obs', mu=true, tau=T,observed=mu_data)
+		pm.MvNormal('obs', mu=true, tau=tau_data,observed=mu_data)
 		#------------------------------------------------------------------------------

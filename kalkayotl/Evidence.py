@@ -10,9 +10,9 @@ from dynesty import plotting as dyplot
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from Kalkayotl.Transformations import Iden,pc2mas
-from Kalkayotl.EFF import eff
-from Kalkayotl.King import king
+from kalkayotl.Transformations import Iden,pc2mas
+from kalkayotl.EFF import eff
+from kalkayotl.King import king
 
 
 ################################## Evidence 1D ####################################
@@ -22,8 +22,9 @@ class Evidence1D():
 	'''
 	def __init__(self,mu_data,sg_data,
 		prior="Gaussian",
-		hyper_alpha=[[0,10]],
-		hyper_beta=[0.5],
+		parameters={"location":None,"scale": None,"gamma":None,"rt":None},
+		hyper_alpha=None,
+		hyper_beta=None,
 		hyper_gamma=None,
 		hyper_delta=None,
 		N_samples=None,
@@ -37,6 +38,9 @@ class Evidence1D():
 		self.logM = np.log(M_samples)
 
 		self.quantiles = quantiles
+
+		if parameters["location"] is not None or parameters["scale"] is not None:
+			sys.exit("This modules works only when location and scale are set free")
 
 		#========================= Data ==================================================
 		#-------- Assume independence amongst sources ------------------
@@ -67,6 +71,7 @@ class Evidence1D():
 			sys.exit("Transformation is not accepted")
 		#==================================================================
 
+
 		#================ Hyper-prior =====================================
 		hp_loc = st.norm(loc=hyper_alpha[0],scale=hyper_alpha[1])
 		hp_scl = st.gamma(a=2.0,scale=hyper_beta[0]/2.0)
@@ -78,18 +83,11 @@ class Evidence1D():
 			self.D = 2
 			self.names = ["loc_0","scl_0"]
 
-			def prior_sample(parameters):
-				# Sample from the prior
-				# It will be used to marginalize the
-				# source parameters
-				result =  np.abs(st.uniform.rvs(
-					loc=parameters[0]-parameters[1],
-					scale=2*parameters[1],
-					size=self.M))
+			def prior_sample(theta):
+				result = theta[0] + theta[1]*np.random.uniform(-1.0,1.0,size=self.M)
 				return result
 
 			def hp_transform(u):
-				# Transform unit cube hyper prior
 				x = np.zeros_like(u)
 				x[0] = hp_loc.ppf(u[0])
 				x[1] = hp_scl.ppf(u[1])
@@ -100,18 +98,11 @@ class Evidence1D():
 			self.D = 2
 			self.names = ["loc_0","scl_0"]
 
-			def prior_sample(parameters):
-				# Sample from the prior
-				# It will be used to marginalize the
-				# source parameters
-				result =  np.abs(st.cauchy.rvs(
-					loc=parameters[0],
-					scale=parameters[1],
-					size=self.M))
+			def prior_sample(theta):
+				result = theta[0] + theta[1]*st.cauchy.rvs(size=self.M)
 				return result
 
 			def hp_transform(u):
-				# Transform unit cube hyper prior
 				x = np.zeros_like(u)
 				x[0] = hp_loc.ppf(u[0])
 				x[1] = hp_scl.ppf(u[1])
@@ -121,115 +112,159 @@ class Evidence1D():
 			self.D = 2
 			self.names = ["loc_0","scl_0"]
 
-			def prior_sample(parameters):
-				# Sample from the prior
-				# It will be used to marginalize the
-				# source parameters
-				result =  np.abs(st.norm.rvs(
-					loc=parameters[0],
-					scale=parameters[1],
-					size=self.M))
+			def prior_sample(theta):
+				result = theta[0] + theta[1]*st.norm.rvs(size=self.M)
 				return result
 
 			def hp_transform(u):
-				# Transform unit cube hyper prior
 				x = np.zeros_like(u)
 				x[0] = hp_loc.ppf(u[0])
 				x[1] = hp_scl.ppf(u[1])
 				return x
 
 		elif prior is "GMM":
-			# Components in the mixture
-			G      = len(hyper_delta)
 
-			self.D     = G*3 -1
-			self.names = sum([["weights_{0}".format(i) for i in range(G-1)],["loc_{0}".format(i) for i in range(G)],["scl_{0}".format(i) for i in range(G)]],[])
+			if parameters["weights"] is None:
 
-			def prior_sample(parameters):
-				# Sample from the prior
-				# It will be used to marginalize the
-				# source parameters
-				szs = np.zeros(G,dtype='int')
-				for i in range(G-1):
-					szs[i] = int(np.floor(parameters[i]*self.M))
-				szs[-1] = int(self.M - sum(szs))
+				# Components in the mixture
+				G      = len(hyper_delta)
 
-				loc = parameters[(G-1):(2*G -1)]
-				scl = parameters[(2*G -1):]
+				self.D     = G*3
+				self.names = sum([["weights_{0}".format(i) for i in range(G)],["loc_{0}".format(i) for i in range(G)],["scl_{0}".format(i) for i in range(G)]],[])
 
-				result = []
-				for j in range(G):
-					result.append(np.abs(st.norm.rvs(
-						loc=loc[j],scale=scl[j],
-						size=szs[j])))
+				def prior_sample(theta):
+					samples = st.norm.rvs(size=(self.M,G))
 
-				res = np.concatenate(result)
-				return res
+					frc = theta[:G]
+					loc = theta[G:(2*G)]
+					scl = theta[(2*G):]
 
-			def hp_transform(u):
-				# Transform unit cube hyper prior
-				x = np.zeros_like(u)
-				x[:(G-1)]         = u[:(G-1)]
-				x[(G-1):(2*G -1)] = hp_loc.ppf(u[(G-1):(2*G -1)])
-				x[(2*G -1):]      = hp_scl.ppf(u[(2*G -1):])
-				return x
+					result = np.dot(loc + scl*samples,frc)
+					return result
+
+				def hp_transform(u):
+					# Transform unit cube hyper prior
+					x = np.zeros_like(u)
+					x[:G]      = u[:G]
+					x[G:(2*G)] = hp_loc.ppf(u[G:(2*G)])
+					x[(2*G):]  = hp_scl.ppf(u[(2*G):])
+
+					x[:G] = x[:G]/np.sum(x[:G]) 
+					return x
+
+			else:
+				G = len(hyper_delta)
+
+				self.D     = 2*G
+				self.names = sum([["loc_{0}".format(i) for i in range(G)],["scl_{0}".format(i) for i in range(G)]],[])
+
+				def prior_sample(theta):
+					samples = st.norm.rvs(size=(self.M,G))
+
+					frc = np.array(parameters["weights"])
+					loc = theta[:G]
+					scl = theta[G:(2*G)]
+
+					result = np.dot(loc + scl*samples,frc)
+					return result
+
+				def hp_transform(u):
+					# Transform unit cube hyper prior
+					x = np.zeros_like(u)
+					x[:G]      = hp_loc.ppf(u[:G])
+					x[G:(2*G)] = hp_scl.ppf(u[G:(2*G)])
+					return x
 
 		elif prior is "EFF":
-			self.D = 3
-			self.names = ["loc_0","scl_0","gamma"]
 
-			if hyper_gamma[0] < 2.0:
-				sys.exit("Setting hyper_gamma[0] to values < 2.0 leads to extremely inefficient sampling")
+			if parameters["gamma"] is None:
+				self.D = 3
+				self.names = ["loc_0","scl_0","gamma"]
 
-			a, b = (2.0 - hyper_gamma[0]) / hyper_gamma[1], (100. - hyper_gamma[0]) / hyper_gamma[1]
+				if hyper_gamma[0] < 2.0:
+					sys.exit("Setting hyper_gamma[0] to values < 2.0 leads to extremely inefficient sampling")
 
-			hp_gamma = st.truncnorm(a=a,b=b,loc=hyper_gamma[0],scale=hyper_gamma[1])
+				a, b = (2.0 - hyper_gamma[0]) / hyper_gamma[1], (10. - hyper_gamma[0]) / hyper_gamma[1]
 
-			def prior_sample(parameters):
-				# Sample from the prior
-				# It will be used to marginalize the
-				# source parameters
-				result =  np.abs(eff.rvs(
-					r0=parameters[0],
-					rc=parameters[1],
-					gamma=parameters[2],
-					size=self.M))
-				return result
+				hp_gamma = st.truncnorm(a=a,b=b,loc=hyper_gamma[0],scale=hyper_gamma[1])
 
-			def hp_transform(u):
-				# Transform unit cube hyper prior
-				x = np.zeros_like(u)
-				x[0] = hp_loc.ppf(u[0])
-				x[1] = hp_scl.ppf(u[1])
-				x[2] = hp_gamma.ppf(u[2])
-				return x
+				def prior_sample(theta):
+					# Sample from the prior
+					# It will be used to marginalize the
+					# source parameters
+					result = theta[0] + theta[1]*eff.rvs(gamma=theta[2],size=self.M)
+					return result
+
+				def hp_transform(u):
+					# Transform unit cube hyper prior
+					x = np.zeros_like(u)
+					x[0] = hp_loc.ppf(u[0])
+					x[1] = hp_scl.ppf(u[1])
+					x[2] = hp_gamma.ppf(u[2])
+					return x
+
+			else:
+				self.D = 2
+				self.names = ["loc_0","scl_0"]
+
+				def prior_sample(theta):
+					# Sample from the prior
+					# It will be used to marginalize the
+					# source parameters
+					result = theta[0] + theta[1]*eff.rvs(gamma=parameters["gamma"],size=self.M)
+					return result
+
+				def hp_transform(u):
+					# Transform unit cube hyper prior
+					x = np.zeros_like(u)
+					x[0] = hp_loc.ppf(u[0])
+					x[1] = hp_scl.ppf(u[1])
+					return x
+
 
 
 		elif prior is "King":
-			self.D = 3
-			self.names = ["loc_0","scl_0","rt"]
+			if parameters["rt"] is None:
+				self.D = 3
+				self.names = ["loc_0","scl_0","rt"]
 
-			hp_rt = st.halfnorm(loc=0.0,scale=hyper_gamma[0])
+				hp_x = st.beta(a=hyper_gamma[0],b=hyper_gamma[1])
 
-			def prior_sample(parameters):
-				# Sample from the prior
-				# It will be used to marginalize the
-				# source parameters
-				result =  np.abs(king.rvs(
-					r0=parameters[0],
-					rc=parameters[1],
-					rt=parameters[2],
-					size=self.M))
-				return result
+				def prior_sample(theta):
+					# Sample from the prior
+					# It will be used to marginalize the
+					# source parameters
+					result = theta[0] + theta[1]*king.rvs(rt=theta[2],size=self.M)
+					return result
 
-			def hp_transform(u):
-				# Transform unit cube hyper prior
+				def hp_transform(u):
+					# Transform unit cube hyper prior
 
-				x = np.zeros_like(u)
-				x[0] = hp_loc.ppf(u[0])
-				x[1] = hp_scl.ppf(u[1])
-				x[2] = x[1] + hp_rt.ppf(u[2])
-				return x
+					y = 0.5*np.sqrt(2)*hp_x.ppf(u[2])
+
+					x = np.zeros_like(u)
+					x[0] = hp_loc.ppf(u[0])
+					x[1] = hp_scl.ppf(u[1])
+					x[2] = x[1]*np.sqrt(y**(-2) - 1.0)
+					return x
+
+			else:
+				self.D = 2
+				self.names = ["loc_0","scl_0"]
+
+				def prior_sample(theta):
+					# Sample from the prior
+					# It will be used to marginalize the
+					# source parameters
+					result = theta[0] + theta[1]*king.rvs(rt=parameters["rt"],size=self.M)
+					return result
+
+				def hp_transform(u):
+					# Transform unit cube hyper prior
+					x = np.zeros_like(u)
+					x[0] = hp_loc.ppf(u[0])
+					x[1] = hp_scl.ppf(u[1])
+					return x
 
 		else:
 			sys.exit("The specified prior is not supported. Check spelling.")
@@ -246,17 +281,17 @@ class Evidence1D():
 		res = logsumexp(ld)
 		return res
 
-	def loglike(self,parameters):
+	def loglike(self,theta):
 		"""The log-likelihood function."""
-		rvs   = self.prior_sample(parameters)
+		rvs   = self.prior_sample(theta)
 		trvs  = self.Transformation(rvs)
 		lmarg = np.apply_along_axis(self.logsumdensity,1,self.data,trvs) - self.logM
 		return lmarg.sum()
 
-	def run(self,dlogz,nlive,bound="single"):
+	def run(self,dlogz,nlive,bound="single",print_progress=False):
 		""""Run the nested sampler algorithm"""
 		sampler = dynesty.NestedSampler(self.loglike,self.hp_transform,self.D,bound=bound,nlive=nlive)
-		sampler.run_nested(dlogz=dlogz)
+		sampler.run_nested(dlogz=dlogz,print_progress=print_progress)
 		return sampler.results
 
 	def parameters_statistics(self,results):

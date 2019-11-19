@@ -19,7 +19,7 @@ def AngularSeparation(a):
 
 	return A
 
-def CovariancePM(a,case="Lindegren+2018"):
+def CovariancePM(a,case):
 	'''
 	Covariance matrix of the proper motions.
 	microarcsec^2 -> 1e-6 mas^2
@@ -32,7 +32,7 @@ def CovariancePM(a,case="Lindegren+2018"):
 		'''
 		result = 0.0008*np.exp(-a/20.0)
 
-	elif case == "Vasiliev+2018":
+	elif case == "Vasiliev+2019":
 		'''
 		Assumes that the covariance is given by Eq. 1 of Vasiliev et al. 2018.
 		'''
@@ -44,7 +44,7 @@ def CovariancePM(a,case="Lindegren+2018"):
 
 	return result
 
-def CovarianceParallax(a,case="Vasiliev+2018"):
+def CovarianceParallax(a,case):
 	'''
 	Covariance matrix of the parallax
 	microarcsec^2 -> 1e-6 mas^2
@@ -57,7 +57,7 @@ def CovarianceParallax(a,case="Vasiliev+2018"):
 		'''
 		result = 0.000285*np.exp(-a/14.0)
 
-	elif case == "Vasiliev+2018":
+	elif case == "Vasiliev+2019":
 		'''
 		Assumes that the covariance is given by Vasiliev et al. 2018.
 		'''
@@ -81,16 +81,16 @@ if __name__ == "__main__":
 	theta = np.linspace(0,6,1000)
 
 	X_l   = CovariancePM(theta,case="Lindegren+2018")
-	X_v   = CovariancePM(theta,case="Vasiliev+2018")
+	X_v   = CovariancePM(theta,case="Vasiliev+2019")
 
 	Y_l   = CovarianceParallax(theta,case="Lindegren+2018")
-	Y_v   = CovarianceParallax(theta,case="Vasiliev+2018")
+	Y_v   = CovarianceParallax(theta,case="Vasiliev+2019")
 
 	pdf = PdfPages(filename=file_plot)
 	plt.figure(0)
 	plt.suptitle("Covariance of proper motions")
 	plt.plot(theta,X_l,label="Lindegren+2018")
-	plt.plot(theta,X_v,label="Vasiliev+2018")
+	plt.plot(theta,X_v,label="Vasiliev+2019")
 	plt.xlabel("Angular separation [deg]")
 	plt.ylabel("Covariance [(mas/yr)^2]")
 	plt.legend()
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 	plt.figure(0)
 	plt.suptitle("Covariance of parallax")
 	plt.plot(theta,Y_l,label="Lindegren+2018")
-	plt.plot(theta,Y_v,label="Vasiliev+2018")
+	plt.plot(theta,Y_v,label="Vasiliev+2019")
 	plt.xlabel("Angular separation [deg]")
 	plt.ylabel("Covariance [mas^2]")
 	plt.legend()

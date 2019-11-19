@@ -23,30 +23,30 @@ import os
 import numpy as np
 import pandas as pn
 
-from  Kalkayotl.inference import kalkayotl
+from  kalkayotl import Inference
 
 
-generic_name = "Gaussian_123"
+generic_name = "Gaussian_2"
 
 
 #------------------------- Case----------------------------
 list_of_cases = [
-{"name":"Gaussian","location":100,"size":10,  "burning_iters":10000},
-{"name":"Gaussian","location":200,"size":20,  "burning_iters":10000},
-{"name":"Gaussian","location":300,"size":30,  "burning_iters":10000},
-{"name":"Gaussian","location":400,"size":40,  "burning_iters":10000},
-{"name":"Gaussian","location":500,"size":50,  "burning_iters":40000},
-{"name":"Gaussian","location":600,"size":60,  "burning_iters":40000},
-{"name":"Gaussian","location":700,"size":70,  "burning_iters":40000},
-{"name":"Gaussian","location":800,"size":80,  "burning_iters":40000},
-{"name":"Gaussian","location":900,"size":90,  "burning_iters":40000},
-{"name":"Gaussian","location":1000,"size":100,"burning_iters":40000},
-{"name":"Gaussian","location":1600,"size":160,"burning_iters":40000},
-{"name":"Gaussian","location":1800,"size":180,"burning_iters":40000},
-{"name":"Gaussian","location":2300,"size":230,"burning_iters":40000}, 
-{"name":"Gaussian","location":2500,"size":200,"burning_iters":40000},
-{"name":"Gaussian","location":4000,"size":450,"burning_iters":50000},
-{"name":"Gaussian","location":5800,"size":580,"burning_iters":50000},
+# {"name":"Gaussian","location":100,"size":10,  "burning_iters":1000},
+# {"name":"Gaussian","location":200,"size":20,  "burning_iters":1000},
+# {"name":"Gaussian","location":300,"size":30,  "burning_iters":1000},
+# {"name":"Gaussian","location":400,"size":40,  "burning_iters":1000},
+# {"name":"Gaussian","location":500,"size":50,  "burning_iters":1000},
+# {"name":"Gaussian","location":600,"size":60,  "burning_iters":1000},
+# {"name":"Gaussian","location":700,"size":70,  "burning_iters":1000},
+# {"name":"Gaussian","location":800,"size":80,  "burning_iters":1000},
+# {"name":"Gaussian","location":900,"size":90,  "burning_iters":1000},
+# {"name":"Gaussian","location":1000,"size":100,"burning_iters":1000},
+# {"name":"Gaussian","location":1600,"size":160,"burning_iters":1000},
+# {"name":"Gaussian","location":1800,"size":180,"burning_iters":1000},
+# {"name":"Gaussian","location":2300,"size":230,"burning_iters":1000}, 
+# {"name":"Gaussian","location":2500,"size":200,"burning_iters":1000},
+# {"name":"Gaussian","location":4000,"size":450,"burning_iters":1000},
+{"name":"Gaussian","location":5800,"size":580,"burning_iters":1000},
 ]
 
 list_of_prior = [
@@ -96,20 +96,7 @@ indep_measures = [
 			]
 
 #===================== Chains =================================
-#---------------- MCMC parameters  --------------------
-sample_iters    = 10000   # Number of iterations for the MCMC 
-
-
-#------- Statistic ----------------------
-# Statistics to return after chain analysis 
-statistic = "mode"
-quantiles = [0.05,0.95]
-id_name   = "ID"          # Identifier's name
-# --------- Transformation------------------------------------
-# Either "mas" or "pc" to indicate the observable or physical
-# space in which the Parameters will be inferred
-transformation = "pc"
-
+sample_iters    = 1000   # Number of iterations for the MCMC 
 #==============================================================
 
 
@@ -145,7 +132,7 @@ for case in list_of_cases:
 			os.makedirs(dir_out,exist_ok=True)
 
 			#--------- Run model -----------------------
-			p1d = kalkayotl(dimension=1,
+			p1d = Inference(dimension=1,
 							prior=prior["type"],
 							parameters=prior["parameters"],
 							hyper_alpha=[case["location"],case["size"]],
@@ -153,21 +140,17 @@ for case in list_of_cases:
 							hyper_gamma=prior["hyper_gamma"],
 							hyper_delta=prior["hyper_delta"],
 							dir_out=dir_out,
-							transformation=transformation,
+							transformation="pc",
 							zero_point=0.0,
 							indep_measures=indep["bool"])
-			p1d.load_data(file_data,id_name=id_name)
+			p1d.load_data(file_data,id_name="ID")
 			p1d.setup()
 			p1d.run(sample_iters=sample_iters,
 					burning_iters=case["burning_iters"],
-					chains=2,cores=2,
-					target_accept=0.95
-					)
+					chains=2,cores=2)
 
 			#-------- Analyse chains --------------------------------
 			p1d.load_trace(burning_iters=case["burning_iters"])
-			p1d.convergence()
-			coords = {"flavour_1d_source_dim_0" : range(5)}
-			p1d.plot_chains(dir_out,coords=coords)
-			p1d.save_statistics(statistic=statistic)
+			p1d.plot_chains(dir_out)
+			p1d.save_statistics(statistic="mode",quantiles=[0.05,0.95])
 	#=======================================================================================

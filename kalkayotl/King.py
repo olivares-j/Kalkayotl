@@ -16,66 +16,53 @@ from scipy.stats import rv_continuous
 from scipy.optimize import root_scalar
 import scipy.integrate as integrate
 
-#=============== EFF generator ===============================
+#=============== King generator ===============================
 class king_gen(rv_continuous):
 	"King distribution"
-	""" This probability density function is defined x>0"""
-	def _pdf(self,x,r0,rc,rt):
-		a    = rt/rc
-		b    = rc**2 + rt**2
-		norm = (rc/b)*(rc*rt - 2.*rc*np.sqrt(b)*np.arcsinh(a) + np.arctan(a)*b)
+	def _pdf(self,x,rt):
+		u = 1 + rt**2
+		cte = 2.*( (rt/u) - (2.*np.arcsinh(rt)/np.sqrt(u)) + np.arctan(rt))
 
-		d = np.abs(x-r0)
+		a = 1./np.sqrt(1.+  x**2)
+		b = 1./np.sqrt(1.+ rt**2) 
 
-		f = 1./np.sqrt(1.+(d/rc)**2)
-		g = 1./np.sqrt(1.+ a**2) 
-		h = (f-g)**2
+		res = (1.0/cte)*(a-b)**2
 
-		i = 0.5*h/norm
-		return np.where(d < rt,i,np.zeros_like(x))
+		return np.where(np.abs(x) < rt,res,np.full_like(x,np.nan))
 
-	def _cdf(self,x,r0,rc,rt):
-		a = rt/rc
-		b = rc**2 + rt**2
-		c = np.arctan(a)
-		d = np.abs(x-r0)
-		e = (rc/b)*(rc*rt - 2.*rc*np.sqrt(b)*np.arcsinh(a) + c*b)
+	def _cdf(self,x,rt):
+		u   = 1 + rt**2
+		cte = 2.*( (rt/u) - (2.*np.arcsinh(rt)/np.sqrt(u)) + np.arctan(rt))
 
-		f = d/rc
-		g = np.arctan(f)
-		h = (rc/b)*(rc*d  - 2.*rc*np.sqrt(b)*np.arcsinh(f) + g*b)
-		i = h/e
+		val = (rt+x)/u - (2.*(np.arcsinh(rt)+np.arcsinh(x))/np.sqrt(u)) + (np.arctan(rt)+np.arctan(x))
 
-		j = np.where(x < r0,0.5*(1.0-i),i)
-		k = np.where(x > r0,0.5*(1.0+j),j)
-
-
-		l = np.where(x < (r0-rt),np.zeros_like(x),k)
-		m = np.where(x > (r0+rt),np.ones_like(x),l)
-		return m
+		res = val/cte
+		
+		return res
 				
 
-	def _rvs(self,r0,rc,rt):
+	def _rvs(self,rt):
+		#----------------------------------------
 		sz, rndm = self._size, self._random_state
-		u = rndm.uniform(0.0,0.999,size=sz)
+		u = rndm.uniform(0.0,1.0,size=sz) 
 
 		v = np.zeros_like(u)
+
 		for i in range(sz[0]):
-			# try:
-			sol = root_scalar(lambda x : self._cdf(x,r0,rc,rt) - u[i],
-					bracket=[r0-rt,r0+rt],
-					method='brentq')
-			# except Exception as e:
-			# 	print(u[i])
-			# 	print(self._cdf(r0-rt,r0,rc,rt))
-			# 	print(self._cdf(r0+rt,r0,rc,rt))
-			# 	raise
+			try:
+				sol = root_scalar(lambda x : self._cdf(x,rt) - u[i],
+				bracket=[-rt,rt],
+				method='brentq')
+			except Exception as e:
+				print(u[i])
+				print(self._cdf(-rt,rt))
+				print(self._cdf(rt,rt))
+				raise
 			v[i] = sol.root
 			sol  = None
 		return v
 
-king = king_gen(a=0.0,name='King')
-#===============================================================
+king = king_gen(name='King')
 
 
 class King(Continuous):
@@ -83,25 +70,17 @@ class King(Continuous):
 	King 1962 log-likelihood.
 	The pdf of this distribution is
 	.. math::
-	   King(x|r_0,r_c,r_t)=K(0)\cdot
-	   \left[ \left[1 + \left(\frac{x-r_0}{r_c}\right)^2\right]^{-\frac{1}{2}}
-	   \left[1 + \left(\frac{r_t}{r_c}\right)^2\right]^{-\frac{1}{2}}\right]^2
+	   King(x|r_t)=K(0)\cdot
+	   \left[ \left[1 + x^2\right]^{-\frac{1}{2}}
+	   \left[1 + r_t\right)^2\right]^{-\frac{1}{2}}\right]^2
 
-
-	.. note::
-	   This probability distribution function is defined from r_0-r_t to r_0+r_t
-	   Notice that it is already normalized.
+	Note: The tidal radius must be in units of core radius
 	   
 	========  ==========================================
-	Support   :math:`x \in [r_0-r_t, r_0+r_t]`
+	Support   :math:`x \in [-r_t,+r_t]`
 	========  ==========================================
 	Parameters
 	----------
-	r0: float
-		Location parameter :math:`r_0` (``r_0`` > 0) .
-
-	rc: float
-		Scale parameter :math:`r_c` (``r_c`` > 0) .
 
 	rt: float
 		Tidal radius parameter :math:`r_t` (``r_t`` > 1) .
@@ -113,16 +92,14 @@ class King(Continuous):
 			x = pm.King('x', r0=100,rc=2,rt=20)
 	"""
 
-	def __init__(self, r0=None, rc=None, rt=None, *args, **kwargs):
+	def __init__(self, x=None, *args, **kwargs):
+		self.x    = x    = tt.as_tensor_variable(x)
 
-		self.r0    = r0    = tt.as_tensor_variable(r0)
-		self.rc    = rc    = tt.as_tensor_variable(rc)
-		self.rt    = rt    = tt.as_tensor_variable(rt)
+		self.mean = 0.0
 
-		self.mean = self.r0
+		self.rt = tt.sqrt(self.x**(-2) - 1)
 
-		assert_negative_support(rc, 'rc', 'King')
-		assert_negative_support(rt, 'rt', 'King')
+		assert_negative_support(x, 'x', 'King')
 
 		super().__init__( *args, **kwargs)
 
@@ -143,9 +120,8 @@ class King(Continuous):
 		-------
 		array
 		"""
-		r0,rc,rt = draw_values([self.r0,self.rc,self.rt], 
-									point=point,size=size)
-		return generate_samples(king.rvs, r0=r0,rc=rc,rt=rt,
+		rt = draw_values([self.rt],point=point,size=size)
+		return generate_samples(king.rvs,rt=rt,
 								dist_shape=self.shape,
 								size=size)
 
@@ -161,33 +137,19 @@ class King(Continuous):
 		-------
 		TensorVariable
 		"""
-		r0     = self.r0
-		rc     = self.rc
-		rt     = self.rt
 
-		a    = rt/rc
-		b    = rc**2 + rt**2
-		norm = (rc/b)*(rc*rt - 2.*rc*tt.sqrt(b)*tt.arcsinh(a) + tt.arctan(a)*b)
+		cte = 2.*((self.rt*self.x**2) - (2.*self.x*tt.arcsinh(self.rt)) + tt.arctan(self.rt))
 
-		f = 1./tt.sqrt(1.+((value-r0)/rc)**2)
-		g = 1./tt.sqrt(1.+ a**2) 
-		profile = (f-g)**2
-
-		density = 0.5*profile/norm
-
-		log_d= tt.log(density)
+		log_d = 2.0*tt.log((1.0+value**2)**(-0.5) - self.x)
 		
-		return bound(log_d,r0 > 0.,rc > 0.,rt > 0.,rc<rt)
+		return bound(log_d,tt.abs_(value) < self.rt)
 
 	def _repr_latex_(self, name=None, dist=None):
 		if dist is None:
 			dist = self
-		r0    = dist.r0
-		rc    = dist.rc
 		rt    = dist.rt
 		name = r'\text{%s}' % name
-		return r'${} \sim \text{{King}}(\mathit{{loc}}={},\mathit{{scale}}={},\mathit{{tidal_radius}}={})$'.format(name,
-					get_variable_name(r0),get_variable_name(rc),get_variable_name(rt))
+		return r'${} \sim \text{{King}}(\mathit{{tidal_radius}}={})$'.format(name,get_variable_name(rt))
 
 ###################################################### TEST ################################################################################
 
@@ -196,20 +158,22 @@ matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-def test_numpy(n=10000,r0=300.,rc=3.,rt=20.):
+def test_numpy(n=100000,r0=100.,rc=2.,rt=20.):
 	#----- Generate samples ---------
-	s = king.rvs(r0=r0,rc=rc,rt=rt,size=n)
+	s = king.rvs(loc=r0,scale=rc,rt=rt/rc,size=n)
 	#------ grid -----
-	x = np.linspace(0,2.*r0,1000)
+	
 	range_dist = (r0-1.5*rt,r0+1.5*rt)
-	y = king.pdf(x,r0=r0,rc=rc,rt=rt)
-	z = king.cdf(x,r0=r0,rc=rc,rt=rt)
+	x = np.linspace(range_dist[0],range_dist[1],1000)
+	y = king.pdf(x,loc=r0,scale=rc,rt=rt/rc)
+	z = king.cdf(x,loc=r0,scale=rc,rt=rt/rc)
 	
 	pdf = PdfPages(filename="Test_King_numpy.pdf")
 	plt.figure(0)
 	plt.hist(s,bins=100,range=range_dist,density=True,color="grey",label="Samples")
 	plt.plot(x,y,color="black",label="PDF")
 	plt.xlim(range_dist)
+	plt.yscale('log')
 	plt.legend()
 	
 	#-------------- Save fig --------------------------

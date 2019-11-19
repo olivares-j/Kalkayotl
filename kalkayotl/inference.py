@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pn
 import h5py
 import scipy.stats as st
+from scipy.linalg import inv as inverse
 
 import matplotlib
 matplotlib.use('PDF')
@@ -31,14 +32,12 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 #------------ Local libraries ------------------------------------------
-from Kalkayotl.Models import Model1D,ModelND
-from Kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM
-from Kalkayotl.Evidence import Evidence1D
+from kalkayotl.Models import Model1D,ModelND
+from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM
+from kalkayotl.Evidence import Evidence1D
 #------------------------------------------------------------------------
 
-
-
-class kalkayotl:
+class Inference:
 	"""
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
 	"""
@@ -51,7 +50,6 @@ class kalkayotl:
 				transformation,
 				zero_point,
 				indep_measures=False,
-				quantiles=[0.05,0.95],
 				**kwargs):
 		"""
 		Arguments:
@@ -80,8 +78,6 @@ class kalkayotl:
 		self.dir_out          = dir_out
 		self.transformation   = transformation
 		self.indep_measures   = indep_measures
-
-		self.quantiles        = quantiles
 
 		self.idx_pma    = 3
 		self.idx_pmd    = 4
@@ -130,7 +126,7 @@ class kalkayotl:
 			assert hyper_delta is None, "Parameter hyper_delta is only valid for GMM prior."
 
 
-	def load_data(self,file_data,id_name,radec_inflation=10.0,id_length=10,corr_func="Vasiliev+2018",*args,**kwargs):
+	def load_data(self,file_data,id_name='source_id',radec_inflation=10.0,id_length=10,corr_func="Vasiliev+2019",*args,**kwargs):
 		"""
 		This function reads the data.
 
@@ -142,6 +138,7 @@ class kalkayotl:
 		Other arguments are passed to pandas.read_csv function
 
 		"""
+		self.id_name = id_name
 		list_observables = sum([[id_name],self.names_obs],[])
 
 		#------- reads the data ----------------------------------------------
@@ -163,7 +160,7 @@ class kalkayotl:
 		data.set_index(list_observables[0],inplace=True)
 
 		#----- Track ID -------------
-		# In case of missing values
+		# In case of missing values in parallax
 		IDs = []
 		#----------------------------
 
@@ -172,8 +169,8 @@ class kalkayotl:
 			RuntimeError("Data have incorrect shape!")
 
 		#==================== Set Mu and Sigma =========================================
-		self.mu_data = np.zeros(self.n_stars*self.D)
-		self.sg_data = np.zeros((self.n_stars*self.D,self.n_stars*self.D))
+		mu_data = np.zeros(self.n_stars*self.D)
+		sg_data = np.zeros((self.n_stars*self.D,self.n_stars*self.D))
 		idx_tru = np.triu_indices(self.D,k=1)
 		if self.D == 6:
 			#----- There is no correlation with r_vel ---
@@ -198,8 +195,8 @@ class kalkayotl:
 			sigma = np.diag(sd).dot(rho.dot(np.diag(sd)))
 			
 			#---------- Insert star data --------------
-			self.mu_data[ida] = mu
-			self.sg_data[np.ix_(ida,ida)] = sigma
+			mu_data[ida] = mu
+			sg_data[np.ix_(ida,ida)] = sigma
 		#=========================================================================
 
 		#----- Save identifiers ------
@@ -211,6 +208,7 @@ class kalkayotl:
 
 		#===================== Set correlations amongst stars ===========================
 		if not self.indep_measures :
+			print("Using {} spatial correlation function".format(corr_func))
 			#------ Obtain array of positions ------------
 			positions = data[["ra","dec"]].to_numpy()
 
@@ -229,7 +227,7 @@ class kalkayotl:
 
 			#------ Add parallax covariance -----------------------
 			ida_plx = [i*self.D + self.idx_plx for i in range(self.n_stars)]
-			self.sg_data[np.ix_(ida_plx,ida_plx)] += cov_plx
+			sg_data[np.ix_(ida_plx,ida_plx)] += cov_plx
 			#------------------------------------------------------
 			
 			if self.D > 3:
@@ -248,10 +246,13 @@ class kalkayotl:
 				ida_pma = [i*self.D + self.idx_pma for i in range(self.n_stars)]
 				ida_pmd = [i*self.D + self.idx_pmd for i in range(self.n_stars)]
 
-				self.sg_data[np.ix_(ida_pma,ida_pma)] += cov_pms
-				self.sg_data[np.ix_(ida_pmd,ida_pmd)] += cov_pms
+				sg_data[np.ix_(ida_pma,ida_pma)] += cov_pms
+				sg_data[np.ix_(ida_pmd,ida_pmd)] += cov_pms
 
-
+		#-------- Compute inverse of covariance matrix --------------------
+		self.sg_data  = sg_data
+		self.tau_data = np.linalg.inv(sg_data)
+		self.mu_data  = mu_data
 		#=================================================================================
 		print("Data correctly loaded")
 
@@ -264,7 +265,7 @@ class kalkayotl:
 		print("Configuring "+self.prior+" prior")
 
 		if self.D == 1:
-			self.Model = Model1D(mu_data=self.mu_data,sg_data=self.sg_data,
+			self.Model = Model1D(mu_data=self.mu_data,tau_data=self.tau_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
 								  hyper_alpha=self.hyper_alpha,
@@ -274,7 +275,7 @@ class kalkayotl:
 								  transformation=self.transformation)
 
 		elif self.D in [3,5,6]:
-			self.Model = ModelND(dimension=self.D,mu_data=self.mu_data,sg_data=self.sg_data,
+			self.Model = ModelND(dimension=self.D,mu_data=self.mu_data,tau_data=self.tau_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
 								  hyper_alpha=self.hyper_alpha,
@@ -307,12 +308,13 @@ class kalkayotl:
 			trace = pm.sample(draws=sample_iters, 
 							tune=burning_iters, 
 							trace=db,
+							init='adapt_diag', # Avoids rvel zero due to jitter
 							nuts_kwargs=nuts_kwargs,
 							chains=chains, cores=cores,
 							discard_tuned_samples=True,
 							*args,**kwargs)
 
-	def load_trace(self,burning_iters):
+	def load_trace(self,sample_iters):
 		'''
 		Loads a previously saved sampling of the model
 		'''
@@ -322,7 +324,7 @@ class kalkayotl:
 			all_trace = pm.backends.text.load(self.dir_out)
 
 			#-------- Discard burn -----
-			self.trace = all_trace[burning_iters:]
+			self.trace = all_trace[-sample_iters:]
 
 		#------- Variable names -----------------------------------------------------------
 		source_names = list(filter(lambda x: "source" in x, self.trace.varnames.copy()))
@@ -374,7 +376,7 @@ class kalkayotl:
 			print("{0} : {1:2.4f}".format(key,np.mean(value)))
 
 	def plot_chains(self,dir_plots,
-		coords=None,
+		IDs=None,
 		divergences='bottom', 
 		figsize=None, 
 		textsize=None, 
@@ -382,7 +384,8 @@ class kalkayotl:
 		combined=False, 
 		plot_kwargs=None, 
 		hist_kwargs=None, 
-		trace_kwargs=None):
+		trace_kwargs=None,
+		fontsize_title=16):
 		"""
 		This function plots the trace. Parameters are the same as in pymc3
 		"""
@@ -391,41 +394,76 @@ class kalkayotl:
 
 		pdf = PdfPages(filename=dir_plots+"/Traces.pdf")
 
+		if IDs is not None:
+			#--------- Loop over ID in list ---------------
+			for i,ID in enumerate(IDs):
+				id_in_IDs = np.isin(self.ID,ID)
+				if not np.any(id_in_IDs) :
+					sys.exit("{0} {1} is not valid".format(self.id_name,ID))
+				idx = np.where(id_in_IDs)[0]
+				coords = {"1D_source_dim_0" : idx}
+				plt.figure(0)
+				axes = pm.plots.traceplot(self.trace,var_names=self.source_names,
+						coords=coords,
+						figsize=figsize,
+						textsize=textsize, 
+						lines=lines, 
+						combined=combined, 
+						plot_kwargs=plot_kwargs, 
+						hist_kwargs=hist_kwargs, 
+						trace_kwargs=trace_kwargs)
 
-		plt.figure(1)
-		pm.plots.traceplot(self.trace,var_names=self.source_names,
-			coords=coords,
-			figsize=figsize,
-			textsize=textsize, 
-			lines=lines, 
-			combined=combined, 
-			plot_kwargs=plot_kwargs, 
-			hist_kwargs=hist_kwargs, 
-			trace_kwargs=trace_kwargs)
-			
-		#-------------- Save fig --------------------------
-		pdf.savefig(bbox_inches='tight')
-		plt.close(1)
+				for ax in axes:
+
+					# --- Set units in parameters ------------------------------
+					if self.transformation == "pc":
+						ax[0].set_xlabel("pc")
+					else:
+						ax[0].set_xlabel("mas")
+					#-----------------------------------------------------------
+
+					ax[1].set_xlabel("Iterations")
+					ax[0].set_title(None)
+					ax[1].set_title(None)
+				plt.gcf().suptitle(self.id_name +" "+ID,fontsize=fontsize_title)
+
+					
+				#-------------- Save fig --------------------------
+				pdf.savefig(bbox_inches='tight')
+				plt.close(0)
 
 		if len(self.global_names) > 0:
-			plt.figure(2)
-			pm.plots.traceplot(self.trace,var_names=self.global_names,
-				figsize=figsize,
-				textsize=textsize, 
-				lines=lines, 
-				combined=combined, 
-				plot_kwargs=plot_kwargs, 
-				hist_kwargs=hist_kwargs, 
-				trace_kwargs=trace_kwargs)
+			plt.figure(1)
+			axes = pm.plots.traceplot(self.trace,var_names=self.global_names,
+					figsize=figsize,
+					textsize=textsize, 
+					lines=lines, 
+					combined=combined, 
+					plot_kwargs=plot_kwargs, 
+					hist_kwargs=hist_kwargs, 
+					trace_kwargs=trace_kwargs)
+
+			for ax in axes:
+				# --- Set units in parameters ------------------------------
+				title = ax[0].get_title()
+				if ("loc" in title) or ("scl" in title) or ("rt" in title):
+					if self.transformation == "pc":
+						ax[0].set_xlabel("pc")
+					else:
+						ax[0].set_xlabel("mas")
+					#-----------------------------------------------------------
+				ax[1].set_xlabel("Iteration")
+
+			plt.gcf().suptitle("Population parameters",fontsize=fontsize_title)
 				
 			#-------------- Save fig --------------------------
 			pdf.savefig(bbox_inches='tight')
-			plt.close(2)
+			plt.close(1)
 
 		
 		pdf.close()
 
-	def save_statistics(self,statistic):
+	def save_statistics(self,statistic,quantiles=[0.05,0.95]):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -454,7 +492,7 @@ class kalkayotl:
 			return pn.Series(np.apply_along_axis(my_mode,0,x), name='mode')
 
 		def trace_quantiles(x):
-			return pn.DataFrame(np.quantile(x, self.quantiles,axis=0).T,
+			return pn.DataFrame(np.quantile(x,quantiles,axis=0).T,
 							columns=["lower","upper"])
 		#---------------------------------------------------------------------
 
@@ -487,7 +525,7 @@ class kalkayotl:
 		#---------------------------------------------------------------------
 
 		#---------- Save source data frame ----------------------
-		df_source.to_csv(path_or_buf=source_csv,index_label="ID")
+		df_source.to_csv(path_or_buf=source_csv,index_label=self.id_name)
 
 		#-------------- Global statistics ------------------------
 		if len(self.global_names) > 0:
@@ -521,14 +559,21 @@ class kalkayotl:
 				grp_src.create_dataset(name, data=source_trace[i])
 
 
-	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,file="Evidence.csv",plot=False):
-		quantiles = [self.quantiles[0],0.5,self.quantiles[1]]
+	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,
+		quantiles=[0.05,0.95],
+		file="Evidence.csv",
+		print_progress=False,
+		plot=False):
+
+		#------ Add media to quantiles ---------------
+		quantiles = [quantiles[0],0.5,quantiles[1]]
 		print(50*"=")
 		print("Estimating evidence of prior: ",self.prior)
 
 		#------- Initialize evidence module ----------------
 		dyn = Evidence1D(self.mu_data,self.sg_data,
 				prior=self.prior,
+				parameters=self.parameters,
 				hyper_alpha=self.hyper_alpha,
 				hyper_beta=self.hyper_beta,
 				hyper_gamma=self.hyper_gamma,
@@ -538,7 +583,7 @@ class kalkayotl:
 				transformation=self.transformation,
 				quantiles=quantiles)
 		#  Compute evidence 
-		results = dyn.run(dlogz=dlogz,nlive=nlive)
+		results = dyn.run(dlogz=dlogz,nlive=nlive,print_progress=print_progress)
 
 		logZ    = results["logz"][-1]
 		logZerr = results["logzerr"][-1]

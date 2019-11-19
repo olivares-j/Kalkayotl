@@ -2,10 +2,10 @@ from setuptools import setup
 
 setup(
     name='Kalkayotl',
-    version='0.3.0',
+    version='0.4.0',
     author='Javier Olivares',
     author_email='javier.olivares-romero@u-bordeaux.fr',
-    packages=['Kalkayotl'],
+    packages=['kalkayotl'],
     license='COPYING',
     description='Star distance inference code',
     long_description=open('README.md').read(),
