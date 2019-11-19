@@ -143,40 +143,40 @@ hyper_beta = [20.]
 
 
 list_of_prior = [
-	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
-	# 						"hyper_alpha":None, 
-	# 						"hyper_beta":None, 
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta": None,
-							# "burning_factor":1},
+	{"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
+							"hyper_alpha":None, 
+							"hyper_beta":None, 
+							"hyper_gamma":None,
+							"hyper_delta": None,
+							"burning_factor":1},
 
-	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":hyper_alpha,
-	# 						"hyper_beta":hyper_beta,
-	# 						"hyper_gamma":None, 
-	# 						"hyper_delta":None,
-							# "burning_factor":1},
+	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
+							"hyper_alpha":hyper_alpha,
+							"hyper_beta":hyper_beta,
+							"hyper_gamma":None, 
+							"hyper_delta":None,
+							"burning_factor":1},
 
-	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":hyper_alpha,
-	# 						"hyper_beta":hyper_beta,
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":None,
-							# "burning_factor":1},
+	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+							"hyper_alpha":hyper_alpha,
+							"hyper_beta":hyper_beta,
+							"hyper_gamma":None,
+							"hyper_delta":None,
+							"burning_factor":1},
 
-	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
-	# 						"hyper_alpha":hyper_alpha, 
-	# 						"hyper_beta":hyper_beta, 
-	# 						"hyper_gamma":[10.0,1.0],
-	# 						"hyper_delta":None,
-	# 						"burning_factor":2},
+	{"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
+							"hyper_alpha":hyper_alpha, 
+							"hyper_beta":hyper_beta, 
+							"hyper_gamma":[10.0,1.0],
+							"hyper_delta":None,
+							"burning_factor":2},
 
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
-	# 						"hyper_alpha":hyper_alpha,
-	# 						"hyper_beta":hyper_beta, 
-	# 						"hyper_gamma":[3.0,1.0],
-	# 						"hyper_delta":None,
-	# 						"burning_factor":2},
+	{"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
+							"hyper_alpha":hyper_alpha,
+							"hyper_beta":hyper_beta, 
+							"hyper_gamma":[3.0,1.0],
+							"hyper_delta":None,
+							"burning_factor":5},
 
 	{"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
 							"hyper_alpha":hyper_alpha, 
@@ -184,10 +184,7 @@ list_of_prior = [
 							"hyper_gamma":None,
 							"hyper_delta":np.array([0.5,0.5]),
 							"burning_factor":10}
-
 	]
-
-
 #======================= Inference and Analysis =====================================================
 
 #--------------------- Loop over prior types ------------------------------------
@@ -218,32 +215,32 @@ for prior in list_of_prior:
 	p1d.load_data(file_data)
 
 	#------ Prepares the model -------------------
-	# p1d.setup()
+	p1d.setup()
 
 	#------- Run the sampler ---------------------
-	# p1d.run(sample_iters=sample_iters*prior["burning_factor"],
-	# 		burning_iters=burning_iters,
-	# 		chains=chains,
-	# 		cores=cores)
+	p1d.run(sample_iters=sample_iters*prior["burning_factor"],
+			burning_iters=burning_iters,
+			chains=chains,
+			cores=cores)
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
 	# and want to re-analyse (in that case comment the p1d.run() line)
-	# p1d.load_trace(sample_iters=sample_iters)
+	p1d.load_trace(sample_iters=sample_iters)
 
 	# ------- Re-analyse the convergence of the sampler---
-	# p1d.convergence()
+	p1d.convergence()
 
 	#-------- Plot the trace of the chains -------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources.
-	# p1d.plot_chains(dir_out,IDs=['4087735025198194176'])
+	p1d.plot_chains(dir_out,IDs=['4087735025198194176'])
 
 	#----- Compute and save the posterior statistics ---------
-	# p1d.save_statistics(statistic=statistic,quantiles=quantiles)
+	p1d.save_statistics(statistic=statistic,quantiles=quantiles)
 
 	#------- Save the samples into HDF5 file --------------
-	# p1d.save_samples()
+	p1d.save_samples()
 
 	#----------------------- Evidence --------------------
 	# Uncomment if you want to compute the evidence.
@@ -265,6 +262,6 @@ for prior in list_of_prior:
 	# nlive is the number of live points used in the computation. The larger the better
 	# but it will further increase the computing time.
 
-	p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z,print_progress=True)
+	p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
 	#----------------------------------------------------------------------------------
 #=======================================================================================
