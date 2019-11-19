@@ -26,7 +26,7 @@ import pandas as pn
 from  kalkayotl import Inference
 
 
-generic_name = "Gaussian_2"
+generic_name = "Gaussian_5"
 
 
 #------------------------- Case----------------------------
@@ -36,17 +36,19 @@ list_of_cases = [
 # {"name":"Gaussian","location":300,"size":30,  "burning_iters":1000},
 # {"name":"Gaussian","location":400,"size":40,  "burning_iters":1000},
 # {"name":"Gaussian","location":500,"size":50,  "burning_iters":1000},
-# {"name":"Gaussian","location":600,"size":60,  "burning_iters":1000},
-# {"name":"Gaussian","location":700,"size":70,  "burning_iters":1000},
-# {"name":"Gaussian","location":800,"size":80,  "burning_iters":1000},
-# {"name":"Gaussian","location":900,"size":90,  "burning_iters":1000},
-# {"name":"Gaussian","location":1000,"size":100,"burning_iters":1000},
-# {"name":"Gaussian","location":1600,"size":160,"burning_iters":1000},
-# {"name":"Gaussian","location":1800,"size":180,"burning_iters":1000},
-# {"name":"Gaussian","location":2300,"size":230,"burning_iters":1000}, 
-# {"name":"Gaussian","location":2500,"size":200,"burning_iters":1000},
-# {"name":"Gaussian","location":4000,"size":450,"burning_iters":1000},
-{"name":"Gaussian","location":5800,"size":580,"burning_iters":1000},
+# {"name":"Gaussian","location":600,"size":60,  "burning_iters":2000},
+# {"name":"Gaussian","location":700,"size":70,  "burning_iters":2000},
+# {"name":"Gaussian","location":800,"size":80,  "burning_iters":2000},
+# {"name":"Gaussian","location":900,"size":90,  "burning_iters":2000},
+# {"name":"Gaussian","location":1000,"size":100,"burning_iters":2000},
+# {"name":"Gaussian","location":1600,"size":160,"burning_iters":2000},
+# {"name":"Gaussian","location":1800,"size":180,"burning_iters":2000},
+# {"name":"Gaussian","location":2300,"size":230,"burning_iters":2000}, 
+# {"name":"Gaussian","location":2500,"size":200,"burning_iters":2000},
+{"name":"Gaussian","location":3000,"size":300,"burning_iters":2000},
+{"name":"Gaussian","location":3500,"size":350,"burning_iters":2000},
+# {"name":"Gaussian","location":4000,"size":450,"burning_iters":2000},
+# {"name":"Gaussian","location":5800,"size":580,"burning_iters":2000},
 ]
 
 list_of_prior = [
@@ -150,7 +152,7 @@ for case in list_of_cases:
 					chains=2,cores=2)
 
 			#-------- Analyse chains --------------------------------
-			p1d.load_trace(burning_iters=case["burning_iters"])
+			p1d.load_trace(sample_iters=sample_iters)
 			p1d.plot_chains(dir_out)
-			p1d.save_statistics(statistic="mode",quantiles=[0.05,0.95])
+			p1d.save_statistics(statistic="mean",quantiles=[0.16,0.84])
 	#=======================================================================================
