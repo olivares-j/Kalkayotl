@@ -74,7 +74,7 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-burning_iters   = 1000  
+burning_iters   = 2000  
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
@@ -143,12 +143,12 @@ hyper_beta = [20.]
 
 
 list_of_prior = [
-	{"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
-							"hyper_alpha":None, 
-							"hyper_beta":None, 
-							"hyper_gamma":None,
-							"hyper_delta": None,
-							"burning_factor":1},
+	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
+	# 						"hyper_alpha":None, 
+	# 						"hyper_beta":None, 
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta": None,
+	# 						"burning_factor":1},
 
 	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
 							"hyper_alpha":hyper_alpha,
@@ -167,9 +167,10 @@ list_of_prior = [
 	{"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
 							"hyper_alpha":hyper_alpha, 
 							"hyper_beta":hyper_beta, 
-							"hyper_gamma":[10.0,1.0],
+							"hyper_gamma":[10.0],
 							"hyper_delta":None,
 							"burning_factor":2},
+	# NOTE: the tidal radius and its parameters are scaled.
 
 	{"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
 							"hyper_alpha":hyper_alpha,
@@ -209,7 +210,8 @@ for prior in list_of_prior:
 					dir_out=dir_out,
 					transformation=transformation,
 					zero_point=zero_point,
-					indep_measures=indep_measures)
+					indep_measures=indep_measures,
+					parametrization="non-central")
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
 	p1d.load_data(file_data)
@@ -244,7 +246,8 @@ for prior in list_of_prior:
 
 	#----------------------- Evidence --------------------
 	# Uncomment if you want to compute the evidence.
-	# IMPORTANT. It may take a long time to compute.
+	# IMPORTANT. For this cluster the total running time with the five
+	# cluster oriented priors is one hour, of it 90% is of the evidence computation.
 
 	# Output file, it will contain the logarithm of the evidence.
 	# and noisy and inaccurate estimates of the parameters.
@@ -262,6 +265,6 @@ for prior in list_of_prior:
 	# nlive is the number of live points used in the computation. The larger the better
 	# but it will further increase the computing time.
 
-	p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
+	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
 	#----------------------------------------------------------------------------------
 #=======================================================================================

@@ -48,6 +48,7 @@ class Inference:
 				hyper_delta,
 				dir_out,
 				transformation,
+				parametrization,
 				zero_point,
 				indep_measures=False,
 				**kwargs):
@@ -78,6 +79,7 @@ class Inference:
 		self.dir_out          = dir_out
 		self.transformation   = transformation
 		self.indep_measures   = indep_measures
+		self.parametrization  = parametrization
 
 		self.idx_pma    = 3
 		self.idx_pmd    = 4
@@ -272,7 +274,8 @@ class Inference:
 								  hyper_beta=self.hyper_beta,
 								  hyper_gamma=self.hyper_gamma,
 								  hyper_delta=self.hyper_delta,
-								  transformation=self.transformation)
+								  transformation=self.transformation,
+								  parametrization=self.parametrization)
 
 		elif self.D in [3,5,6]:
 			self.Model = ModelND(dimension=self.D,mu_data=self.mu_data,tau_data=self.tau_data,
@@ -308,7 +311,6 @@ class Inference:
 			trace = pm.sample(draws=sample_iters, 
 							tune=burning_iters, 
 							trace=db,
-							init='adapt_diag', # Avoids rvel zero due to jitter
 							nuts_kwargs=nuts_kwargs,
 							chains=chains, cores=cores,
 							discard_tuned_samples=True,
@@ -446,7 +448,7 @@ class Inference:
 			for ax in axes:
 				# --- Set units in parameters ------------------------------
 				title = ax[0].get_title()
-				if ("loc" in title) or ("scl" in title) or ("rt" in title):
+				if ("loc" in title) or ("scl" in title):
 					if self.transformation == "pc":
 						ax[0].set_xlabel("pc")
 					else:

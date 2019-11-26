@@ -26,29 +26,42 @@ import pandas as pn
 from  kalkayotl import Inference
 
 
-generic_name = "Gaussian_5"
+generic_name = "King"
+number_of_stars = 100
 
+#============ Directories =============================
+#-------Main directory ---------------
+dir_main  = "/home/javier/Repositories/Kalkayotl/"
+#----------- Data --------------------
+dir_data  = dir_main + "Data/Synthetic/"
+dir_outs  = dir_main + "Test/"#"Outputs/Synthetic/"
+
+#------- Create directories -------
+os.makedirs(dir_outs,exist_ok=True)
+
+#===================== Chains =================================
+burning_iters   = 10000
+sample_iters    = 2000   # Number of iterations for the MCMC 
+#==============================================================
+
+random_seeds = [1]#,2,3,4,5,6,7,8,9,10]
 
 #------------------------- Case----------------------------
 list_of_cases = [
-# {"name":"Gaussian","location":100,"size":10,  "burning_iters":1000},
-# {"name":"Gaussian","location":200,"size":20,  "burning_iters":1000},
-# {"name":"Gaussian","location":300,"size":30,  "burning_iters":1000},
-# {"name":"Gaussian","location":400,"size":40,  "burning_iters":1000},
-# {"name":"Gaussian","location":500,"size":50,  "burning_iters":1000},
-# {"name":"Gaussian","location":600,"size":60,  "burning_iters":2000},
-# {"name":"Gaussian","location":700,"size":70,  "burning_iters":2000},
-# {"name":"Gaussian","location":800,"size":80,  "burning_iters":2000},
-# {"name":"Gaussian","location":900,"size":90,  "burning_iters":2000},
-# {"name":"Gaussian","location":1000,"size":100,"burning_iters":2000},
-# {"name":"Gaussian","location":1600,"size":160,"burning_iters":2000},
-# {"name":"Gaussian","location":1800,"size":180,"burning_iters":2000},
-# {"name":"Gaussian","location":2300,"size":230,"burning_iters":2000}, 
-# {"name":"Gaussian","location":2500,"size":200,"burning_iters":2000},
-{"name":"Gaussian","location":3000,"size":300,"burning_iters":2000},
-{"name":"Gaussian","location":3500,"size":350,"burning_iters":2000},
-# {"name":"Gaussian","location":4000,"size":450,"burning_iters":2000},
-# {"name":"Gaussian","location":5800,"size":580,"burning_iters":2000},
+# {"name":generic_name,"location":100,"size":10,  "case_factor":1,"parametrization":"central"},
+# {"name":generic_name,"location":200,"size":20,  "case_factor":1,"parametrization":"central"},
+# {"name":generic_name,"location":300,"size":30,  "case_factor":1,"parametrization":"central"},
+# {"name":generic_name,"location":400,"size":40,  "case_factor":1,"parametrization":"central"},
+# {"name":generic_name,"location":500,"size":50,  "case_factor":1,"parametrization":"central"},
+{"name":generic_name,"location":600,"size":60,  "case_factor":2,"parametrization":"non-central"},
+# {"name":generic_name,"location":700,"size":70,  "case_factor":2,"parametrization":"non-central"},
+# {"name":generic_name,"location":800,"size":80,  "case_factor":2,"parametrization":"non-central"},
+# {"name":generic_name,"location":900,"size":90,  "case_factor":2,"parametrization":"non-central"},
+# {"name":generic_name,"location":1000,"size":100,"case_factor":3,"parametrization":"non-central"},
+# {"name":generic_name,"location":2000,"size":200,"case_factor":3,"parametrization":"non-central"},
+# {"name":generic_name,"location":3000,"size":300,"case_factor":3,"parametrization":"non-central"},
+# {"name":generic_name,"location":4000,"size":450,"case_factor":4,"parametrization":"non-central"},
+# {"name":generic_name,"location":5000,"size":500,"case_factor":4,"parametrization":"non-central"},
 ]
 
 list_of_prior = [
@@ -63,21 +76,20 @@ list_of_prior = [
 	# 						"hyper_gamma":None, 
 	# 						"hyper_delta":None},
 
-	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+	# 						"hyper_beta":[100],
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":None},
+
+	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None}, 
+	# 						"hyper_beta":[100],
+	# 						"hyper_gamma":[3.0,1.0],
+	# 						"hyper_delta":None},
+
+	{"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
 							"hyper_beta":[100],
-							"hyper_gamma":None,
+							"hyper_gamma":[10.0],
 							"hyper_delta":None},
-
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None}, 
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":[2.0,1.0],
-	# 						"hyper_delta":None},
-
-
-	# {"type":"King",         "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":[20.],
-	# 						"hyper_delta":None},
 
 	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
 	# 						"hyper_beta":[100],
@@ -93,66 +105,59 @@ list_of_prior = [
 
 
 indep_measures = [
-			{"bool":False,"name":"corr"},
-			{"bool":True, "name":"indep"}
+			{"bool":False,"name":"corr", "target_accept":0.95},
+			# {"bool":True, "name":"indep","target_accept":0.8}
 			]
 
-#===================== Chains =================================
-sample_iters    = 1000   # Number of iterations for the MCMC 
-#==============================================================
-
-
-#============ Directories =============================
-#-------Main directory ---------------
-dir_main  = os.getcwd() +"/"
-#----------- Data --------------------
-dir_data  = dir_main + "Data/Synthetic/"+generic_name+"/" 
-dir_outs  = dir_main + "Outputs/Synthetic/"+generic_name+"/"
-
-#------- Create directories -------
-os.makedirs(dir_outs,exist_ok=True)
 
 #============================ Loop over cases ==================================
-for case in list_of_cases:
-	file_data = dir_data + case["name"]+ "_" + str(case["location"]) + ".csv"
-	#-----------------------------------------------------------------------
+for seed in random_seeds:
+	name = generic_name +"_"+str(number_of_stars)+"_"+str(seed)
 
-	#------- Create directories -------
-	dir_case   = dir_outs  + case["name"] + "_" + str(case["location"]) +"/"
-	os.makedirs(dir_case,exist_ok=True)
+	for case in list_of_cases:
+		#------------ Local directories -----------------------------------------------------
+		file_data = dir_data + name +"/" + case["name"] + "_" + str(case["location"]) + ".csv"
+		dir_case  = dir_outs + name +"/" + case["name"] + "_" + str(case["location"]) +"/"
+		#--------------------------------------------------------------------------------
 
-	#======================= Inference and Analysis =====================================================
-	#--------------------- Loop over prior types ------------------------------------
+		os.makedirs(dir_case,exist_ok=True)
 
-	for prior in list_of_prior:
-		for indep in indep_measures:
-			#----------- Output dir -------------------
-			dir_prior = dir_case + prior["type"]
-			dir_out   = dir_prior + "/" +indep["name"]
+		#======================= Inference and Analysis =====================================================
+		#--------------------- Loop over prior types ------------------------------------
 
-			os.makedirs(dir_prior,exist_ok=True)
-			os.makedirs(dir_out,exist_ok=True)
+		for prior in list_of_prior:
+			for indep in indep_measures:
+				#----------- Output dir -------------------
+				dir_prior = dir_case + prior["type"]
+				dir_out   = dir_prior + "/" +indep["name"]
 
-			#--------- Run model -----------------------
-			p1d = Inference(dimension=1,
-							prior=prior["type"],
-							parameters=prior["parameters"],
-							hyper_alpha=[case["location"],case["size"]],
-							hyper_beta=prior["hyper_beta"],
-							hyper_gamma=prior["hyper_gamma"],
-							hyper_delta=prior["hyper_delta"],
-							dir_out=dir_out,
-							transformation="pc",
-							zero_point=0.0,
-							indep_measures=indep["bool"])
-			p1d.load_data(file_data,id_name="ID")
-			p1d.setup()
-			p1d.run(sample_iters=sample_iters,
-					burning_iters=case["burning_iters"],
-					chains=2,cores=2)
+				os.makedirs(dir_prior,exist_ok=True)
+				os.makedirs(dir_out,exist_ok=True)
 
-			#-------- Analyse chains --------------------------------
-			p1d.load_trace(sample_iters=sample_iters)
-			p1d.plot_chains(dir_out)
-			p1d.save_statistics(statistic="mean",quantiles=[0.16,0.84])
-	#=======================================================================================
+				#--------- Run model -----------------------
+				p1d = Inference(dimension=1,
+								prior=prior["type"],
+								parameters=prior["parameters"],
+								hyper_alpha=[case["location"],case["size"]],
+								hyper_beta=prior["hyper_beta"],
+								hyper_gamma=prior["hyper_gamma"],
+								hyper_delta=prior["hyper_delta"],
+								dir_out=dir_out,
+								transformation="pc",
+								parametrization=case["parametrization"],
+								zero_point=0.0,
+								indep_measures=indep["bool"])
+				p1d.load_data(file_data,id_name="ID")
+				p1d.setup()
+				p1d.run(sample_iters=sample_iters,
+						burning_iters=burning_iters*case["case_factor"],
+						target_accept=indep["target_accept"],
+						init='adapt_diag',
+						chains=2,cores=2)
+
+				#-------- Analyse chains --------------------------------
+				p1d.load_trace(sample_iters=sample_iters)
+				p1d.convergence()
+				p1d.plot_chains(dir_out)
+				p1d.save_statistics(statistic="mean",quantiles=[0.05,0.95])
+		#=======================================================================================

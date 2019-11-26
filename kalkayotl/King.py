@@ -6,10 +6,9 @@ __all__ = ['king', 'King']
 import numpy as np
 import theano.tensor as tt
 
-from pymc3.theanof import floatX
 from pymc3.util import get_variable_name
 from pymc3.distributions.dist_math import bound
-from pymc3.distributions.continuous import Continuous,PositiveContinuous,BoundedContinuous,assert_negative_support
+from pymc3.distributions.continuous import Continuous,assert_negative_support
 from pymc3.distributions.distribution import draw_values, generate_samples
 
 from scipy.stats import rv_continuous

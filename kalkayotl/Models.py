@@ -5,9 +5,7 @@ import theano
 from theano import tensor as tt, printing
 
 from kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
-from kalkayotl.EFF import EFF
-from kalkayotl.EDSD import EDSD
-from kalkayotl.King import King
+from kalkayotl.Priors import EDSD,EFF,King
 
 ################################## Model 1D ####################################
 class Model1D(pm.Model):
@@ -22,6 +20,7 @@ class Model1D(pm.Model):
 		hyper_gamma=None,
 		hyper_delta=None,
 		transformation="mas",
+		parametrization="non-central",
 		name='1D', model=None):
 		super().__init__(name, model)
 
@@ -43,6 +42,11 @@ class Model1D(pm.Model):
 
 		else:
 			sys.exit("Transformation is not accepted")
+
+		if parametrization == "non-central":
+			print("Using non central parametrization.")
+		else:
+			print("Using central parametrization.")
 		#==================================================================
 
 		#================ Hyper-parameters =====================================
@@ -68,16 +72,25 @@ class Model1D(pm.Model):
 		#================= True values ========================================================
 		#--------- Cluster oriented prior-----------------------------------------------
 		if prior is "Uniform":
-			pm.Uniform("offset",lower=-1.,upper=1.,shape=self.N)
-			pm.Deterministic("source",self.loc + self.scl*self.offset)
+			if parametrization == "central":
+				pm.Uniform("source",lower=self.loc-self.scl,upper=self.loc+self.scl,shape=self.N)
+			else:
+				pm.Uniform("offset",lower=-1.,upper=1.,shape=self.N)
+				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior is "Cauchy":
-			pm.Cauchy("offset",alpha=0.0,beta=1.0,shape=self.N)
-			pm.Deterministic("source",self.loc + self.scl*self.offset)
+			if parametrization == "central":
+				pm.Cauchy("source",alpha=self.loc,beta=self.scl,shape=self.N)
+			else:
+				pm.Cauchy("offset",alpha=0.0,beta=1.0,shape=self.N)
+				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior is "Gaussian":
-			pm.Normal("offset",mu=0.0,sd=1.0,shape=self.N)
-			pm.Deterministic("source",self.loc + self.scl*self.offset)
+			if parametrization == "central":
+				pm.Normal("source",mu=self.loc,sd=self.scl,shape=self.N)
+			else:
+				pm.Normal("offset",mu=0.0,sd=1.0,shape=self.N)
+				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior is "GMM":
 			if parameters["weights"] is None:
@@ -98,21 +111,24 @@ class Model1D(pm.Model):
 			else:
 				self.gamma = parameters["gamma"]
 
-			EFF("offset",gamma=self.gamma,shape=self.N)
-
-			pm.Deterministic("source",self.loc + self.scl*self.offset)
+			if parametrization == "central":
+				EFF("source",location=self.loc,scale=self.scl,gamma=self.gamma,shape=self.N)
+			else:
+				EFF("offset",location=0.0,scale=1.0,gamma=self.gamma,shape=self.N)
+				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior is "King":
 			if parameters["rt"] is None:
-				pm.Beta("y",alpha=hyper_gamma[0],beta=hyper_gamma[1])
-				pm.Deterministic("x",0.5*np.sqrt(2)*self.y)
-				pm.Deterministic("rt",self.scl*np.sqrt(self.x**(-2) - 1.))
-
+				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma[0])
+				pm.Deterministic("rt",1.0+self.x)
 			else:
-				pm.Deterministic("x",1.0/tt.sqrt(1.0+(parameters["rt"]/self.scl)**2))
+				self.rt = parameters["rt"]
 
-			King("offset",x=self.x,shape=self.N)
-			pm.Deterministic("source",self.loc + self.scl*self.offset)
+			if parametrization == "central":
+				King("source",location=self.loc,scale=self.scl,rt=self.rt,shape=self.N)
+			else:
+				King("offset",location=0.0,scale=1.0,rt=self.rt,shape=self.N)
+				pm.Deterministic("source",self.loc + self.scl*self.offset)
 			
 		#---------- Galactic oriented prior ---------------------------------------------
 		elif prior == "Half-Cauchy":

@@ -30,108 +30,121 @@ import matplotlib.lines as mlines
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_out    = dir_main  + "Outputs/Synthetic/"
 dir_data   = dir_main  + "Data/Synthetic/"
-file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision.pdf"
+file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision_Uniform.pdf"
 #==================================================================
 
-prior = "Gaussian"
-random_states = [1,2,3,4,5]
-clusters = [
-			{"name":"Gaussian",     "distance":100  },
-			{"name":"Gaussian",     "distance":200  },
-			{"name":"Gaussian",     "distance":300  },
-			{"name":"Gaussian",     "distance":400  },
-			{"name":"Gaussian",     "distance":500  },
-			{"name":"Gaussian",     "distance":600  },
-			{"name":"Gaussian",     "distance":700  },
-			{"name":"Gaussian",     "distance":800  },
-			{"name":"Gaussian",     "distance":900  },
-			{"name":"Gaussian",     "distance":1000 },
-			{"name":"Gaussian",     "distance":1600 },
-			{"name":"Gaussian",     "distance":1800 },
-			{"name":"Gaussian",     "distance":2300 },
-			{"name":"Gaussian",     "distance":2500 },
-			{"name":"Gaussian",     "distance":3000 },
-			{"name":"Gaussian",     "distance":3500 },
-			{"name":"Gaussian",     "distance":4000 },
-			{"name":"Gaussian",     "distance":5800 },
+prior = "Uniform"
+
+true_scale = 10.0
+true_gamma = 3.0
+
+random_states = [1,2,3,4,5,6,7,8,9,10]
+distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000,2000,3000,4000,5000]
+
+list_of_sources = [
+			{"number":100, "color":"orange"},
+			# {"number":500, "color":"seagreen"},
+			# {"number":1000,"color":"cornflowerblue"}
 			]
 
 iocs      = [
-			{"name":"off","value":"indep","marker":"d","linestyle":"--"},
-			{"name":"on", "value":"corr", "marker":"o","linestyle":"-"}
+			{"name":"off","value":"indep","linestyle":"--"},
+			{"name":"on", "value":"corr", "linestyle":"-"}
 			]
-parameters =[
-			{"name":"loc","color":"brown"},
-			{"name":"scl","color":"green"},
 
-]
+#----------------------- Gaussian ---------------------------------------------------------------
+# parameters = [
+# 			{"name":"Location","xlim":[90,5000],"ylim":[[-0.05,0.1],[0.0005,0.15],[0,101]]},
+# 			{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75],[0.01,0.25],[0.0,101]]}
+# 			]
+#------------------------------------------------------------------------------------------------
+
+#---------------------- Uniform -----------------------------------------------------------------------
+parameters = [
+			{"name":"Location","xlim":[90,5000],"ylim":[[-0.05,0.06 ],[0.0005,0.15],[0.0,101]]},
+			{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,6],     [0.0,101]]}
+			]
+#--------------------------------------------------------------------------------------------------
+
+
+
+# #---------------------- EFF -----------------------------------------------------------------------
+# parameters = [
+# 			{"name":"Location","xlim":[90,5000],"ylim":[[-0.05,0.06 ],[0.0005,0.15],[0.0,101]]},
+# 			{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,6],     [0.0,101]]},
+# 			{"name":"Gamma",   "xlim":[90,5000],"ylim":[[-0.15,0.5],  [0.29,0.46],  [0.0,101]]}
+# 			]
+# #--------------------------------------------------------------------------------------------------
+
+
+
 
 statistics = [
-			{"name":"Credibility [%]",   "color":"green","scale":"linear"},
-			{"name":"RMS [pc]",          "color":"brown","scale":"log"},
-			{"name":"Source CI [pc]",    "color":"blue", "scale":"log"},
-			{"name":"Parameter CI [pc]", "color":"cyan", "scale":"log"},
-			{"name":"Correlation",       "color":"red",  "scale":"linear"},
+			{"name":"Credibility [%]",        "ylims":[10,105]},
+			{"name":"Fractional RMS",         "ylims":[0.001,0.15]},
+			{"name":"Fractional uncertainty", "ylims":[0.001,0.17]},
+			{"name":"Correlation",            "ylims":[-1.01,-0.01]},
 			]
 
-n_states  = len(random_states)
-n_cluster = len(clusters)
-distances = np.array([cluster["distance"] for cluster in clusters],dtype="int")
-sources   = np.zeros((5,2,n_cluster,n_states))
-pars      = np.zeros((3,2,2,n_cluster,n_states))
+stats     = np.zeros((5,2,len(list_of_sources),len(distances),len(random_states)))
+pars      = np.zeros((3,2,len(parameters),len(list_of_sources),len(distances),len(random_states)))
 
-for r,random_state in enumerate(random_states):
-	for j,cluster in enumerate(clusters):
-		for i,ioc in enumerate(iocs):
-			#------------- Files ----------------------------------------------------------------------------------
-			dir_name      = prior + "_" + str(random_state) +"/" + cluster["name"] +"_"+str(cluster["distance"])
-			dir_chains    = dir_out     + dir_name +"/"+prior+"/"+ioc["value"]+"/" 
-			file_par      = dir_chains  + "Cluster_mean.csv"
-			file_src      = dir_chains  + "Sources_mean.csv"
-			file_true     = dir_data    +  dir_name + ".csv"
-			#-----------------------------------------------------------------------------------------------------
+for n,sources in enumerate(list_of_sources):
+	for r,random_state in enumerate(random_states):
+		for d,distance in enumerate(distances):
+			for i,ioc in enumerate(iocs):
+				#------------- Files ----------------------------------------------------------------------------------
+				dir_name      = prior + "_" + str(sources["number"]) +"_"+str(random_state) +"/" + prior +"_"+str(distance)
+				dir_chains    = dir_out     + dir_name +"/"+prior+"/"+ioc["value"]+"/" 
+				file_par      = dir_chains  + "Cluster_mean.csv"
+				file_src      = dir_chains  + "Sources_mean.csv"
+				file_true     = dir_data    +  dir_name + ".csv"
+				#-----------------------------------------------------------------------------------------------------
 
-			#-------- Read data --------------------------------
-			true = pn.read_csv(file_true,usecols=["ID","r","parallax_error","parallax"])
-			true.sort_values(by="ID",inplace=True)
-			true.set_index("ID",inplace=True)
-			true_val = np.array([np.mean(true["r"]),np.std(true["r"])])
-			#--------------------------------------------------
+				#-------- Read data --------------------------------
+				true = pn.read_csv(file_true,usecols=["ID","r","parallax_error","parallax"])
+				true.sort_values(by="ID",inplace=True)
+				true.set_index("ID",inplace=True)
+				true_val = np.array([distance,true_scale])
+				#--------------------------------------------------
 
-			# ------ Cluster parameters --------------------------------------------------------
-			df_pars  = pn.read_csv(file_par,usecols=["mean","lower","upper"])
-			df_pars.insert(loc=0,column="true",value=true_val)
+				# ------ Cluster parameters --------------------------------------------------------
+				df_pars  = pn.read_csv(file_par,usecols=["mean","lower","upper"])
+				df_pars.insert(loc=0,column="true",value=true_val)
 
-			df_pars["Bias"]  = df_pars.apply(lambda x: x["mean"]  - x["true"],  axis = 1)
-			df_pars["Span"]  = df_pars.apply(lambda x: x["upper"] - x["lower"], axis = 1)
-			df_pars["In"]    = df_pars.apply(lambda x: ((x["true"]>=x["lower"]) 
-				                                   and (x["true"]<=x["upper"])), axis = 1)
-			# ---------------------------------------------------------------------------------
+				df_pars["fError"]  = df_pars.apply(lambda x: (x["mean"]  - x["true"])/x["true"],  axis = 1)
+				df_pars["fUncer"]  = df_pars.apply(lambda x: (x["upper"] - x["lower"])/x["true"], axis = 1)
+				df_pars["In"]      = df_pars.apply(lambda x: ((x["true"]>=x["lower"]) 
+					                                   and (x["true"]<=x["upper"])), axis = 1)
+				# ---------------------------------------------------------------------------------
 
-			# #------- Observed sources -------------------------------------------
-			# infered  = pn.read_csv(file_src,usecols=["ID","mean","lower","upper"])
-			# infered.sort_values(by="ID",inplace=True)
-			# infered.set_index("ID",inplace=True)
-			# df       = true.join(infered,on="ID",lsuffix="_true",rsuffix="_obs")
-			# #------------------------------------------------------------------------
-
-			# #----------- Compute offset and uncertainty -----------------------------
-			# df["Bias"]   = df.apply(lambda x: x["mean"]-x["r"], axis = 1)
-			# df["Offset"] = df.apply(lambda x: x["r"]-true_val[0], axis = 1)
-			# df["Frac"]   = df.apply(lambda x: x["parallax_error"]/x["parallax"], axis = 1)
-			# df["Span"]   = df.apply(lambda x: x["upper"] - x["lower"], axis = 1)
-			# df["In"]     = df.apply(lambda x: ((x["r"]>=x["lower"]) and (x["r"]<=x["upper"])), axis = 1)
+				pars[0,i,:,n,d,r] = df_pars["fError"]
+				pars[1,i,:,n,d,r] = df_pars["fUncer"]*0.5
+				pars[2,i,:,n,d,r] = df_pars["In"]
 
 
-			#------------ Statistics ---------------------------------------------------------
-			pars[0,:,i,j,r] = df_pars["Bias"]
-			pars[1,:,i,j,r] = df_pars["Span"] 
-			pars[2,:,i,j,r] = df_pars["In"]
+				#------- Observed sources -------------------------------------------
+				infered  = pn.read_csv(file_src,usecols=["ID","mean","lower","upper"])
+				infered.sort_values(by="ID",inplace=True)
+				infered.set_index("ID",inplace=True)
+				df       = true.join(infered,on="ID",lsuffix="_true",rsuffix="_obs")
+				#------------------------------------------------------------------------
 
-			# sources[0,i,j,r] = np.sum(df["In"])/len(df)
-			# sources[1,i,j,r] = np.sqrt(np.mean(df["Bias"]**2))
-			# sources[2,i,j,r] = np.mean(df["Span"])
-			# sources[3,i,j,r] = np.corrcoef(df["Offset"],df["Bias"])[0,1]
+				# ----------- Compute offset and uncertainty -----------------------------
+				df["Bias"]   = df.apply(lambda x: x["mean"]-x["r"], axis = 1)
+				df["Offset"] = df.apply(lambda x: x["r"]-true_val[0], axis = 1)
+				df["Frac"]   = df.apply(lambda x: x["parallax_error"]/x["parallax"], axis = 1)
+				df["Span"]   = df.apply(lambda x: x["upper"] - x["lower"], axis = 1)
+				df["In"]     = df.apply(lambda x: ((x["r"]>=x["lower"]) and (x["r"]<=x["upper"])), axis = 1)
+
+
+				#------------ Statistics ---------------------------------------------------------
+				
+
+				stats[0,i,n,d,r] = 100*np.sum(df["In"])/len(df)
+				stats[1,i,n,d,r] = np.sqrt(np.mean(df["Bias"]**2))/true_val[0]
+				stats[2,i,n,d,r] = np.mean(0.5*df["Span"])/true_val[0]
+				stats[3,i,n,d,r] = np.corrcoef(df["Offset"],df["Bias"])[0,1]
 
 #============================== Plots ========================================================
 
@@ -139,54 +152,63 @@ line_corr = [mlines.Line2D([], [],  color="black",
 								linestyle=ioc["linestyle"],
 								label=ioc["name"]) for ioc in iocs]
 
-line_pars = [mlines.Line2D([], [],  color=par["color"],
+line_numbers = [mlines.Line2D([], [],  color=sources["color"],
 								linestyle="-",
-								label=par["name"]) for par in parameters]
+								label=str(sources["number"])) for sources in list_of_sources]
 pdf = PdfPages(filename=file_plot)
-fig, axes = plt.subplots(num=0,nrows=2, ncols=2, sharex=True,sharey='row',figsize=(12,12))
-fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0, hspace=0.0)
-for p,par in enumerate(parameters):
-	for i,ioc in enumerate(iocs):
-
-		#--------------- Accuracy -------------------------------------------------------------------
-		mu_ferror = np.mean(pars[0,p,i],axis=1)/distances
-		mi_ferror = np.min(pars[0,p,i],axis=1)/distances
-		ma_ferror = np.max(pars[0,p,i],axis=1)/distances
-		axes[0,p].fill_between(distances,y1=mi_ferror,y2=ma_ferror,
-							color=par["color"],linestyle=ioc["linestyle"],alpha=0.3,label=None)
-		axes[0,p].plot(distances,mu_ferror,color=par["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
-
-		#---------------- Precision -----------------------------------------------------------------
-		mu_span = 0.5*np.mean(pars[1,p,i],axis=1)/distances
-		mi_span = 0.5*np.min(pars[1,p,i],axis=1)/distances
-		ma_span = 0.5*np.max(pars[1,p,i],axis=1)/distances
-		axes[1,p].fill_between(distances,y1=mi_span,y2=ma_span,
-							color=par["color"],linestyle=ioc["linestyle"],alpha=0.3,label=None)
-		axes[1,p].plot(distances,mu_span,color=par["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
-
-		axes[p,i].set_xscale('log')
-	axes[0,p].set_ylim(-0.09,0.3)
-	axes[1,p].set_ylim(0.0,0.09)
-	axes[1,p].set_xlabel("Distance [pc]")
-	
+fig, axes = plt.subplots(num=0,nrows=3, ncols=len(parameters), sharex='col',sharey=False,figsize=(12,12))
+fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.15, hspace=0.0)
 
 axes[0,0].set_ylabel('Fractional error')
 axes[1,0].set_ylabel('Fractional uncertainty')
+axes[2,0].set_ylabel('Credibility [%]')
+
+for p,par in enumerate(parameters):
+	axes[0,p].set_title(par["name"])
+	axes[2,p].set_xlabel("Distance [pc]")
+	axes[2,p].set_xscale('log')
+	axes[2,p].set_xlim(par["xlim"])
+
+	axes[0,p].set_ylim(par["ylim"][0])
+	axes[1,p].set_ylim(par["ylim"][1])
+	axes[2,p].set_ylim(par["ylim"][2])
 
 
-		# #---------------- Credibility -----------------------------------------------------------------
-		# mu_cred = np.mean(pars[2,p,i],axis=1)
-		# mi_cred = np.min(pars[2,p,i],axis=1)
-		# ma_cred = np.max(pars[2,p,i],axis=1)
-		# # axes[2].fill_between(distances,y1=mi_cred,y2=ma_cred,
-		# # 					color=par["color"],alpha=0.3,label=None)
-		# axes[2].plot(distances,mu_cred,color=par["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
-	
+
+	for i,ioc in enumerate(iocs):
+		for n,scs in enumerate(list_of_sources): 
+			mu_ferror = np.mean(pars[0,i,p,n],axis=1)
+			sd_ferror = np.std( pars[0,i,p,n],axis=1)
+			mi_ferror = np.min( pars[0,i,p,n],axis=1)
+			ma_ferror = np.max( pars[0,i,p,n],axis=1)
+			mu_span   = np.mean(pars[1,i,p,n],axis=1)
+			sd_span   = np.std( pars[1,i,p,n],axis=1)
+			mi_span   = np.min( pars[1,i,p,n],axis=1)
+			ma_span   = np.max( pars[1,i,p,n],axis=1)
+			mu_cred   = np.mean(pars[2,i,p,n],axis=1)
+			mi_cred   = np.min( pars[2,i,p,n],axis=1)
+			ma_cred   = np.max( pars[2,i,p,n],axis=1)
+
+			#--------------- Accuracy -------------------------------------------------------------------
+			axes[0,p].fill_between(distances,y1=mu_ferror-sd_ferror,y2=mu_ferror+sd_ferror,
+								color=scs["color"],linestyle=ioc["linestyle"],alpha=0.1,label=None)
+			axes[0,p].plot(distances,mu_ferror,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
+
+			#---------------- Precision -----------------------------------------------------------------
+			axes[1,p].fill_between(distances,y1=mu_span-sd_span,y2=mu_span+sd_span,
+								color=scs["color"],linestyle=ioc["linestyle"],alpha=0.1,label=None)
+			axes[1,p].plot(distances,mu_span,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
+
+			#---------------- Credibility -----------------------------------------------------------------
+			# axes[2,p].fill_between(distances,y1=mi_cred,y2=ma_cred,color=par["color"],alpha=0.3,label=None)
+			axes[2,p].plot(distances,100*mu_cred,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
+
+			
 axes[0,0].legend(
 	title="Spatial correlations",
 	handles=line_corr,
 	shadow = False,
-	bbox_to_anchor=(0.17,0.82, 0.3, 0.1),
+	bbox_to_anchor=(0.17,0.0, 0.25, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,
@@ -194,42 +216,46 @@ axes[0,0].legend(
 	ncol = 2,
 	fontsize = 'smaller',
 	mode = 'expand',
-	loc = 'upper right'
+	loc = 10
 	)
-fig.legend(title="Parameters",
-	handles=line_pars,
+fig.legend(title="Number of sources",
+	handles=line_numbers,
 	shadow = False,
-	bbox_to_anchor=(0.57,0.82, 0.3, 0.1),
+	bbox_to_anchor=(0.57,0.0, 0.3, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,
 	fancybox = True,
-	ncol = 2,
+	ncol = 3,
 	fontsize = 'smaller',
 	mode = 'expand',
-	loc = 'upper right')
+	loc = 10)
 
 pdf.savefig(bbox_inches='tight')
 plt.close(0)
-pdf.close()
-sys.exit()
-
-
-
+# pdf.close()
+# sys.exit()
 
 fig, axes = plt.subplots(num=1,nrows=len(statistics), ncols=1, sharex=True,figsize=(6,12))
 fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=0.0)
-for i,stats in enumerate(statistics):
-	for j,ioc in enumerate(iocs):
-		axes[i].plot(distances,sts[:,i,j],color=ioc["color"],linestyle=ioc["linestyle"])
-	axes[i].set_ylabel(stats["name"])
-	
-	axes[i].set_yscale(stats["scale"])
+for s,st in enumerate(statistics):
+	for n,nsc in enumerate(list_of_sources):
+		for i,ioc in enumerate(iocs):
+			mu_sts = np.mean(stats[s,i,n],axis=1)
+			sd_sts = np.std( stats[s,i,n],axis=1)
+			axes[s].fill_between(distances,y1=mu_sts-sd_sts,y2=mu_sts+sd_sts,
+				color=nsc["color"],linestyle=ioc["linestyle"],alpha=0.1,label=None)
+			axes[s].plot(distances,mu_sts,color=nsc["color"],alpha=0.8,linestyle=ioc["linestyle"])
+	axes[s].set_ylabel(st["name"])
+	axes[s].set_ylim(st["ylims"])
 plt.xlabel('Distance [pc]')
-fig.legend(title="Spatial correlations",
+plt.xscale('log')
+
+axes[0].legend(
+	title="Spatial correlations",
 	handles=line_corr,
 	shadow = False,
-	bbox_to_anchor=(0.12,0.82, 0.75, 0.1),
+	bbox_to_anchor=(0.1,0.85, 0.4, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,
@@ -237,7 +263,19 @@ fig.legend(title="Spatial correlations",
 	ncol = 2,
 	fontsize = 'smaller',
 	mode = 'expand',
-	loc = 'upper right')
+	loc = 10)
+fig.legend(title="Number of sources",
+	handles=line_numbers,
+	shadow = False,
+	bbox_to_anchor=(0.5,0.85, 0.4, 0.1),
+	bbox_transform = fig.transFigure,
+	borderaxespad=0.,
+	frameon = True,
+	fancybox = True,
+	ncol = 3,
+	fontsize = 'smaller',
+	mode = 'expand',
+	loc = 10)
 pdf.savefig(bbox_inches='tight')
 plt.close(1)
 

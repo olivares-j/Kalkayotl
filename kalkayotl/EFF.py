@@ -87,13 +87,15 @@ class EFF(Continuous):
 			x = pm.EFF('x',gamma=2)
 	"""
 
-	def __init__(self,gamma=None, *args, **kwargs):
+	def __init__(self,location,scale=None,gamma=None, *args, **kwargs):
 
 		super().__init__(*args, **kwargs)
 
-		self.gamma = gamma = tt.as_tensor_variable(gamma)
+		self.gamma    = tt.as_tensor_variable(gamma)
+		self.location = tt.as_tensor_variable(location)
+		self.scale    = tt.as_tensor_variable(scale)
 
-		self.mean = 0.0
+		self.mean = self.location
 
 	def random(self, point=None, size=None):
 		"""
@@ -110,8 +112,8 @@ class EFF(Continuous):
 		-------
 		array
 		"""
-		gamma = draw_values([self.gamma],point=point,size=size)
-		return generate_samples(eff.rvs,gamma=gamma,
+		location,scale,gamma = draw_values([self.location,self.scale,self.gamma],point=point,size=size)
+		return generate_samples(eff.rvs,loc=location,scale=scale,gamma=gamma,
 								dist_shape=self.shape,
 								size=size)
 
@@ -128,10 +130,11 @@ class EFF(Continuous):
 		TensorVariable
 		"""
 		gamma  = self.gamma
+		x      = (self.location-value)/self.scale
 
-		cte = tt.sqrt(np.pi)*tt.gamma(0.5*(gamma-1.))/tt.gamma(0.5*gamma)
+		cte = tt.sqrt(np.pi)*self.scale*tt.gamma(0.5*(gamma-1.))/tt.gamma(0.5*gamma)
 
-		log_d  = -0.5*gamma*tt.log(1.+ value**2) - tt.log(cte)
+		log_d  = -0.5*gamma*tt.log(1.+ x**2) - tt.log(cte)
 		return bound(log_d,gamma > 1.)
 
 	def _repr_latex_(self, name=None, dist=None):
