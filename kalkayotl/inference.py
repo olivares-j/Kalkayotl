@@ -329,15 +329,27 @@ class Inference:
 
 		print("Computing posterior")
 
-		with self.Model as model:
-			db = pm.backends.Text(self.dir_out)
-			trace = pm.sample(draws=sample_iters, 
-							tune=burning_iters, 
-							trace=db,
-							nuts_kwargs=nuts_kwargs,
-							chains=chains, cores=cores,
-							discard_tuned_samples=True,
-							*args,**kwargs)
+		if self.prior is "GMM" and self.parametrization != "central":
+			with self.Model as model:
+				step = pm.ElemwiseCategorical(vars=[model.component], values=[0, 1])
+				db = pm.backends.Text(self.dir_out)
+				trace = pm.sample(draws=sample_iters, 
+								tune=burning_iters, 
+								trace=db,
+								chains=chains, cores=cores,
+								discard_tuned_samples=True,
+								step=[step])
+
+		else:
+			with self.Model as model:
+				db = pm.backends.Text(self.dir_out)
+				trace = pm.sample(draws=sample_iters, 
+								tune=burning_iters, 
+								trace=db,
+								nuts_kwargs=nuts_kwargs,
+								chains=chains, cores=cores,
+								discard_tuned_samples=True,
+								*args,**kwargs)
 
 	def load_trace(self,sample_iters):
 		'''

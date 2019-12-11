@@ -111,8 +111,8 @@ class Model1D(pm.Model):
 			else:
 				pm.Normal("offset",mu=0.0,sd=1.0,shape=self.N)
 				# latent cluster of each observation
-				pm.Categorical("component",p=self.weights,shape=self.N)
-				pm.Deterministic("source",self.loc[self.component] + self.scl[self.component]*self.offset) 
+				component = pm.Categorical("component",p=self.weights,shape=self.N)
+				pm.Deterministic("source",self.loc[component] + self.scl[component]*self.offset) 
 
 		elif prior is "EFF":
 			if parameters["gamma"] is None:
