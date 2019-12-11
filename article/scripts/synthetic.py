@@ -25,43 +25,44 @@ import pandas as pn
 
 from  kalkayotl import Inference
 
-generic_name = "King"
-number_of_stars = 100
+generic_name = "GMM"
+number_of_stars = 500
 
 #============ Directories =============================
 #-------Main directory ---------------
 dir_main  = "/home/javier/Repositories/Kalkayotl/"
-dir_main  = os.getcwd() +"/"
+# dir_main  = os.getcwd() +"/"
 #----------- Data --------------------
 dir_data  = dir_main + "Data/Synthetic/"
 dir_outs  = dir_main + "Outputs/Synthetic/"
+
 
 #------- Create directories -------
 os.makedirs(dir_outs,exist_ok=True)
 
 #===================== Chains =================================
-burning_iters   = 10000
+burning_iters   = 5000
 sample_iters    = 2000   # Number of iterations for the MCMC 
 #==============================================================
 
-random_seeds = [1]#,2,3,4,5,6,7,8,9,10]
+random_seeds = [1,2,3,4,5,6,7,8,9,10]
 
 #------------------------- Case----------------------------
 list_of_cases = [
-{"name":generic_name,"location":100,"size":10,  "case_factor":1,"parametrization":"central"    , 'init':'auto'},
-{"name":generic_name,"location":200,"size":20,  "case_factor":1,"parametrization":"central"    , 'init':'auto'},
-{"name":generic_name,"location":300,"size":30,  "case_factor":1,"parametrization":"central"    , 'init':'auto'},
-{"name":generic_name,"location":400,"size":40,  "case_factor":1,"parametrization":"central"    , 'init':'auto'},
-{"name":generic_name,"location":500,"size":50,  "case_factor":1,"parametrization":"central"    , 'init':'auto'},
-{"name":generic_name,"location":600,"size":60,  "case_factor":2,"parametrization":"non-central", 'init':'adapt_diag'},
-{"name":generic_name,"location":700,"size":70,  "case_factor":2,"parametrization":"non-central", 'init':'adapt_diag'},
-{"name":generic_name,"location":800,"size":80,  "case_factor":2,"parametrization":"non-central", 'init':'adapt_diag'},
-{"name":generic_name,"location":900,"size":90,  "case_factor":2,"parametrization":"non-central", 'init':'adapt_diag'},
-{"name":generic_name,"location":1000,"size":100,"case_factor":3,"parametrization":"non-central", 'init':'adapt_diag'},
-{"name":generic_name,"location":2000,"size":200,"case_factor":3,"parametrization":"non-central", 'init':'adapt_diag'},
-{"name":generic_name,"location":3000,"size":300,"case_factor":3,"parametrization":"non-central", 'init':'adapt_diag'},
-{"name":generic_name,"location":4000,"size":450,"case_factor":4,"parametrization":"non-central", 'init':'adapt_diag'},
-{"name":generic_name,"location":5000,"size":500,"case_factor":4,"parametrization":"non-central", 'init':'adapt_diag'},
+# {"name":generic_name,"location":100,"size":10,  "case_factor":1,"parametrization":"central"    , 'init':'adapt_diag'},
+# {"name":generic_name,"location":200,"size":20,  "case_factor":1,"parametrization":"central"    , 'init':'adapt_diag'},
+# {"name":generic_name,"location":300,"size":30,  "case_factor":1,"parametrization":"central"    , 'init':'adapt_diag'},
+# {"name":generic_name,"location":400,"size":40,  "case_factor":1,"parametrization":"central"    , 'init':'adapt_diag'},
+# {"name":generic_name,"location":500,"size":50,  "case_factor":1,"parametrization":"central"    , 'init':'adapt_diag'},
+{"name":generic_name,"location":600,"size":60,  "case_factor":2,"parametrization":"non-central", 'init':'auto'},
+# {"name":generic_name,"location":700,"size":70,  "case_factor":2,"parametrization":"non-central", 'init':'auto'},
+# {"name":generic_name,"location":800,"size":80,  "case_factor":2,"parametrization":"non-central", 'init':'auto'},
+# {"name":generic_name,"location":900,"size":90,  "case_factor":2,"parametrization":"non-central", 'init':'auto'},
+{"name":generic_name,"location":1000,"size":100,"case_factor":2,"parametrization":"non-central", 'init':'auto'},
+# {"name":generic_name,"location":2000,"size":200,"case_factor":4,"parametrization":"non-central", 'init':'auto'},
+{"name":generic_name,"location":3000,"size":300,"case_factor":2,"parametrization":"non-central", 'init':'auto'},
+# {"name":generic_name,"location":4000,"size":400,"case_factor":4,"parametrization":"non-central", 'init':'auto'},
+# {"name":generic_name,"location":5000,"size":500,"case_factor":2,"parametrization":"non-central", 'init':'auto'},
 ]
 
 list_of_prior = [
@@ -86,15 +87,15 @@ list_of_prior = [
 	# 						"hyper_gamma":[3.0,1.0],
 	# 						"hyper_delta":None},
 
-	{"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
-							"hyper_beta":[100],
-							"hyper_gamma":[10.0],
-							"hyper_delta":None},
-
-	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
+	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
 	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":np.array([0.9,0.1])},
+	# 						"hyper_gamma":[10.0],
+	# 						"hyper_delta":None},
+
+	{"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
+							"hyper_beta":[100],
+							"hyper_gamma":None,
+							"hyper_delta":np.array([0.5,0.5])},
 
 	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
 	# 						"hyper_beta":[100],
@@ -105,7 +106,7 @@ list_of_prior = [
 
 
 indep_measures = [
-			{"bool":False,"name":"corr", "target_accept":0.95},
+			{"bool":False,"name":"corr", "target_accept":0.8},
 			{"bool":True, "name":"indep","target_accept":0.95}
 			]
 
@@ -151,7 +152,7 @@ for seed in random_seeds:
 				p1d.setup()
 				p1d.run(sample_iters=sample_iters,
 						burning_iters=burning_iters*case["case_factor"],
-						target_accept=indep["target_accept"],
+						# target_accept=indep["target_accept"],
 						init=case['init'],
 						chains=2,cores=2)
 

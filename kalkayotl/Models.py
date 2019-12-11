@@ -51,7 +51,7 @@ class Model1D(pm.Model):
 
 		#================ Hyper-parameters =====================================
 		if hyper_delta is None:
-			shape = 1
+			shape = ()
 		else:
 			shape = len(hyper_delta)
 
@@ -94,20 +94,30 @@ class Model1D(pm.Model):
 
 		elif prior is "GMM":
 			if parameters["weights"] is None:
-				pm.Dirichlet("weights",a=hyper_delta)
+				pm.Dirichlet("weights",a=hyper_delta,shape=shape)
+				# ensure all clusters have some points: 5% 
+				pm.Potential('w_min_potential', tt.switch(tt.min(self.weights) < .05, -np.inf, 0))
+				# break symmetr
+				pm.Potential('order_means', tt.switch(self.loc[1]-self.loc[0] < 0, -np.inf, 0))
 			else:
 				self.weights = parameters["weights"]
 
-			pm.NormalMixture("source",w=self.weights,
-				mu=self.loc,
-				sigma=self.scl,
-				comp_shape=1,
-				shape=self.N)
+			if parametrization == "central":
+				pm.NormalMixture("source",w=self.weights,
+					mu=self.loc,
+					sigma=self.scl,
+					comp_shape=1,
+					shape=self.N)
+			else:
+				pm.Normal("offset",mu=0.0,sd=1.0,shape=self.N)
+				# latent cluster of each observation
+				pm.Categorical("component",p=self.weights,shape=self.N)
+				pm.Deterministic("source",self.loc[self.component] + self.scl[self.component]*self.offset) 
 
 		elif prior is "EFF":
 			if parameters["gamma"] is None:
 				pm.TruncatedNormal("gamma",mu=hyper_gamma[0],sigma=hyper_gamma[1],
-									lower=2.0,upper=10.0,shape=shape)
+									lower=2.0,upper=10.0)
 			else:
 				self.gamma = parameters["gamma"]
 
@@ -144,7 +154,7 @@ class Model1D(pm.Model):
 			sys.exit("The specified prior is not implemented")
 		#-----------------------------------------------------------------------------
 		#=======================================================================================
-		# print_ = tt.printing.Print("sources")(self.source)
+		# print_ = tt.printing.Print("source")(self.source)
 		#----------------- Transformations ----------------------
 		true = Transformation(self.source)
 
@@ -166,7 +176,8 @@ class ModelND(pm.Model):
 		hyper_gamma=None,
 		hyper_delta=None,
 		transformation=None,
-		name='flavour_', model=None):
+		parametrization="non-central",
+		name='', model=None):
 
 		assert isinstance(dimension,int), "dimension must be integer!"
 		assert dimension in [3,5,6],"Not a valid dimension!"
@@ -176,7 +187,7 @@ class ModelND(pm.Model):
 		# 2) call super's init first, passing model and name
 		# to it name will be prefix for all variables here if
 		# no name specified for model there will be no prefix
-		super().__init__(name+str(D)+"d", model)
+		super().__init__(str(D)+"D", model)
 		# now you are in the context of instance,
 		# `modelcontext` will return self you can define
 		# variables in several ways note, that all variables
@@ -216,9 +227,9 @@ class ModelND(pm.Model):
 		#--------- Location ----------------------------------
 		if parameters["location"] is None:
 
-			location = [ pm.Uniform("loc_{0}".format(i),
-						lower=hyper_alpha[i][0],
-						upper=hyper_alpha[i][1],
+			location = [ pm.Normal("loc_{0}".format(i),
+						mu=hyper_alpha[i][0],
+						sigma=hyper_alpha[i][1],
 						shape=shape) for i in range(D) ]
 
 			#--------- Join variables --------------
@@ -230,9 +241,8 @@ class ModelND(pm.Model):
 
 		#------------- Scale --------------------------
 		if parameters["scale"] is None:
-
-			scale = [ pm.HalfCauchy("scl_{0}".format(i),
-						beta=hyper_beta[i],
+			scale = [ pm.Gamma("scl_{0}".format(i),
+						alpha=2.0,beta=2.0/hyper_beta[i][0],
 						shape=shape) for i in range(D) ]
 
 		else:

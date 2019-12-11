@@ -266,6 +266,29 @@ class Inference:
 
 		print("Configuring "+self.prior+" prior")
 
+		if self.parameters["location"] is None:
+			assert self.hyper_alpha is not None, "hyper_alpha must be specified."
+
+		if self.parameters["scale"] is None:
+			assert self.hyper_beta is not None, "hyper_beta must be specified."
+
+		assert self.transformation in ["pc","mas"],"Transformation must be either pc or mas"
+
+		if self.prior is "GMM":
+			if self.parameters["weights"] is None:
+				assert self.hyper_delta is not None, "hyper_delta must be specified."
+			else:
+				assert np.min(self.parameters["weights"])> 0.05, "weights must be greater than 5%"
+
+		if self.prior is "King":
+			if self.parameters["rt"] is None:
+				assert self.hyper_gamma is not None, "hyper_gamma must be specified."
+
+		if self.prior is "EFF":
+			if self.parameters["gamma"] is None:
+				assert self.hyper_gamma is not None, "hyper_gamma must be specified."
+
+
 		if self.D == 1:
 			self.Model = Model1D(mu_data=self.mu_data,tau_data=self.tau_data,
 								  prior=self.prior,

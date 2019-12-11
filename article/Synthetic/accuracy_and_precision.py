@@ -26,25 +26,27 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
+prior = "EFF"
+
+
 #============ Directories and data =================
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_out    = dir_main  + "Outputs/Synthetic/"
 dir_data   = dir_main  + "Data/Synthetic/"
-file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision_Uniform.pdf"
+file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision_"+prior+".pdf"
 #==================================================================
-
-prior = "Uniform"
 
 true_scale = 10.0
 true_gamma = 3.0
+true_rt    = 5.0
 
 random_states = [1,2,3,4,5,6,7,8,9,10]
 distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000,2000,3000,4000,5000]
 
 list_of_sources = [
 			{"number":100, "color":"orange"},
-			# {"number":500, "color":"seagreen"},
-			# {"number":1000,"color":"cornflowerblue"}
+			{"number":500, "color":"seagreen"},
+			{"number":1000,"color":"cornflowerblue"}
 			]
 
 iocs      = [
@@ -52,32 +54,40 @@ iocs      = [
 			{"name":"on", "value":"corr", "linestyle":"-"}
 			]
 
-#----------------------- Gaussian ---------------------------------------------------------------
-# parameters = [
-# 			{"name":"Location","xlim":[90,5000],"ylim":[[-0.05,0.1],[0.0005,0.15],[0,101]]},
-# 			{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75],[0.01,0.25],[0.0,101]]}
-# 			]
-#------------------------------------------------------------------------------------------------
-
 #---------------------- Uniform -----------------------------------------------------------------------
-parameters = [
-			{"name":"Location","xlim":[90,5000],"ylim":[[-0.05,0.06 ],[0.0005,0.15],[0.0,101]]},
-			{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,6],     [0.0,101]]}
-			]
+if prior is "Uniform":
+	parameters = [
+				{"name":"Location","xlim":[90,5000],"ylim":[[-0.11,0.11 ],[0.0005,0.15],[0.0,101]]},
+				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,0.25],  [0.0,101]]}
+				]
 #--------------------------------------------------------------------------------------------------
 
+#----------------------- Gaussian ---------------------------------------------------------------
+if prior is "Gaussian":
+	parameters = [
+				{"name":"Location","xlim":[90,5000],"ylim":[[-0.11,0.11],[0.0005,0.15],[0,101]]},
+				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75],[0.01,0.25],  [0.0,101]]}
+				]
+#------------------------------------------------------------------------------------------------
 
 
-# #---------------------- EFF -----------------------------------------------------------------------
-# parameters = [
-# 			{"name":"Location","xlim":[90,5000],"ylim":[[-0.05,0.06 ],[0.0005,0.15],[0.0,101]]},
-# 			{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,6],     [0.0,101]]},
-# 			{"name":"Gamma",   "xlim":[90,5000],"ylim":[[-0.15,0.5],  [0.29,0.46],  [0.0,101]]}
-# 			]
-# #--------------------------------------------------------------------------------------------------
+#---------------------- EFF -----------------------------------------------------------------------
+if prior is "EFF":
+	parameters = [
+				{"name":"Location","xlim":[90,5000],"ylim":[[-0.05,0.06 ],[0.0005,0.15],[0.0,101]]},
+				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,1],     [0.0,101]]},
+				{"name":"Gamma",   "xlim":[90,5000],"ylim":[[0.05,0.75],  [0.01,0.46],  [0.0,101]]}
+				]
+#--------------------------------------------------------------------------------------------------
 
-
-
+#---------------------- King -----------------------------------------------------------------------
+if prior is "King":
+	parameters = [
+				{"name":"Location",     "xlim":[90,5000],"ylim":[[-0.05,0.06 ],[0.0005,0.15],[0.0,101]]},
+				{"name":"Scale",        "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,1],     [0.0,101]]},
+				{"name":"Tidal radius", "xlim":[90,5000],"ylim":[[-0.15,0.9],  [0.29,2],  [0.0,101]]}
+				]
+#--------------------------------------------------------------------------------------------------
 
 statistics = [
 			{"name":"Credibility [%]",        "ylims":[10,105]},
@@ -105,7 +115,12 @@ for n,sources in enumerate(list_of_sources):
 				true = pn.read_csv(file_true,usecols=["ID","r","parallax_error","parallax"])
 				true.sort_values(by="ID",inplace=True)
 				true.set_index("ID",inplace=True)
-				true_val = np.array([distance,true_scale])
+				if prior in ["Uniform","Gaussian"]:
+					true_val = np.array([distance,true_scale])
+				if prior is "EFF":
+					true_val = np.array([distance,true_scale,true_gamma])
+				if prior is "King":
+					true_val = np.array([distance,true_scale,true_rt])
 				#--------------------------------------------------
 
 				# ------ Cluster parameters --------------------------------------------------------
@@ -139,8 +154,6 @@ for n,sources in enumerate(list_of_sources):
 
 
 				#------------ Statistics ---------------------------------------------------------
-				
-
 				stats[0,i,n,d,r] = 100*np.sum(df["In"])/len(df)
 				stats[1,i,n,d,r] = np.sqrt(np.mean(df["Bias"]**2))/true_val[0]
 				stats[2,i,n,d,r] = np.mean(0.5*df["Span"])/true_val[0]
@@ -172,6 +185,8 @@ for p,par in enumerate(parameters):
 	axes[0,p].set_ylim(par["ylim"][0])
 	axes[1,p].set_ylim(par["ylim"][1])
 	axes[2,p].set_ylim(par["ylim"][2])
+
+	# axes[1,p].set_yscale("log")
 
 
 

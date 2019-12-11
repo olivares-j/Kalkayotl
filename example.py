@@ -150,41 +150,43 @@ list_of_prior = [
 	# 						"hyper_delta": None,
 	# 						"burning_factor":1},
 
-	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
-							"hyper_alpha":hyper_alpha,
-							"hyper_beta":hyper_beta,
-							"hyper_gamma":None, 
-							"hyper_delta":None,
-							"burning_factor":1},
+	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
+	# 						"hyper_alpha":hyper_alpha,
+	# 						"hyper_beta":hyper_beta,
+	# 						"hyper_gamma":None, 
+	# 						"hyper_delta":None,
+	# 						"burning_factor":1},
 
-	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-							"hyper_alpha":hyper_alpha,
-							"hyper_beta":hyper_beta,
-							"hyper_gamma":None,
-							"hyper_delta":None,
-							"burning_factor":1},
+	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+	# 						"hyper_alpha":hyper_alpha,
+	# 						"hyper_beta":hyper_beta,
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":None,
+	# 						"burning_factor":1},
 
-	{"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
-							"hyper_alpha":hyper_alpha, 
-							"hyper_beta":hyper_beta, 
-							"hyper_gamma":[10.0],
-							"hyper_delta":None,
-							"burning_factor":2},
-	# NOTE: the tidal radius and its parameters are scaled.
+	
+	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
+	# 						"hyper_alpha":hyper_alpha,
+	# 						"hyper_beta":hyper_beta, 
+	# 						"hyper_gamma":[3.0,1.0],
+	# 						"hyper_delta":None,
+	# 						"burning_factor":3},
 
-	{"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
-							"hyper_alpha":hyper_alpha,
-							"hyper_beta":hyper_beta, 
-							"hyper_gamma":[3.0,1.0],
-							"hyper_delta":None,
-							"burning_factor":5},
+	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
+	# 						"hyper_alpha":hyper_alpha, 
+	# 						"hyper_beta":hyper_beta, 
+	# 						"hyper_gamma":[10.0],
+	# 						"hyper_delta":None,
+	# 						"burning_factor":5},
+	# # NOTE: the tidal radius and its parameters are scaled.
+
 
 	{"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
 							"hyper_alpha":hyper_alpha, 
 							"hyper_beta":hyper_beta, 
 							"hyper_gamma":None,
 							"hyper_delta":np.array([0.5,0.5]),
-							"burning_factor":10}
+							"burning_factor":5}
 	]
 #======================= Inference and Analysis =====================================================
 
@@ -220,8 +222,8 @@ for prior in list_of_prior:
 	p1d.setup()
 
 	#------- Run the sampler ---------------------
-	p1d.run(sample_iters=sample_iters*prior["burning_factor"],
-			burning_iters=burning_iters,
+	p1d.run(sample_iters=sample_iters,
+			burning_iters=burning_iters*prior["burning_factor"],
 			chains=chains,
 			cores=cores)
 

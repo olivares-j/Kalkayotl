@@ -3,6 +3,7 @@ import os
 import numpy  as np
 import pandas as pn
 import scipy.stats as st
+from time import time
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
@@ -18,7 +19,7 @@ from isochrones.priors import ChabrierPrior
 
 dir_main      =  "/home/javier/Repositories/Kalkayotl/Data/Synthetic/"
 random_seeds  = [1,2,3,4,5,6,7,8,9,10]    # Random state for the synthetic data
-n_stars       = 500   # 100,500, 1000
+n_stars       = 100   # 100,500, 1000
 metallicity   = 0.02  # Solar metallicity
 age           = 8.2   # Typical value of Bossini+2019
 mass_limit    = 4.0   # Avoids NaNs in photometry
@@ -27,17 +28,27 @@ tracks        = get_ichrone('mist', tracks=True,bands="VIG")
 extension_yrs = 0.0
 
 ####### FAMILY PARAMETERS ####################################################
-family        = "EFF"
+family        = "GMM"
 scale         = 10.0
+
+#---- Only for GMM -------
+scale2        = 20.0 # Second component
+fraction      = 0.5  # Of first component
+shift         = 0.1  # Relative distance shift of second comp.
+#----- Only for EFF -----
 gamma         = 3
+# Only for King ---------
 tidal_radius  = 5 # In units of core radius (i.e. scale)
+#-----------------------------------------------------------
+
 distances     = [100,200,300,400,500,600,700,800,900,1000,2000,3000,4000,5000]
 A             = np.eye(3)*scale
+B             = np.eye(3)*scale2
 ###############################################################################
 
 for seed in random_seeds:
 	#------ Set Seed -----------------
-	np.random.RandomState(seed=seed)
+	np.random.RandomState(seed=seed*int(time() % 100))
 	#------ Directories and files --------------------------------
 	dir_out      = dir_main  + family + "_" + str(n_stars) + "_" + str(seed)
 
@@ -59,7 +70,7 @@ for seed in random_seeds:
 		#------- Sample the radial distance  ------------------------------
 		if family == "Uniform":
 			r = st.uniform.rvs(loc=-1,scale=2,size=(n_stars,3))
-		elif family == "Gaussian":
+		elif (family == "Gaussian") or (family == "GMM"):
 			r = st.norm.rvs(size=(n_stars,3))
 		elif family == "EFF":
 			r = eff.rvs(gamma=gamma,size=3*n_stars).reshape(n_stars,3)
@@ -70,6 +81,11 @@ for seed in random_seeds:
 
 
 		X = np.array([0.0,distance,0.0]) + np.matmul(r,A)
+
+		if family == "GMM":
+			n_stars_A = int(fraction*n_stars)
+			n_stars_B = n_stars-n_stars_A
+			X[-n_stars_B:] = np.array([0.0,distance*(1+shift),0.0]) + np.matmul(r[-n_stars_B:],B)
 		#--------------------------------------------------------
 
 		#------- Sky coordinates -----------
@@ -138,6 +154,9 @@ for seed in random_seeds:
 		plt.figure(0)
 		plt.hist(obs_plx,density=False,bins=n_bins,alpha=0.5,label="Observed")
 		plt.hist(true_plx,density=False,bins=n_bins,alpha=0.5,label="True")
+		if family == "GMM":
+			plt.hist(true_plx[:n_stars_A],density=False,bins=n_bins,alpha=0.5,label="One")
+			plt.hist(true_plx[n_stars_A:],density=False,bins=n_bins,alpha=0.5,label="Two")
 		plt.legend()
 		plt.ylabel("Density")
 		plt.xlabel("Parallax [mas]")
@@ -155,7 +174,7 @@ for seed in random_seeds:
 		plt.scatter(df_phot["V_mag"]-df_phot["I_mag"],df_phot["G_mag"],s=1)
 		plt.ylabel("G [mag]")
 		plt.xlabel("V - I [mag]")
-		plt.ylim(22,3)
+		plt.ylim(25,3)
 		pdf.savefig(bbox_inches='tight')
 		plt.close(0)
 

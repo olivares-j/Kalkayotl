@@ -23,14 +23,6 @@ import os
 import numpy as np
 import pandas as pn
 import scipy.stats as st
-
-dir_main  = os.getcwd().replace("Code/article/Real","")
-sys.path.insert(0,dir_main)
-
-# from Code.EFF import eff
-# from Code.King import king
-
-
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
@@ -44,27 +36,30 @@ def my_mode(sample):
 #-----------prior ----------------------------------------------------------------
 
 list_of_clusters = [
-{"name":"Pleiades",    "distance":136, "delta":20},
-{"name":"Ruprecht_147","distance":305, "delta":80},
-{"name":"NGC_1647",    "distance":590, "delta":120},
-# {"name":"NGC_2264",    "distance":730, "delta":200},
-# {"name":"NGC_2682",    "distance":860, "delta":200},
-{"name":"NGC_2244",    "distance":1800, "delta":1000},
-# {"name":"NGC_188",     "distance":1860, "delta":500},
-{"name":"IC_1848",     "distance":2260, "delta":1000},
-{"name":"NGC_2420",    "distance":2500, "delta":1000},
-{"name":"NGC_6791",    "distance":4500, "delta":2000},
-{"name":"NGC_3603",    "distance":7000, "delta":5000},
+{"name":"Pleiades",    "distance":136, "delta":100},
+{"name":"Pleiades",    "distance":136, "delta":100},
+{"name":"Pleiades",    "distance":136, "delta":100},
+{"name":"Pleiades",    "distance":136, "delta":100},
+# {"name":"Ruprecht_147","distance":305, "delta":80},
+# {"name":"NGC_1647",    "distance":590, "delta":120},
+# # {"name":"NGC_2264",    "distance":730, "delta":200},
+# # {"name":"NGC_2682",    "distance":860, "delta":200},
+# {"name":"NGC_2244",    "distance":1800, "delta":1000},
+# # {"name":"NGC_188",     "distance":1860, "delta":500},
+# {"name":"IC_1848",     "distance":2260, "delta":1000},
+# {"name":"NGC_2420",    "distance":2500, "delta":1000},
+# {"name":"NGC_6791",    "distance":4500, "delta":2000},
+# {"name":"NGC_3603",    "distance":7000, "delta":5000},
 ]
 
 priors = [
 # {"name":"EDSD",     "color":"black"  },
-{"name":"Uniform",  "color":"blue"   },
-{"name":"Gaussian", "color":"orange" },
+# {"name":"Uniform",  "color":"blue"   },
+# {"name":"Gaussian", "color":"orange" },
 # {"name":"Cauchy",   "color":"pink"   },
 {"name":"GMM",      "color":"green"  },
-{"name":"EFF",      "color":"purple" },
-{"name":"King",     "color":"olive"  }
+# {"name":"EFF",      "color":"purple" },
+# {"name":"King",     "color":"olive"  }
 ]
 
 
@@ -73,7 +68,7 @@ priors = [
 n_samples  = 1000
 n_bins     = 200
 n_clusters = len(list_of_clusters)
-n_cols     = 3
+n_cols     = 2
 n_rows     = int(np.ceil(n_clusters/n_cols))
 print(n_rows,n_cols)
 #============ Directories and data =================
@@ -85,7 +80,7 @@ file_plot  = dir_main   + "Outputs/Plots/Posteriors.pdf"
 
 #================================== Plot posteriors ==========================================================================
 pdf = PdfPages(filename=file_plot)
-fig, axes = plt.subplots(n_rows, n_cols,num=0,figsize=(5*n_rows,5*n_cols))
+fig, axes = plt.subplots(n_rows, n_cols,num=0,figsize=(10*n_rows,5*n_cols))
 for k,cluster in enumerate(list_of_clusters):
 	dir_cluster = dir_data   + cluster["name"] + "/"
 

@@ -11,8 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 from kalkayotl.Transformations import Iden,pc2mas
-from kalkayotl.EFF import eff
-from kalkayotl.King import king
+from kalkayotl.Priors import eff,king
 
 
 ################################## Evidence 1D ####################################
@@ -228,7 +227,7 @@ class Evidence1D():
 				self.D = 3
 				self.names = ["loc_0","scl_0","rt"]
 
-				hp_x = st.beta(a=hyper_gamma[0],b=hyper_gamma[1])
+				hp_x = st.gamma(a=2.0,scale=2.0/hyper_gamma[0])
 
 				def prior_sample(theta):
 					# Sample from the prior
@@ -239,13 +238,10 @@ class Evidence1D():
 
 				def hp_transform(u):
 					# Transform unit cube hyper prior
-
-					y = 0.5*np.sqrt(2)*hp_x.ppf(u[2])
-
 					x = np.zeros_like(u)
 					x[0] = hp_loc.ppf(u[0])
 					x[1] = hp_scl.ppf(u[1])
-					x[2] = x[1]*np.sqrt(y**(-2) - 1.0)
+					x[2] = 1.0 + hp_x.ppf(u[2])
 					return x
 
 			else:

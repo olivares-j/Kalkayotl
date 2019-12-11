@@ -46,7 +46,7 @@ dir_case   = dir_out  + case +"/"
 
 #===================== Chains =================================
 #---------------- MCMC parameters  --------------------
-burning_iters   = 1000
+burning_iters   = 2000
 sample_iters    = 1000 
 #==============================================================
 
@@ -59,22 +59,22 @@ list_of_prior = [
 	# 						"hyper_gamma":None, 
 	# 						"hyper_delta":None},
 
-	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-							"hyper_gamma":None,
+	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":None},
+
+	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None}, 
+	# 						"hyper_gamma":[3.0,1.0],
+	# 						"hyper_delta":None},
+
+
+	{"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
+							"hyper_gamma":[100.],
 							"hyper_delta":None},
 
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None}, 
-	# 						"hyper_gamma":[2.0,1.0],
-	# 						"hyper_delta":None},
-
-
-	# {"type":"King",         "parameters":{"location":None,"scale":None},
-	# 						"hyper_gamma":[20.],
-	# 						"hyper_delta":None},
-
-	# {"type":"GMM",          "parameters":{"location":None,"scale":None},
+	# {"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
 	# 						"hyper_gamma":None,
-	# 						"hyper_delta":np.array([0.9,0.1])},
+	# 						"hyper_delta":np.array([0.7,0.2,0.1])},
 
 	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
 	# 						"hyper_gamma":None,
@@ -105,16 +105,17 @@ for prior in list_of_prior:
 					hyper_delta=prior["hyper_delta"],
 					dir_out=dir_prior,
 					transformation="pc",
+					parametrization='central',
 					zero_point=-0.029,
 					indep_measures=False)
-	p1d.load_data(file_data)
+	p1d.load_data(file_data,id_name="ID")
 	p1d.setup()
 	p1d.run(sample_iters=sample_iters,
 			burning_iters=burning_iters,
 			chains=2,cores=2)
 
 	#-------- Analyse chains --------------------------------
-	p1d.load_trace(burning_iters=burning_iters)
+	p1d.load_trace(sample_iters=sample_iters)
 	p1d.convergence()
 	p1d.plot_chains(dir_prior)
 	p1d.save_statistics(statistic="mode",quantiles=[0.05,0.95]) 
