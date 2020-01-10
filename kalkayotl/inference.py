@@ -31,6 +31,9 @@ matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+#----- For GMM experimental initializer ---------
+from pymc3.step_methods.hmc import quadpotential
+
 #------------ Local libraries ------------------------------------------
 from kalkayotl.Models import Model1D,ModelND
 from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM
@@ -317,39 +320,40 @@ class Inference:
 
 		
 	def run(self,sample_iters,burning_iters,
+		init=None,
 		chains=None,cores=None,
-		step=None,nuts_kwargs=None,*args,**kwargs):
+		step=None,nuts_kwargs=None,
+		*args,**kwargs):
 		"""
 		Performs the MCMC run.
 		Arguments:
 		sample_iters (integer):    Number of MCMC iterations.
 		burning_iters (integer):    Number of burning iterations.
-		file_chains (string):      Path to storage file.
 		"""
 
 		print("Computing posterior")
 
-		if self.prior is "GMM" and self.parametrization != "central":
-			with self.Model as model:
-				step = pm.ElemwiseCategorical(vars=[model.component], values=[0, 1])
-				db = pm.backends.Text(self.dir_out)
-				trace = pm.sample(draws=sample_iters, 
-								tune=burning_iters, 
-								trace=db,
-								chains=chains, cores=cores,
-								discard_tuned_samples=True,
-								step=[step])
+		with self.Model as model:
+			db = pm.backends.Text(self.dir_out)
 
-		else:
-			with self.Model as model:
-				db = pm.backends.Text(self.dir_out)
+			if self.prior is "GMM" and self.parametrization == "non-central":
+					step = pm.ElemwiseCategorical(vars=[model.component], values=[0, 1])
+					trace = pm.sample(draws=sample_iters, 
+									tune=burning_iters, 
+									trace=db,
+									chains=chains, cores=cores,
+									discard_tuned_samples=True,
+									step=[step])
+			else:
 				trace = pm.sample(draws=sample_iters, 
-								tune=burning_iters, 
-								trace=db,
-								nuts_kwargs=nuts_kwargs,
-								chains=chains, cores=cores,
-								discard_tuned_samples=True,
-								*args,**kwargs)
+							tune=burning_iters,
+							init=init,
+							trace=db,
+							nuts_kwargs=nuts_kwargs,
+							chains=chains, cores=cores,
+							discard_tuned_samples=True,
+							*args,**kwargs)
+
 
 	def load_trace(self,sample_iters):
 		'''

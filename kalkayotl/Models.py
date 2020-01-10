@@ -95,10 +95,8 @@ class Model1D(pm.Model):
 		elif prior is "GMM":
 			if parameters["weights"] is None:
 				pm.Dirichlet("weights",a=hyper_delta,shape=shape)
-				# ensure all clusters have some points: 5% 
-				pm.Potential('w_min_potential', tt.switch(tt.min(self.weights) < .05, -np.inf, 0))
-				# break symmetr
-				pm.Potential('order_means', tt.switch(self.loc[1]-self.loc[0] < 0, -np.inf, 0))
+				# break symmetry
+				pm.Potential('order_means', tt.switch(self.loc[1]-self.loc[0] < 0, -1e6, 0))
 			else:
 				self.weights = parameters["weights"]
 

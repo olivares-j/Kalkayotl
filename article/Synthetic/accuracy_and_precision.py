@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
-prior = "EFF"
+prior = "GMM"
 
 
 #============ Directories and data =================
@@ -39,14 +39,17 @@ file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision_"+prior+".pdf"
 true_scale = 10.0
 true_gamma = 3.0
 true_rt    = 5.0
+true_shift = 0.1
+true_scl2  = 20.0
+true_fract = 0.5
 
 random_states = [1,2,3,4,5,6,7,8,9,10]
-distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000,2000,3000,4000,5000]
+distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900]# ,1000,2000,3000,4000,5000]
 
 list_of_sources = [
 			{"number":100, "color":"orange"},
 			{"number":500, "color":"seagreen"},
-			{"number":1000,"color":"cornflowerblue"}
+			# {"number":1000,"color":"cornflowerblue"}
 			]
 
 iocs      = [
@@ -70,6 +73,15 @@ if prior is "Gaussian":
 				]
 #------------------------------------------------------------------------------------------------
 
+#----------------------- Gaussian ---------------------------------------------------------------
+if prior is "GMM":
+	parameters = [
+				{"name":"Location", "xlim":[90,1000],"ylim":[[0.01,0.2],[0.0005,0.15],[0,101]]},
+				{"name":"Scale",    "xlim":[90,1000],"ylim":[[0.01,3.],[0.1,7.],  [0.0,101]]},
+				{"name":"Amplitude","xlim":[90,1000],"ylim":[[-0.24,0.24],[0.05,1.25],   [0.0,101]]}
+				]
+#------------------------------------------------------------------------------------------------
+
 
 #---------------------- EFF -----------------------------------------------------------------------
 if prior is "EFF":
@@ -87,13 +99,12 @@ if prior is "King":
 				{"name":"Scale",        "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,1],     [0.0,101]]},
 				{"name":"Tidal radius", "xlim":[90,5000],"ylim":[[-0.15,0.9],  [0.29,2],  [0.0,101]]}
 				]
-#--------------------------------------------------------------------------------------------------
-
+#-------------------------------------------------------------------------------------------------- 
 statistics = [
 			{"name":"Credibility [%]",        "ylims":[10,105]},
 			{"name":"Fractional RMS",         "ylims":[0.001,0.15]},
 			{"name":"Fractional uncertainty", "ylims":[0.001,0.17]},
-			{"name":"Correlation",            "ylims":[-1.01,-0.01]},
+			{"name":"Correlation",            "ylims":[-1.01,0.01]},
 			]
 
 stats     = np.zeros((5,2,len(list_of_sources),len(distances),len(random_states)))
@@ -117,6 +128,9 @@ for n,sources in enumerate(list_of_sources):
 				true.set_index("ID",inplace=True)
 				if prior in ["Uniform","Gaussian"]:
 					true_val = np.array([distance,true_scale])
+				if prior is "GMM":
+					true_val = np.array([distance,true_scale,true_fract])
+					# true_val = np.array([distance*(1.+true_shift),true_scl2,1.-true_frct])
 				if prior is "EFF":
 					true_val = np.array([distance,true_scale,true_gamma])
 				if prior is "King":
@@ -124,7 +138,13 @@ for n,sources in enumerate(list_of_sources):
 				#--------------------------------------------------
 
 				# ------ Cluster parameters --------------------------------------------------------
-				df_pars  = pn.read_csv(file_par,usecols=["mean","lower","upper"])
+				df_pars  = pn.read_csv(file_par,usecols=["Parameter","mean","lower","upper"])
+				df_pars.set_index("Parameter",inplace=True)
+
+				#----- Drop extra parameters (valid for GMM)----------------
+				to_drop = ["_1" in a for a in df_pars.index.values]
+				df_pars.drop(df_pars.index.values[to_drop], inplace=True)
+				#-----------------------------------------------------------
 				df_pars.insert(loc=0,column="true",value=true_val)
 
 				df_pars["fError"]  = df_pars.apply(lambda x: (x["mean"]  - x["true"])/x["true"],  axis = 1)
@@ -265,6 +285,7 @@ for s,st in enumerate(statistics):
 	axes[s].set_ylim(st["ylims"])
 plt.xlabel('Distance [pc]')
 plt.xscale('log')
+plt.xlim(parameters[0]["xlim"])
 
 axes[0].legend(
 	title="Spatial correlations",

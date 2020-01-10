@@ -19,7 +19,7 @@ from isochrones.priors import ChabrierPrior
 
 dir_main      =  "/home/javier/Repositories/Kalkayotl/Data/Synthetic/"
 random_seeds  = [1,2,3,4,5,6,7,8,9,10]    # Random state for the synthetic data
-n_stars       = 100   # 100,500, 1000
+n_stars       = 1000   # 100,500, 1000
 metallicity   = 0.02  # Solar metallicity
 age           = 8.2   # Typical value of Bossini+2019
 mass_limit    = 4.0   # Avoids NaNs in photometry
