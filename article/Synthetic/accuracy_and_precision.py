@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
-prior = "GMM"
+prior = "King"
 
 
 #============ Directories and data =================
@@ -44,12 +44,12 @@ true_scl2  = 20.0
 true_fract = 0.5
 
 random_states = [1,2,3,4,5,6,7,8,9,10]
-distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900]# ,1000,2000,3000,4000,5000]
+distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000,2000,3000]#,4000]#,5000]
 
 list_of_sources = [
 			{"number":100, "color":"orange"},
 			{"number":500, "color":"seagreen"},
-			# {"number":1000,"color":"cornflowerblue"}
+			{"number":1000,"color":"cornflowerblue"}
 			]
 
 iocs      = [
@@ -76,9 +76,9 @@ if prior is "Gaussian":
 #----------------------- Gaussian ---------------------------------------------------------------
 if prior is "GMM":
 	parameters = [
-				{"name":"Location", "xlim":[90,1000],"ylim":[[0.01,0.2],[0.0005,0.15],[0,101]]},
-				{"name":"Scale",    "xlim":[90,1000],"ylim":[[0.01,3.],[0.1,7.],  [0.0,101]]},
-				{"name":"Amplitude","xlim":[90,1000],"ylim":[[-0.24,0.24],[0.05,1.25],   [0.0,101]]}
+				{"name":"Location", "xlim":[90,5000],"ylim":[[-0.19,0.09],[0.0005,0.15],[0,101]]},
+				{"name":"Scale",    "xlim":[90,5000],"ylim":[[-0.69,0.99],[0.01,0.99],  [0.0,101]]},
+				{"name":"Amplitude","xlim":[90,5000],"ylim":[[-0.85,0.85],[-0.19,1.25],   [0.0,101]]}
 				]
 #------------------------------------------------------------------------------------------------
 
@@ -95,9 +95,9 @@ if prior is "EFF":
 #---------------------- King -----------------------------------------------------------------------
 if prior is "King":
 	parameters = [
-				{"name":"Location",     "xlim":[90,5000],"ylim":[[-0.05,0.06 ],[0.0005,0.15],[0.0,101]]},
-				{"name":"Scale",        "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,1],     [0.0,101]]},
-				{"name":"Tidal radius", "xlim":[90,5000],"ylim":[[-0.15,0.9],  [0.29,2],  [0.0,101]]}
+				{"name":"Location",     "xlim":[90,5000],"ylim":[[-0.09,0.09],[0.0005,0.15],[0.0,101]]},
+				{"name":"Scale",        "xlim":[90,2100],"ylim":[[-0.25,0.75], [0.01,0.95], [0.0,101]]},
+				{"name":"Tidal radius", "xlim":[90,5000],"ylim":[[-0.55,0.9],  [0.01,1.95],  [0.0,101]]}
 				]
 #-------------------------------------------------------------------------------------------------- 
 statistics = [
@@ -129,8 +129,8 @@ for n,sources in enumerate(list_of_sources):
 				if prior in ["Uniform","Gaussian"]:
 					true_val = np.array([distance,true_scale])
 				if prior is "GMM":
-					true_val = np.array([distance,true_scale,true_fract])
-					# true_val = np.array([distance*(1.+true_shift),true_scl2,1.-true_frct])
+					# true_val = np.array([distance,true_scale,true_fract])
+					true_val = np.array([distance*(1.+true_shift),true_scl2,1.-true_fract])
 				if prior is "EFF":
 					true_val = np.array([distance,true_scale,true_gamma])
 				if prior is "King":

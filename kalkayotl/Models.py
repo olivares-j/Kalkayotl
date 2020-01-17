@@ -93,8 +93,8 @@ class Model1D(pm.Model):
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior is "GMM":
-			# break symmetry
-			pm.Potential('order_means', tt.switch(self.loc[1]-self.loc[0] < 0, -1e5, 0))
+			# break symmetry and avoids inf in advi
+			pm.Potential('order_means', tt.switch(self.loc[1]-self.loc[0] < 0, -1e20, 0))
 
 			if parameters["weights"] is None:
 				pm.Dirichlet("weights",a=hyper_delta,shape=shape)	

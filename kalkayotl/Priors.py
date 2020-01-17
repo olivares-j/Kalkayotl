@@ -411,8 +411,9 @@ class King(Continuous):
 		cte = 2*self.scale*(self.rt/(1+self.rt**2) + tt.arctan(self.rt) - 2.*tt.arcsinh(self.rt)/np.sqrt(1.+self.rt**2))
 
 		log_d = 2.*tt.log(v-u) - tt.log(cte)
-		
-		return bound(log_d,tt.abs_(r) < self.rt)
+
+		return tt.switch(tt.abs_(r) < self.rt,log_d,-1e20) #avoids inf in advi
+		# return bound(log_d,tt.abs_(r) < self.rt)
 
 	def _repr_latex_(self, name=None, dist=None):
 		if dist is None:

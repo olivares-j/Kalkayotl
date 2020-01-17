@@ -26,7 +26,7 @@ import pandas as pn
 from  kalkayotl import Inference
 
 generic_name = "GMM"
-number_of_stars = 500
+number_of_stars = 1000
 
 #============ Directories =============================
 #-------Main directory ---------------
@@ -45,7 +45,7 @@ burning_iters   = 2000
 sample_iters    = 2000   # Number of iterations for the MCMC 
 #==============================================================
 
-random_seeds = [2,3,4,5,6,7,8,9,10]
+random_seeds = [1,2,3]
 
 #------------------------- Case----------------------------
 list_of_cases = [
@@ -154,11 +154,11 @@ for seed in random_seeds:
 						burning_iters=burning_iters*case["case_factor"],
 						target_accept=indep["target_accept"],
 						init=case['init'],
-						chains=2,cores=2)
+						chains=1,cores=2)
 
 				#-------- Analyse chains --------------------------------
 				p1d.load_trace(sample_iters=sample_iters)
-				p1d.convergence()
+				# p1d.convergence()
 				p1d.plot_chains(dir_out)
 				p1d.save_statistics(statistic="mean",quantiles=[0.05,0.95])
 		#=======================================================================================
