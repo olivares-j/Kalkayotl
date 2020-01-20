@@ -41,8 +41,8 @@ list_of_priors = [
 ]
 
 list_of_cases = [
-{"name":"Gaussian_500","scale":20.0,"linestyle":"-", "linewidth":1, "type":"corr" ,"plot_bias":True, "plot_density":True},
-{"name":"Gaussian_500","scale":20.0,"linestyle":"--","linewidth":1, "type":"indep","plot_bias":False,"plot_density":False},
+{"name":"Gaussian_500","scale":10.0,"linestyle":"-", "linewidth":1, "type":"corr" ,"plot_bias":True, "plot_density":True},
+{"name":"Gaussian_500","scale":10.0,"linestyle":"--","linewidth":1, "type":"indep","plot_bias":False,"plot_density":False},
 ]
 
 n_samples  = 1000
@@ -60,8 +60,8 @@ list_observables = ["ID","r","parallax","parallax_error"]
 #============ Directories and data =================
 
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
-dir_data   = dir_main  + "Data/Synthetic/Gaussian_12345/"
-dir_out    = dir_main  + "Outputs/Synthetic/Gaussian_12345/"
+dir_data   = dir_main  + "Data/Synthetic/Gaussian_500_1/"
+dir_out    = dir_main  + "Outputs/Synthetic/Gaussian_500_1/"
 dir_plots  = dir_main  + "Outputs/Plots/"
 file_plot  = dir_plots + "Comparison_of_priors.pdf"
 file_tex   = dir_plots + "Table_rms_bias.tex"

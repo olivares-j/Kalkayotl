@@ -25,8 +25,8 @@ import pandas as pn
 
 from  kalkayotl import Inference
 
-generic_name = "King"
-number_of_stars = 1000
+generic_name = "Gaussian"
+number_of_stars = 500
 
 #============ Directories =============================
 #-------Main directory ---------------
@@ -41,61 +41,60 @@ dir_outs  = dir_main + "Outputs/Synthetic/"
 os.makedirs(dir_outs,exist_ok=True)
 
 #===================== Chains =================================
-burning_iters   = 3000
+burning_iters   = 1000
 sample_iters    = 2000   # Number of iterations for the MCMC 
 #==============================================================
 
-random_seeds = [4,5,6,7,8,9,10]
+random_seeds = [1]#,2,3,4,5,6,7,8,9,10]
 
 #------------------------- Case----------------------------
 list_of_cases = [
-# {"name":generic_name,"location":100,"size":10,  "case_factor":1,"parametrization":"central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":200,"size":20,  "case_factor":1,"parametrization":"central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":300,"size":30,  "case_factor":1,"parametrization":"central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":400,"size":40,  "case_factor":1,"parametrization":"central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":500,"size":50,  "case_factor":2,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":600,"size":60,  "case_factor":2,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":700,"size":70,  "case_factor":2,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":800,"size":80,  "case_factor":2,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":900,"size":90,  "case_factor":2,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":1000,"size":100,"case_factor":2,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":2000,"size":200,"case_factor":3,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":3000,"size":300,"case_factor":3,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-{"name":generic_name,"location":4000,"size":400,"case_factor":4,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":5000,"size":500,"case_factor":4,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location": 100,"fraction":0.1,"case_factor":1,"parametrization":"central",     'init':'advi+adapt_diag'},
+# {"location": 200,"fraction":0.1,"case_factor":1,"parametrization":"central",     'init':'advi+adapt_diag'},
+# {"location": 300,"fraction":0.1,"case_factor":1,"parametrization":"central",     'init':'advi+adapt_diag'},
+# {"location": 400,"fraction":0.1,"case_factor":1,"parametrization":"central",     'init':'advi+adapt_diag'},
+{"location": 500,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location": 600,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location": 700,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location": 800,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location": 900,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+{"location":1000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location":2000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location":3000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location":4000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location":5000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 ]
 
 list_of_prior = [
 	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
-	# 						"hyper_alpha":None, 
 	# 						"hyper_beta":None, 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta": None},
 
-	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":None, 
-	# 						"hyper_delta":None},
+	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
+							"hyper_beta":[100],
+							"hyper_gamma":None, 
+							"hyper_delta":None},
 
-	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":None},
+	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+							"hyper_beta":[100],
+							"hyper_gamma":None,
+							"hyper_delta":None},
 
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None}, 
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":[3.0,1.0],
-	# 						"hyper_delta":None},
+	{"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None}, 
+							"hyper_beta":[100],
+							"hyper_gamma":[3.0,1.0],
+							"hyper_delta":None},
 
 	{"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
 							"hyper_beta":[100],
 							"hyper_gamma":[10.0],
 							"hyper_delta":None},
 
-	# {"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":np.array([5,5])},
+	{"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
+							"hyper_beta":[100],
+							"hyper_gamma":None,
+							"hyper_delta":np.array([5,5])},
 
 	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
 	# 						"hyper_beta":[100],
@@ -106,8 +105,10 @@ list_of_prior = [
 
 
 indep_measures = [
-			{"bool":False,"name":"corr", "target_accept":0.9},
-			{"bool":True, "name":"indep","target_accept":0.9}
+			# {"bool":False,"name":"minus","target_accept":0.9,"value":-0.1},
+			{"bool":False,"name":"corr", "target_accept":0.9,"value":0.0},
+			# {"bool":False,"name":"plus", "target_accept":0.9,"value":0.1},
+			{"bool":True, "name":"indep","target_accept":0.9,"value":0.0}
 			]
 
 
@@ -117,8 +118,8 @@ for seed in random_seeds:
 
 	for case in list_of_cases:
 		#------------ Local directories -----------------------------------------------------
-		file_data = dir_data + name +"/" + case["name"] + "_" + str(case["location"]) + ".csv"
-		dir_case  = dir_outs + name +"/" + case["name"] + "_" + str(case["location"]) +"/"
+		file_data = dir_data + name +"/" + generic_name + "_" + str(case["location"]) + ".csv"
+		dir_case  = dir_outs + name +"/" + generic_name + "_" + str(case["location"]) +"/"
 		#--------------------------------------------------------------------------------
 
 		os.makedirs(dir_case,exist_ok=True)
@@ -139,7 +140,7 @@ for seed in random_seeds:
 				p1d = Inference(dimension=1,
 								prior=prior["type"],
 								parameters=prior["parameters"],
-								hyper_alpha=[case["location"],case["size"]],
+								hyper_alpha=[case["location"],case["fraction"]*case["location"]],
 								hyper_beta=prior["hyper_beta"],
 								hyper_gamma=prior["hyper_gamma"],
 								hyper_delta=prior["hyper_delta"],
