@@ -31,13 +31,13 @@ import matplotlib.lines as mlines
 
 #----------- Prior --------
 list_of_priors = [
-{"type":"Uniform",  "color":"blue",    "marker":"v"},
-{"type":"Gaussian", "color":"orange",  "marker":"+"},
+{"type":"Uniform",  "color":"blue",    "marker":"v","offset":0},
+{"type":"Gaussian", "color":"orange",  "marker":"+","offset":0},
 # {"type":"Cauchy",   "color":"green",   "marker":"s"},
-{"type":"GMM",      "color":"maroon",  "marker":"h"},
-{"type":"EFF",      "color":"violet",  "marker":"d"},
-{"type":"King",     "color":"cyan",    "marker":"^"},
-{"type":"EDSD",     "color":"black",   "marker":"o"},
+{"type":"GMM",      "color":"maroon",  "marker":"h","offset":0},
+{"type":"EFF",      "color":"violet",  "marker":"d","offset":0},
+{"type":"King",     "color":"cyan",    "marker":"^","offset":0},
+{"type":"EDSD",     "color":"black",   "marker":"o","offset":-80},
 ]
 
 list_of_cases = [
@@ -47,13 +47,13 @@ list_of_cases = [
 
 n_samples  = 1000
 n_bins     = 150
-range_dist = -150,150
-range_bias = -55,55
-window     = 30
+range_dist = -100,100
+range_bias = -35,35
+window     = 20
 xs = np.linspace(range_dist[0],range_dist[1],1000)
 bias = np.empty((len(list_of_cases),len(list_of_priors),3))
 
-statistic        = "mode"
+statistic        = "mean"
 list_observables = ["ID","r","parallax","parallax_error"]
 
 
@@ -96,7 +96,7 @@ for c,case in enumerate(list_of_cases):
 		#-------------------------------------------------------------------------------
 
 		#--------------------- Statistic ---------------------------------
-		infered  = pn.read_csv(file_stats,usecols=["ID","mode","lower","upper"])
+		infered  = pn.read_csv(file_stats,usecols=["ID",statistic,"lower","upper"])
 		infered.sort_values(by="ID",inplace=True)
 		infered.set_index("ID",inplace=True)
 
@@ -114,9 +114,9 @@ for c,case in enumerate(list_of_cases):
 		#-------------------------------------------------------------------------------
 
 		#----------- Compute offset and uncertainty -----------------------------
-		df["Bias"]   = df.apply(lambda x: x["mode"]-x["r"], axis = 1)
+		df["Bias"]   = df.apply(lambda x: x[statistic]-x["r"], axis = 1)
 		df["Offset"] = df.apply(lambda x: x["r"]-mean_dist, axis = 1)
-		y_err = np.vstack((df["mode"]-df["lower"],df["upper"]-df["mode"]))
+		y_err = np.vstack((df[statistic]-df["lower"],df["upper"]-df[statistic]))
 
 		df["In"]   = df.apply(lambda x: ((x["r"]>=x["lower"]) and (x["r"]<=x["upper"])), axis = 1)
 
@@ -165,17 +165,17 @@ for c,case in enumerate(list_of_cases):
 					k = 1
 					l = j-3
 				axes[l,k].plot(range_bias,np.flip(range_bias),color="grey",linestyle="--",zorder=0)
-				axes[l,k].errorbar(df["Offset"],df["Bias"],yerr=y_err,
+				axes[l,k].errorbar(df["Offset"],df["Bias"]+prior["offset"],yerr=y_err,
 					fmt='none',ls='none',marker="o",ms=5,
 					ecolor="grey",elinewidth=0.01,zorder=1,label=None)
 				
-				points = axes[l,k].scatter(df["Offset"],df["Bias"],s=20,c=df["Frac"],
+				points = axes[l,k].scatter(df["Offset"],df["Bias"]+prior["offset"],s=20,c=df["Frac"],
 					zorder=2,
 					vmax=0.1,
 					cmap="viridis")
 				axes[l,k].set_ylim(range_bias[0],range_bias[1])
 				axes[l,k].set_xlim(range_bias[0],range_bias[1])
-				axes[l,k].annotate(prior["type"],xy=(0.1,0.1),xycoords="axes fraction")
+				axes[l,k].annotate(prior["type"],xy=(0.05,0.1),xycoords="axes fraction")
 
 
 priors_hdl = [mlines.Line2D([], [],color=prior["color"],
@@ -186,7 +186,7 @@ plt.figure(0)
 plt.xlabel("Parallax fractional uncertainty")
 plt.ylabel("Distance fractional error")
 plt.xscale("log")
-plt.ylim(-0.02,0.2)
+plt.ylim(-0.02,0.25)
 locs = [0.02,0.05,0.1,0.2]
 labs = [str(loc) for loc in locs]
 plt.xticks(locs,labs)
@@ -198,7 +198,7 @@ plt.legend(
 	borderaxespad=0.,
 	frameon = True,
 	fancybox = True,
-	ncol = 4,
+	ncol = 3,
 	fontsize = 'smaller',
 	mode = 'expand',
 	loc = 'upper left')
@@ -210,7 +210,7 @@ plt.vlines(x=0,ymin=0,ymax=1,colors=['grey'],linestyles=['--'],zorder=0)
 plt.xlabel("Offset from centre [pc]")
 plt.ylabel("Density")
 plt.yscale("log")
-plt.ylim(1e-5,4e-2)
+plt.ylim(5e-5,5e-2)
 plt.xlim(range_dist)
 plt.legend(
 	title="Priors",
@@ -220,7 +220,7 @@ plt.legend(
 	borderaxespad=0.,
 	frameon = True,
 	fancybox = True,
-	ncol = 4,
+	ncol = 3,
 	fontsize = 'smaller',
 	mode = 'expand',
 	loc = 'upper left')
@@ -229,7 +229,7 @@ plt.close()
 
 plt.figure(2)
 plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
-clrb = fig.colorbar(points,orientation="horizontal",pad=0.05,ax=axes)
+clrb = fig.colorbar(points,orientation="horizontal",pad=0.07,ax=axes)
 clrb.set_label("Parallax fractional uncertainty")
 for i in range(2):
 	axes[2,i].set_xlabel("Offset from centre [pc]")
