@@ -91,21 +91,6 @@ class Evidence1D():
 				x[0] = hp_loc.ppf(u[0])
 				x[1] = hp_scl.ppf(u[1])
 				return x
-			
-
-		elif prior is "Cauchy":
-			self.D = 2
-			self.names = ["loc_0","scl_0"]
-
-			def prior_sample(theta):
-				result = theta[0] + theta[1]*st.cauchy.rvs(size=self.M)
-				return result
-
-			def hp_transform(u):
-				x = np.zeros_like(u)
-				x[0] = hp_loc.ppf(u[0])
-				x[1] = hp_scl.ppf(u[1])
-				return x
 
 		elif prior is "Gaussian":
 			self.D = 2

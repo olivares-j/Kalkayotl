@@ -78,13 +78,6 @@ class Model1D(pm.Model):
 				pm.Uniform("offset",lower=-1.,upper=1.,shape=self.N)
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
-		elif prior is "Cauchy":
-			if parametrization == "central":
-				pm.Cauchy("source",alpha=self.loc,beta=self.scl,shape=self.N)
-			else:
-				pm.Cauchy("offset",alpha=0.0,beta=1.0,shape=self.N)
-				pm.Deterministic("source",self.loc + self.scl*self.offset)
-
 		elif prior is "Gaussian":
 			if parametrization == "central":
 				pm.Normal("source",mu=self.loc,sd=self.scl,shape=self.N)
@@ -140,12 +133,6 @@ class Model1D(pm.Model):
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 			
 		#---------- Galactic oriented prior ---------------------------------------------
-		elif prior == "Half-Cauchy":
-			pm.HalfCauchy("source",beta=self.scl,shape=self.N)
-
-		elif prior == "Half-Gaussian":
-			pm.HalfNormal("source",sigma=self.scl,shape=self.N)
-
 		elif prior is "EDSD":
 			EDSD("source",scale=self.scl,shape=self.N)
 		
