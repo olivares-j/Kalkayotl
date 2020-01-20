@@ -53,12 +53,12 @@ list_of_cases = [
 # {"location": 200,"fraction":0.1,"case_factor":1,"parametrization":"central",     'init':'advi+adapt_diag'},
 # {"location": 300,"fraction":0.1,"case_factor":1,"parametrization":"central",     'init':'advi+adapt_diag'},
 # {"location": 400,"fraction":0.1,"case_factor":1,"parametrization":"central",     'init':'advi+adapt_diag'},
-# {"location": 500,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+{"location": 500,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 # {"location": 600,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 # {"location": 700,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 # {"location": 800,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 # {"location": 900,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-{"location":1000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+# {"location":1000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 # {"location":2000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 # {"location":3000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 # {"location":4000,"fraction":0.1,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
@@ -66,40 +66,35 @@ list_of_cases = [
 ]
 
 list_of_prior = [
-	{"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
-							"hyper_beta":None, 
+	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
+	# 						"hyper_beta":None, 
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta": None},
+
+	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
+							"hyper_beta":[100],
+							"hyper_gamma":None, 
+							"hyper_delta":None},
+
+	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+							"hyper_beta":[100],
 							"hyper_gamma":None,
-							"hyper_delta": None},
+							"hyper_delta":None},
 
-	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":None, 
-	# 						"hyper_delta":None},
+	{"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None}, 
+							"hyper_beta":[100],
+							"hyper_gamma":[3.0,1.0],
+							"hyper_delta":None},
 
-	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":None},
+	{"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
+							"hyper_beta":[100],
+							"hyper_gamma":[10.0],
+							"hyper_delta":None},
 
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None}, 
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":[3.0,1.0],
-	# 						"hyper_delta":None},
-
-	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":[10.0],
-	# 						"hyper_delta":None},
-
-	# {"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":np.array([5,5])},
-
-	# {"type":"Cauchy",       "parameters":{"location":None,"scale":None},
-	# 						"hyper_beta":[100],
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":None},
+	{"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
+							"hyper_beta":[100],
+							"hyper_gamma":None,
+							"hyper_delta":np.array([5,5])},
 	]
 
 
@@ -108,7 +103,7 @@ indep_measures = [
 			# {"bool":False,"name":"minus","target_accept":0.9,"value":-0.1},
 			{"bool":False,"name":"corr", "target_accept":0.9,"value":0.0},
 			# {"bool":False,"name":"plus", "target_accept":0.9,"value":0.1},
-			{"bool":True, "name":"indep","target_accept":0.9,"value":0.0}
+			# {"bool":True, "name":"indep","target_accept":0.9,"value":0.0}
 			]
 
 
@@ -151,16 +146,17 @@ for seed in random_seeds:
 								indep_measures=indep["bool"])
 				p1d.load_data(file_data,id_name="ID")
 				p1d.setup()
-				p1d.run(sample_iters=sample_iters,
-						burning_iters=burning_iters*case["case_factor"],
-						target_accept=indep["target_accept"],
-						init=case['init'],
-						n_init=500000,
-						chains=2,cores=2)
+				# p1d.run(sample_iters=sample_iters,
+				# 		burning_iters=burning_iters*case["case_factor"],
+				# 		target_accept=indep["target_accept"],
+				# 		init=case['init'],
+				# 		n_init=500000,
+				# 		chains=2,cores=2)
 
-				#-------- Analyse chains --------------------------------
-				p1d.load_trace(sample_iters=sample_iters)
-				p1d.convergence()
-				p1d.plot_chains(dir_out)
-				p1d.save_statistics(statistic="mean",quantiles=[0.05,0.95])
+				# #-------- Analyse chains --------------------------------
+				# p1d.load_trace(sample_iters=sample_iters)
+				# p1d.convergence()
+				# p1d.plot_chains(dir_out)
+				# p1d.save_statistics(statistic="mean",quantiles=[0.05,0.95])
+				p1d.evidence(dlogz=1.0,M_samples=1000,nlive=100,file=dir_out+"Cluster_Z.csv")
 		#=======================================================================================

@@ -80,7 +80,7 @@ class Evidence1D():
 		#--------- Cluster oriented prior-----------------------------------------------
 		if prior is "Uniform":
 			self.D = 2
-			self.names = ["loc_0","scl_0"]
+			self.names = ["loc","scl"]
 
 			def prior_sample(theta):
 				result = theta[0] + theta[1]*np.random.uniform(-1.0,1.0,size=self.M)
@@ -94,7 +94,7 @@ class Evidence1D():
 
 		elif prior is "Gaussian":
 			self.D = 2
-			self.names = ["loc_0","scl_0"]
+			self.names = ["loc","scl"]
 
 			def prior_sample(theta):
 				result = theta[0] + theta[1]*st.norm.rvs(size=self.M)
@@ -163,7 +163,7 @@ class Evidence1D():
 
 			if parameters["gamma"] is None:
 				self.D = 3
-				self.names = ["loc_0","scl_0","gamma"]
+				self.names = ["loc","scl","gamma"]
 
 				if hyper_gamma[0] < 2.0:
 					sys.exit("Setting hyper_gamma[0] to values < 2.0 leads to extremely inefficient sampling")
@@ -189,7 +189,7 @@ class Evidence1D():
 
 			else:
 				self.D = 2
-				self.names = ["loc_0","scl_0"]
+				self.names = ["loc","scl"]
 
 				def prior_sample(theta):
 					# Sample from the prior
@@ -210,7 +210,7 @@ class Evidence1D():
 		elif prior is "King":
 			if parameters["rt"] is None:
 				self.D = 3
-				self.names = ["loc_0","scl_0","rt"]
+				self.names = ["loc","scl","rt"]
 
 				hp_x = st.gamma(a=2.0,scale=2.0/hyper_gamma[0])
 
@@ -231,7 +231,7 @@ class Evidence1D():
 
 			else:
 				self.D = 2
-				self.names = ["loc_0","scl_0"]
+				self.names = ["loc","scl"]
 
 				def prior_sample(theta):
 					# Sample from the prior
