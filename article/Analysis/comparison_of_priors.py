@@ -28,32 +28,32 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
-
+loc = 500
 #----------- Prior --------
 list_of_priors = [
-{"type":"Uniform",  "color":"blue",    "marker":"v","offset":0},
-{"type":"Gaussian", "color":"orange",  "marker":"+","offset":0},
-# {"type":"Cauchy",   "color":"green",   "marker":"s"},
-{"type":"GMM",      "color":"maroon",  "marker":"h","offset":0},
-{"type":"EFF",      "color":"violet",  "marker":"d","offset":0},
-{"type":"King",     "color":"cyan",    "marker":"^","offset":0},
-{"type":"EDSD",     "color":"black",   "marker":"o","offset":-80},
+{"type":"Uniform",  "color":"green",   "plot":"corr", "statistic":"mean"},
+{"type":"Gaussian", "color":"blue",    "plot":"corr", "statistic":"mean"},
+{"type":"GMM",      "color":"maroon",  "plot":"corr", "statistic":"mean"},
+{"type":"EFF",      "color":"violet",  "plot":"corr", "statistic":"mean"},
+{"type":"King",     "color":"cyan",    "plot":"corr", "statistic":"mean"},
+{"type":"EDSD",     "color":"black",   "plot":"indep","statistic":"mode"},
 ]
 
 list_of_cases = [
-{"name":"Gaussian_500","scale":10.0,"linestyle":"-", "linewidth":1, "type":"corr" ,"plot_bias":True, "plot_density":True},
-{"name":"Gaussian_500","scale":10.0,"linestyle":"--","linewidth":1, "type":"indep","plot_bias":False,"plot_density":False},
+{"name":"Gaussian","location":loc,"scale":10.0,"linestyle":"-", "linewidth":1, "type":"corr" },
+{"name":"Gaussian","location":loc,"scale":10.0,"linestyle":"--","linewidth":1, "type":"indep"},
 ]
 
 n_samples  = 1000
-n_bins     = 150
-range_dist = -100,100
+n_bins     = 30
+range_dist = -50,50
 range_bias = -35,35
 window     = 20
 xs = np.linspace(range_dist[0],range_dist[1],1000)
 bias = np.empty((len(list_of_cases),len(list_of_priors),3))
+z    = np.empty((len(list_of_cases),len(list_of_priors),3))
 
-statistic        = "mean"
+
 list_observables = ["ID","r","parallax","parallax_error"]
 
 
@@ -72,7 +72,7 @@ pdf = PdfPages(filename=file_plot)
 fig, axes = plt.subplots(num=2,nrows=3, ncols=2, sharex=True,sharey=True,figsize=(10,10))
 for c,case in enumerate(list_of_cases):
 
-	file_data  = dir_data  + case["name"]+".csv"
+	file_data  = dir_data  + case["name"] + "_" + str(case["location"])+".csv"
 	#------- Data ------
 	data  = pn.read_csv(file_data,usecols=list_observables) 
 	data.sort_values(by="ID",inplace=True)
@@ -81,8 +81,8 @@ for c,case in enumerate(list_of_cases):
 	#=======================================================================================================================
 
 	plt.figure(1,figsize=(6,6))
-	plt.plot(xs,st.norm.pdf(xs,loc=0.0,scale=case["scale"]),
-				linewidth=1,
+	plt.hist(data["r"]-loc,linewidth=1,bins=n_bins,range=range_dist,
+				histtype='step',density=True,linestyle=":",
 				color="red",label="True")
 
 	for j,prior in enumerate(list_of_priors):
@@ -90,13 +90,23 @@ for c,case in enumerate(list_of_cases):
 		print(prior["type"])
 
 		#----------- Files --------------------------------------------------------------
-		dir_chains = dir_out    + case["name"] + "/" + prior["type"] + "/" + case["type"]+"/"
-		file_stats = dir_chains + "Sources_"+statistic+".csv"
-		file_chain = dir_chains + "chain-0.csv"
+		dir_chains = dir_out    + case["name"] + "_" + str(case["location"]) + "/" + prior["type"] + "/" + case["type"]+"/"
+		# file_cls   = dir_chains + "Cluster_"+prior["statistic"]+".csv"
+		file_stats = dir_chains + "Sources_"+prior["statistic"]+".csv"
+		file_Z     = dir_chains + "Cluster_Z.csv"
 		#-------------------------------------------------------------------------------
 
+		#--------------------- Evidence ----------------------------------------
+		if case["type"] is "corr" and prior["type"] is not "EDSD":
+			evidence = pn.read_csv(file_Z)
+			evidence.set_index("Parameter",inplace=True)
+			z[c,j] = evidence.loc["logZ"]
+			print("Evidence: {0:5.2f}+{1:2.2f}-{2:2.2f}".format(z[c,j,1],
+				z[c,j,2]-z[c,j,1],z[c,j,1]-z[c,j,0]))
+		#-----------------------------------------------------------------------
+
 		#--------------------- Statistic ---------------------------------
-		infered  = pn.read_csv(file_stats,usecols=["ID",statistic,"lower","upper"])
+		infered  = pn.read_csv(file_stats,usecols=["ID",prior["statistic"],"lower","upper"])
 		infered.sort_values(by="ID",inplace=True)
 		infered.set_index("ID",inplace=True)
 
@@ -105,7 +115,7 @@ for c,case in enumerate(list_of_cases):
 		#--------------------------------------------------------------------------
 
 		#----------- Compute fractional error and uncertainty -----------------------------
-		df["Diff"] = df.apply(lambda x: (x[statistic] - x["r"])/x["r"], axis = 1)
+		df["Diff"] = df.apply(lambda x: (x[prior["statistic"]] - x["r"])/x["r"], axis = 1)
 		df["Frac"] = df.apply(lambda x: x["parallax_error"]/x["parallax"], axis = 1)
 		df = df.sort_values(by="Frac")
 		#------------------------------------------------------------------
@@ -113,10 +123,10 @@ for c,case in enumerate(list_of_cases):
 		mean = df.rolling(window).mean()
 		#-------------------------------------------------------------------------------
 
-		#----------- Compute offset and uncertainty -----------------------------
-		df["Bias"]   = df.apply(lambda x: x[statistic]-x["r"], axis = 1)
+		#----------- Compute offset and uncertainty -------------------------------------------------
+		df["Bias"]   = df.apply(lambda x: x[prior["statistic"]]-x["r"], axis = 1)
 		df["Offset"] = df.apply(lambda x: x["r"]-mean_dist, axis = 1)
-		y_err = np.vstack((df[statistic]-df["lower"],df["upper"]-df[statistic]))
+		y_err = np.vstack((df[prior["statistic"]]-df["lower"],df["upper"]-df[prior["statistic"]]))
 
 		df["In"]   = df.apply(lambda x: ((x["r"]>=x["lower"]) and (x["r"]<=x["upper"])), axis = 1)
 
@@ -128,6 +138,7 @@ for c,case in enumerate(list_of_cases):
 		bias[c,j,0] = np.sqrt(np.mean(df.loc[df["Frac"]<0.05,"Bias"]**2))
 		bias[c,j,1] = np.sqrt(np.mean(df.loc[(df["Frac"]>0.05)&(df["Frac"]<0.1),"Bias"]**2))
 		bias[c,j,2] = np.sqrt(np.mean(df.loc[df["Frac"]>0.1,"Bias"]**2))
+		#-----------------------------------------------------------------------------------------
 
 
 		#---------- Plot fractional error ----------------------
@@ -138,23 +149,13 @@ for c,case in enumerate(list_of_cases):
 					label=prior["type"])
 
 		#---------- Plot posteriors----------------------
-		if case["plot_density"]:
-
-			#----------------- Red chains -------------------------------------------------
-			chain = pn.read_csv(file_chain,usecols=lambda x: (("source" in x) 
-								and ("interval" not in x) and ("log" not in x)))[-n_samples:]
-			samples = np.zeros((len(chain.columns),len(chain)))
-			for i,name in enumerate(chain.columns):
-				samples[i] = chain[name]
-			#-----------------------------------------------------------------------------
-
+		if prior["plot"] is case["type"]:
+			#----------------------------------------------------------------------------------
 			plt.figure(1)	
-			plt.hist(samples.flatten()-mean_dist,bins=n_bins,range=range_dist,
+			plt.hist(infered[prior["statistic"]]-mean_dist,bins=n_bins,range=range_dist,
 				histtype='step',density=True,linewidth=case["linewidth"],
 				linestyle=case["linestyle"],
 				color=prior["color"])
-
-		if case["plot_bias"]:
 
 			if j <6:
 				#--------- Plot bias ----------------------------
@@ -165,11 +166,11 @@ for c,case in enumerate(list_of_cases):
 					k = 1
 					l = j-3
 				axes[l,k].plot(range_bias,np.flip(range_bias),color="grey",linestyle="--",zorder=0)
-				axes[l,k].errorbar(df["Offset"],df["Bias"]+prior["offset"],yerr=y_err,
+				axes[l,k].errorbar(df["Offset"],df["Bias"],yerr=y_err,
 					fmt='none',ls='none',marker="o",ms=5,
 					ecolor="grey",elinewidth=0.01,zorder=1,label=None)
 				
-				points = axes[l,k].scatter(df["Offset"],df["Bias"]+prior["offset"],s=20,c=df["Frac"],
+				points = axes[l,k].scatter(df["Offset"],df["Bias"],s=20,c=df["Frac"],
 					zorder=2,
 					vmax=0.1,
 					cmap="viridis")
@@ -210,7 +211,8 @@ plt.vlines(x=0,ymin=0,ymax=1,colors=['grey'],linestyles=['--'],zorder=0)
 plt.xlabel("Offset from centre [pc]")
 plt.ylabel("Density")
 plt.yscale("log")
-plt.ylim(5e-5,5e-2)
+# plt.ylim(5e-5,5e-2)
+plt.ylim(1e-3,0.1)
 plt.xlim(range_dist)
 plt.legend(
 	title="Priors",
@@ -244,8 +246,8 @@ pdf.close()
 print(30*"-")
 print("Printing table of rms bias ... ")
 with open(file_tex, "w") as tex_file:
-	header = ["Prior","$f_\\varpi$<0.05","0.05<$f_\\varpi$<0.1","$f_\\varpi$>0.1"]
-	print("\\begin{tabular}{cccc}", file=tex_file)
+	header = ["Prior","$f_\\varpi$<0.05","0.05<$f_\\varpi$<0.1","$f_\\varpi$>0.1","log Z"]
+	print("\\begin{tabular}{ccccc}", file=tex_file)
 	print("\\hline", file=tex_file)
 	print("\\hline", file=tex_file)
 	print("  &  ".join(header) + "  \\\\", file=tex_file)
@@ -253,7 +255,8 @@ with open(file_tex, "w") as tex_file:
 	for j,prior in enumerate(list_of_priors):
 		str_cols = [prior["type"]]
 		for i in range(3):
-			str_cols.append("{0:2.1f}({1:2.1f})".format(bias[0,j,i],bias[1,j,i]))
+			str_cols.append("{0:2.2f}({1:2.2f})".format(bias[0,j,i],bias[1,j,i]))
+		str_cols.append("{0:2.2f}\\pm{1:2.2f}".format(z[0,j,1],z[0,j,2]-z[0,j,1],z[0,j,1]-z[0,j,0]))
 		print("  &  ".join(str_cols) + "  \\\\", file=tex_file)
 	print("\\hline", file=tex_file)
 	print("\\end{tabular}", file=tex_file)

@@ -26,12 +26,12 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
-prior = "King"
+prior = "Uniform"
 
 
 #============ Directories and data =================
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
-dir_out    = dir_main  + "Outputs/Synthetic/"
+dir_out    = dir_main  + "Outputs/Synthetic/"+prior+"/"
 dir_data   = dir_main  + "Data/Synthetic/"
 file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision_"+prior+".pdf"
 #==================================================================
@@ -44,7 +44,7 @@ true_scl2  = 20.0
 true_fract = 0.5
 
 random_states = [1,2,3,4,5,6,7,8,9,10]
-distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000,2000,3000,4000]#,5000]
+distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000,2000,3000,4000,5000]
 
 list_of_sources = [
 			{"number":100, "color":"orange"},
@@ -115,8 +115,9 @@ for n,sources in enumerate(list_of_sources):
 		for d,distance in enumerate(distances):
 			for i,ioc in enumerate(iocs):
 				#------------- Files ----------------------------------------------------------------------------------
-				dir_name      = prior + "_" + str(sources["number"]) +"_"+str(random_state) +"/" + prior +"_"+str(distance)
-				dir_chains    = dir_out     + dir_name +"/"+prior+"/"+ioc["value"]+"/" 
+				dir_name      = prior + "_" + str(sources["number"]) + "_" + str(random_state) +"/" + prior +"_"+str(distance)
+				name          = prior + "_" + str(sources["number"]) + "_" + str(distance) + "_" + str(random_state)
+				dir_chains    = dir_out     + name +"/"+ioc["value"]+"/" 
 				file_par      = dir_chains  + "Cluster_mean.csv"
 				file_src      = dir_chains  + "Sources_mean.csv"
 				file_true     = dir_data    +  dir_name + ".csv"
@@ -214,15 +215,10 @@ for p,par in enumerate(parameters):
 		for n,scs in enumerate(list_of_sources): 
 			mu_ferror = np.mean(pars[0,i,p,n],axis=1)
 			sd_ferror = np.std( pars[0,i,p,n],axis=1)
-			mi_ferror = np.min( pars[0,i,p,n],axis=1)
-			ma_ferror = np.max( pars[0,i,p,n],axis=1)
 			mu_span   = np.mean(pars[1,i,p,n],axis=1)
 			sd_span   = np.std( pars[1,i,p,n],axis=1)
-			mi_span   = np.min( pars[1,i,p,n],axis=1)
-			ma_span   = np.max( pars[1,i,p,n],axis=1)
-			mu_cred   = np.mean(pars[2,i,p,n],axis=1)
-			mi_cred   = np.min( pars[2,i,p,n],axis=1)
-			ma_cred   = np.max( pars[2,i,p,n],axis=1)
+			mu_cred   = np.mean(pars[2,i,p,n],axis=1)*100.
+			sd_cred   = np.std( pars[2,i,p,n],axis=1)*100.
 
 			#--------------- Accuracy -------------------------------------------------------------------
 			axes[0,p].fill_between(distances,y1=mu_ferror-sd_ferror,y2=mu_ferror+sd_ferror,
@@ -235,8 +231,9 @@ for p,par in enumerate(parameters):
 			axes[1,p].plot(distances,mu_span,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
 
 			#---------------- Credibility -----------------------------------------------------------------
-			# axes[2,p].fill_between(distances,y1=mi_cred,y2=ma_cred,color=par["color"],alpha=0.3,label=None)
-			axes[2,p].plot(distances,100*mu_cred,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
+			# axes[2,p].fill_between(distances,y1=(mu_cred-sd_cred),y2=mu_cred+sd_cred,
+			# 					color=scs["color"],linestyle=ioc["linestyle"],alpha=0.1,label=None)
+			axes[2,p].plot(distances,mu_cred,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
 
 			
 axes[0,0].legend(
