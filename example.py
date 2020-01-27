@@ -80,6 +80,17 @@ burning_iters   = 2000
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
 sample_iters    = 1000
+
+# Initialization mode
+# This initialization improves the sampler efficiency.
+# Notice that in some cases errors like "Bad initial energy"
+# or "X.rvel is zero" may require additional random initializations.
+init_mode = 'advi+adapt_diag'
+
+#---- Iterations to run the advi algorithm-----
+# In most cases the algorithm converges before the total number of
+# iterations have been reached.
+init_iter = 500000 
 #---------------------------------------------------------------------------
 
 
@@ -88,7 +99,7 @@ sample_iters    = 1000
 # This will be computed and written in both 
 # Source_{statistic}.csv and Cluster_{statistic}.csv files
 statistic = "mode"
-quantiles = [0.05,0.95]
+quantiles = [0.025,0.975]
 #----------------------------------------------------------------------
 
 
@@ -126,7 +137,7 @@ hyper_alpha = [305,30.5]
 
 # hyper_beta controls  the cluster scale, which is Gamma distributed.
 # hyper_beta corresponds to the mode of the distribution.
-hyper_beta = [20.]
+hyper_beta = [100.]
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
 # the EFF and King priors. Set it to None in other priors.
@@ -157,12 +168,12 @@ list_of_prior = [
 	# 						"hyper_delta":None,
 	# 						"burning_factor":1},
 
-	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":hyper_alpha,
-	# 						"hyper_beta":hyper_beta,
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":None,
-	# 						"burning_factor":1},
+	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
+							"hyper_alpha":hyper_alpha,
+							"hyper_beta":hyper_beta,
+							"hyper_gamma":None,
+							"hyper_delta":None,
+							"burning_factor":1},
 
 	
 	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
@@ -181,12 +192,12 @@ list_of_prior = [
 	# # NOTE: the tidal radius and its parameters are scaled.
 
 
-	{"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
-							"hyper_alpha":hyper_alpha, 
-							"hyper_beta":hyper_beta, 
-							"hyper_gamma":None,
-							"hyper_delta":np.array([0.5,0.5]),
-							"burning_factor":5}
+	# {"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
+	# 						"hyper_alpha":hyper_alpha, 
+	# 						"hyper_beta":hyper_beta, 
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":np.array([0.5,0.5]),
+	# 						"burning_factor":5}
 	]
 #======================= Inference and Analysis =====================================================
 
@@ -224,6 +235,8 @@ for prior in list_of_prior:
 	#------- Run the sampler ---------------------
 	p1d.run(sample_iters=sample_iters,
 			burning_iters=burning_iters*prior["burning_factor"],
+			init=init_mode,
+			n_init=init_iter,
 			chains=chains,
 			cores=cores)
 
