@@ -98,7 +98,7 @@ init_iter = 500000
 # Chose your favourite statistic and quantiles.
 # This will be computed and written in both 
 # Source_{statistic}.csv and Cluster_{statistic}.csv files
-statistic = "mode"
+statistic = "mean"
 quantiles = [0.025,0.975]
 #----------------------------------------------------------------------
 
