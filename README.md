@@ -4,7 +4,7 @@ Kalkayotl is a Bayesian inference code designed to obtain posterior estimate of 
 ## Installation
 ================
 
-1. Get the code from https://github.com/olivares-j/Kalkayotl, you can either clone or download. Remember to use the pymc3 branch.
+1. Get the code from https://github.com/olivares-j/Kalkayotl, you can either clone or download. Remember to use the master branch.
 
 
 2. I strongly recommend to create an independent environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.6 or higher.
