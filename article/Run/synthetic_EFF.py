@@ -26,7 +26,7 @@ import pandas as pn
 from  kalkayotl import Inference
 
 generic_name = "EFF"
-number_of_stars = 500
+number_of_stars = 100
 
 #============ Directories =============================
 #-------Main directory ---------------
@@ -34,7 +34,7 @@ dir_main  = "/home/javier/Repositories/Kalkayotl/"
 # dir_main  = os.getcwd() +"/"
 #----------- Data --------------------
 dir_data  = dir_main + "Data/Synthetic/"
-dir_outs  = dir_main + "Outputs/Synthetic/"
+dir_outs  = dir_main + "Outputs/Synthetic/EFF/"
 
 
 #------- Create directories -------
@@ -49,7 +49,7 @@ random_seeds = [1]
 
 #------------------------- Case----------------------------
 list_of_cases = [
-{"name":generic_name,"location":100,"size":10,  "case_factor":1,"parametrization":"central", 'init':'advi+adapt_diag'},
+# {"name":generic_name,"location":100,"size":10,  "case_factor":1,"parametrization":"central", 'init':'advi+adapt_diag'},
 # {"name":generic_name,"location":200,"size":20,  "case_factor":1,"parametrization":"central", 'init':'advi+adapt_diag'},
 # {"name":generic_name,"location":300,"size":30,  "case_factor":1,"parametrization":"central", 'init':'advi+adapt_diag'},
 # {"name":generic_name,"location":400,"size":40,  "case_factor":1,"parametrization":"central", 'init':'advi+adapt_diag'},
@@ -62,7 +62,7 @@ list_of_cases = [
 # {"name":generic_name,"location":2000,"size":200,"case_factor":3,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 # {"name":generic_name,"location":3000,"size":300,"case_factor":3,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 # {"name":generic_name,"location":4000,"size":400,"case_factor":4,"parametrization":"non-central", 'init':'advi+adapt_diag'},
-# {"name":generic_name,"location":5000,"size":500,"case_factor":4,"parametrization":"non-central", 'init':'advi+adapt_diag'},
+{"name":generic_name,"location":5000,"size":500,"case_factor":1,"parametrization":"non-central", 'init':'advi+adapt_diag'},
 ]
 
 list_of_prior = [
@@ -82,9 +82,9 @@ list_of_prior = [
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta":None},
 
-	{"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":3.0}, 
+	{"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None}, 
 							"hyper_beta":[100],
-							"hyper_gamma":[3.0,1.0],
+							"hyper_gamma":[0.5],
 							"hyper_delta":None},
 
 	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
@@ -161,5 +161,5 @@ for seed in random_seeds:
 				p1d.load_trace(sample_iters=sample_iters)
 				p1d.convergence()
 				p1d.plot_chains(dir_out)
-				p1d.save_statistics(statistic="mean",quantiles=[0.05,0.95])
+				p1d.save_statistics(statistic="mean",quantiles=[0.025,0.975])
 		#=======================================================================================

@@ -156,14 +156,14 @@ class eff_gen(rv_continuous):
 	""" This probability density function is defined for x>0"""
 	def _pdf(self,x,gamma):
 
-		cte = np.sqrt(np.pi)*gamma_function(0.5*(gamma-1.))/gamma_function(gamma/2.)
-		nx = (1. + x**2)**(-0.5*gamma)
+		cte = np.sqrt(np.pi)*gamma_function(gamma-0.5)/gamma_function(gamma)
+		nx = (1. + x**2)**(-gamma)
 		return nx/cte
 
 	def _cdf(self,x,gamma):
-		cte = np.sqrt(np.pi)*gamma_function(0.5*(gamma-1.))/gamma_function(gamma/2.)
+		cte = np.sqrt(np.pi)*gamma_function(gamma-0.5)/gamma_function(gamma)
 
-		a = hyp2f1(0.5,0.5*gamma,1.5,-x**2)
+		a = hyp2f1(0.5,gamma,1.5,-x**2)
 
 		return 0.5 + x*(a/cte)
 				
@@ -265,10 +265,10 @@ class EFF(Continuous):
 		gamma  = self.gamma
 		x      = (self.location-value)/self.scale
 
-		cte = tt.sqrt(np.pi)*self.scale*tt.gamma(0.5*(gamma-1.))/tt.gamma(0.5*gamma)
+		cte = tt.sqrt(np.pi)*self.scale*tt.gamma(gamma-0.5)/tt.gamma(gamma)
 
-		log_d  = -0.5*gamma*tt.log(1.+ x**2) - tt.log(cte)
-		return bound(log_d,gamma > 1.)
+		log_d  = -gamma*tt.log(1.+ x**2) - tt.log(cte)
+		return log_d
 
 	def _repr_latex_(self, name=None, dist=None):
 		if dist is None:
