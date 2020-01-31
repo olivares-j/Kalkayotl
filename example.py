@@ -24,6 +24,7 @@ import numpy as np
 
 #----- Import the module ----------
 from kalkayotl import Inference
+from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
 #============ Data and Directories =============================
@@ -107,7 +108,7 @@ quantiles = [0.025,0.975]
 # The zero point of the parallax measurements
 # You can provide either a scalar or a vector of the same dimension
 # as the valid sources in your data set.
-zero_point = -0.029  # This is Lindegren+208 value
+zero_point = [0,0,-0.029,0,0,0]  # This is Lindegren+208 value
 #---------------------------------------------------------------------
 
 #------- Independent measurements--------
@@ -118,11 +119,21 @@ zero_point = -0.029  # This is Lindegren+208 value
 indep_measures = False
 #==========================================================
 
+#=========== Cluster initial parameters ===========================
+#----- First guess of cluster observational position -------
+astrometry = np.array([[289.02,-16.43,3.25,-0.98,-26.7,40.0]])
+#----- Cluster Cartesian position ---------
+x,y,z,u,v,w = astrometryToPhaseSpace(astrometry)[0]
 
+#---- Cluster dispersion -------
+xyz_sd = 10.
+uvw_sd = 10.
+#=======================================================================
 
 #============= Prior and hyper-parameters ================================================
 # The following is a list of priors with different parameters and
 # hyper-parameters. 
+dimension = 6
 
 # parameters is a dictionary with two entries: "location" and "scale".
 # For each of them you can either provide a value or set it to None to infer it.
@@ -133,11 +144,12 @@ indep_measures = False
 #----- Hyper-parameters --------------------------------------------
 # hyper_alpha controls the cluster location, which is Gaussian distributed.
 # Therefore you need to specify the median and standard deviation, in that order.
-hyper_alpha = [305,30.5]
+hyper_alpha = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],[u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
 
 # hyper_beta controls  the cluster scale, which is Gamma distributed.
 # hyper_beta corresponds to the mode of the distribution.
-hyper_beta = [100.]
+hyper_beta = [[100.] for i in range(6)]
+
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
 # the EFF and King priors. Set it to None in other priors.
@@ -168,9 +180,9 @@ list_of_prior = [
 	# 						"hyper_delta":None,
 	# 						"burning_factor":1},
 
-	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
-							"hyper_alpha":hyper_alpha,
-							"hyper_beta":hyper_beta,
+	{"type":"Gaussian",     "parameters":{"location":None,"scale":None,"corr":False},
+							"hyper_alpha":hyper_alpha[:dimension],
+							"hyper_beta":hyper_beta[:dimension],
 							"hyper_gamma":None,
 							"hyper_delta":None,
 							"burning_factor":1},
@@ -213,7 +225,7 @@ for prior in list_of_prior:
 	#------------------------------------------------
 
 	#--------- Initialize the inference module ----------------------------------------
-	p1d = Inference(dimension=1,                       # For now it only works in 1D.
+	p1d = Inference(dimension=dimension,                       # For now it only works in 1D.
 					prior=prior["type"],
 					parameters=prior["parameters"],
 					hyper_alpha=prior["hyper_alpha"],
@@ -233,12 +245,12 @@ for prior in list_of_prior:
 	p1d.setup()
 
 	#------- Run the sampler ---------------------
-	p1d.run(sample_iters=sample_iters,
-			burning_iters=burning_iters*prior["burning_factor"],
-			init=init_mode,
-			n_init=init_iter,
-			chains=chains,
-			cores=cores)
+	# p1d.run(sample_iters=sample_iters,
+	# 		burning_iters=burning_iters*prior["burning_factor"],
+	# 		init=init_mode,
+	# 		n_init=init_iter,
+	# 		chains=chains,
+	# 		cores=cores)
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
@@ -251,13 +263,13 @@ for prior in list_of_prior:
 	#-------- Plot the trace of the chains -------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources.
-	p1d.plot_chains(dir_out,IDs=['4087735025198194176'])
+	p1d.plot_chains(dir_out)
 
 	#----- Compute and save the posterior statistics ---------
 	p1d.save_statistics(statistic=statistic,quantiles=quantiles)
 
 	#------- Save the samples into HDF5 file --------------
-	p1d.save_samples()
+	# p1d.save_samples()
 
 	#----------------------- Evidence --------------------
 	# Uncomment if you want to compute the evidence.
