@@ -235,35 +235,43 @@ class ModelND(pm.Model):
 			scale = parameters["scale"]
 		#--------------------------------------------------
 
-		#----------------------- Correlation -----------------------------------------
-		if parameters["corr"] :
-			pm.LKJCorr('chol_corr', eta=hyper_gamma, n=D)
-			C = tt.fill_diagonal(self.chol_corr[np.zeros((D, D),dtype=np.int64)], 1.)
-			# print_ = tt.printing.Print('C')(C)
-		else:
-			C = np.eye(D)
-		#-----------------------------------------------------------------------------
+		if prior in ["Gaussian","Mixture"]:
+			#----------------------- Correlation -----------------------------------------
+			if parameters["corr"] :
+				pm.LKJCorr('chol_corr', eta=hyper_gamma, n=D)
+				C = tt.fill_diagonal(self.chol_corr[np.zeros((D, D),dtype=np.int64)], 1.)
+				# print_ = tt.printing.Print('C')(C)
+			else:
+				C = np.eye(D)
+			#-----------------------------------------------------------------------------
 
-		#-------------------- Covariance -------------------------
-		sigma_diag  = pm.math.stack(scale,axis=1)
-		cov         = theano.shared(np.zeros((shape,D,D)))
+			#-------------------- Covariance -------------------------
+			sigma_diag  = pm.math.stack(scale,axis=1)
+			cov         = theano.shared(np.zeros((shape,D,D)))
 
-		for i in range(shape):
-			sigma       = tt.nlinalg.diag(sigma_diag[i])
-			covi        = tt.nlinalg.matrix_dot(sigma, C, sigma)
-			cov         = tt.set_subtensor(cov[i],covi)
-		#---------------------------------------------------------
+			for i in range(shape):
+				sigma       = tt.nlinalg.diag(sigma_diag[i])
+				covi        = tt.nlinalg.matrix_dot(sigma, C, sigma)
+				cov         = tt.set_subtensor(cov[i],covi)
+			#---------------------------------------------------------
 		#========================================================================
 
 		#===================== True values ============================================
+		if prior is "Uniform":
+			MvUniform("source",loc=mu,scale=scale,shape=(N,D))
 		if prior is "Gaussian":
 			pm.MvNormal("source",mu=mu,cov=cov[0],shape=(N,D))
 
-		elif prior is "GMM":
+		elif "Mixture" in prior:
 			pm.Dirichlet("weights",a=hyper_delta,shape=shape)
 
-			comps = [ pm.MvNormal.dist(mu=mu[i],cov=cov[i]) for i in range(shape)] 
+			if "GMM" in prior:
+				comps = [ pm.MvNormal.dist(mu=mu[i],cov=cov[i]) for i in range(shape)]
+			elif "GUM" in prior:
+				comps = [ pm.MvNormal.dist(mu=mu[i],cov=cov[i]) for i in range(shape-1) ]
+				comps.extend(MvUniform.dist(loc=mu[-1],scale=scale[-1]))
 
+			#---- Sample from the mixture ----------------------------------
 			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(N,D))
 		
 		else:
