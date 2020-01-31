@@ -155,10 +155,10 @@ class Inference:
 		#------- index as string ------
 		data[list_observables[0]] = data[list_observables[0]].astype('str')
 
-		if self.D > 1:
-			#--- Uncertainties in must be in same units as means -----------
-			data["ra_error"]       = data["ra_error"]/(1e3*3600.0)  + radec_inflation/3600.0
-			data["dec_error"]      = data["dec_error"]/(1e3*3600.0) + radec_inflation/3600.0
+		# if self.D > 1:
+		# 	#--- Uncertainties in must be in same units as means -----------
+		# 	data["ra_error"]       = data["ra_error"]/(1e3*3600.0)  + radec_inflation/3600.0
+		# 	data["dec_error"]      = data["dec_error"]/(1e3*3600.0) + radec_inflation/3600.0
 		#============================================================
 
 		#----- put ID as row name-----
@@ -442,7 +442,7 @@ class Inference:
 				if not np.any(id_in_IDs) :
 					sys.exit("{0} {1} is not valid".format(self.id_name,ID))
 				idx = np.where(id_in_IDs)[0]
-				coords = {"1D_source_dim_0" : idx}
+				coords = {str(self.D)+"D_source_dim_0" : idx}
 				plt.figure(0)
 				axes = pm.plots.traceplot(self.trace,var_names=self.source_names,
 						coords=coords,
