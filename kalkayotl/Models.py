@@ -108,8 +108,8 @@ class Model1D(pm.Model):
 
 		elif prior is "EFF":
 			if parameters["gamma"] is None:
-				pm.TruncatedNormal("gamma",mu=hyper_gamma[0],sigma=hyper_gamma[1],
-									lower=2.0,upper=10.0)
+				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma[0])
+				pm.Deterministic("gamma",1.0+self.x)
 			else:
 				self.gamma = parameters["gamma"]
 
