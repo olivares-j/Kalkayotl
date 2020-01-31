@@ -26,11 +26,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
-prior = "Uniform"
+prior = "Gaussian"
 
 
 #============ Directories and data =================
-dir_main   = "/home/javier/Repositories/Kalkayotl/"
+dir_main   = "/raid/jromero/Kalkayotl/"
 dir_out    = dir_main  + "Outputs/Synthetic/"+prior+"/"
 dir_data   = dir_main  + "Data/Synthetic/"
 file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision_"+prior+".pdf"

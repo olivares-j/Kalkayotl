@@ -32,6 +32,7 @@ number_of_stars = [100,500,1000]
 #-------Main directory ---------------
 dir_main  = "/home/javier/Repositories/Kalkayotl/"
 # dir_main  = os.getcwd() +"/"
+dir_main  = "/raid/jromero/Kalkayotl/"
 #----------- Data --------------------
 dir_data  = dir_main + "Data/Synthetic/"
 dir_outs  = dir_main + "Outputs/Synthetic/"+name+"/"
