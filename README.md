@@ -30,10 +30,10 @@ conda install -c conda-forge dynesty
 conda install -c conda-forge arviz
 ```
 
-5. Navigate to the Kalkayotl folder and install the package:
+5. Navigate to the Kalkayotl folder and install the latest package:
 
 ```
-pip install dist/Kalkayotl-0.3.0.tar.gz
+pip install dist/Kalkayotl-0.8.0.tar.gz
 ```
 
 6. Test the installation by running
