@@ -26,7 +26,7 @@ import pandas as pn
 from  kalkayotl import Inference
 
 name = "King"
-number_of_stars = [500]
+number_of_stars = [1000]
 
 #============ Directories =============================
 #-------Main directory ---------------
@@ -46,24 +46,24 @@ burning_iters   = 1000
 sample_iters    = 2000   # Number of iterations for the MCMC 
 #==============================================================
 
-random_seeds = [7,8,9,10]
+random_seeds = [1,2,3,4,5,6,7,8,9,10]
 
 #------------------------- Case----------------------------
 list_of_cases = [
-{"location":100, "fraction":0.1, "case_factor":1, "parametrization":"central"},
-{"location":200, "fraction":0.1, "case_factor":1, "parametrization":"central"},
-{"location":300, "fraction":0.1, "case_factor":1, "parametrization":"central"},
-{"location":400, "fraction":0.1, "case_factor":2, "parametrization":"central"},
-{"location":500, "fraction":0.1, "case_factor":2, "parametrization":"non-central"},
-{"location":600, "fraction":0.1, "case_factor":2, "parametrization":"non-central"},
-{"location":700, "fraction":0.1, "case_factor":3, "parametrization":"non-central"},
-{"location":800, "fraction":0.1, "case_factor":3, "parametrization":"non-central"},
-{"location":900, "fraction":0.1, "case_factor":3, "parametrization":"non-central"},
-{"location":1000,"fraction":0.1, "case_factor":4, "parametrization":"non-central"},
-{"location":2000,"fraction":0.1, "case_factor":4, "parametrization":"non-central"},
-{"location":3000,"fraction":0.1, "case_factor":4, "parametrization":"non-central"},
-# {"location":4000,"fraction":0.1, "case_factor":5, "parametrization":"non-central"},
-# {"location":5000,"fraction":0.1, "case_factor":5, "parametrization":"non-central"},
+# {"location":100, "fraction":0.1, "case_factor":1, "parametrization":"central"},
+# {"location":200, "fraction":0.1, "case_factor":1, "parametrization":"central"},
+# {"location":300, "fraction":0.1, "case_factor":1, "parametrization":"central"},
+# {"location":400, "fraction":0.1, "case_factor":2, "parametrization":"central"},
+# {"location":500, "fraction":0.1, "case_factor":2, "parametrization":"non-central"},
+# {"location":600, "fraction":0.1, "case_factor":2, "parametrization":"non-central"},
+# {"location":700, "fraction":0.1, "case_factor":3, "parametrization":"non-central"},
+# {"location":800, "fraction":0.1, "case_factor":3, "parametrization":"non-central"},
+# {"location":900, "fraction":0.1, "case_factor":3, "parametrization":"non-central"},
+# {"location":1000,"fraction":0.1, "case_factor":4, "parametrization":"non-central"},
+# {"location":2000,"fraction":0.1, "case_factor":4, "parametrization":"non-central"},
+# {"location":3000,"fraction":0.1, "case_factor":4, "parametrization":"non-central"},
+{"location":4000,"fraction":0.1, "case_factor":5, "parametrization":"non-central"},
+{"location":5000,"fraction":0.1, "case_factor":5, "parametrization":"non-central"},
 ]
 
 prior = {    
@@ -75,7 +75,7 @@ prior = {
 
 indep_measures = [
 			{"bool":False,"name":"corr", "target_accept":0.9},
-			{"bool":True, "name":"indep","target_accept":0.9}
+			# {"bool":True, "name":"indep","target_accept":0.9}
 			]
 
 #============================ Loop over cases ==================================

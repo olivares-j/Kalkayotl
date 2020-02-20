@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
-prior = "Gaussian"
+prior = "King"
 
 
 #============ Directories and data =================
@@ -88,7 +88,7 @@ if prior is "EFF":
 	parameters = [
 				{"name":"Location","xlim":[90,5000],"ylim":[[-0.05,0.06 ],[0.0005,0.15],[0.0,101]]},
 				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,1],     [0.0,101]]},
-				{"name":"Gamma",   "xlim":[90,5000],"ylim":[[0.05,0.75],  [0.01,0.46],  [0.0,101]]}
+				{"name":"Gamma",   "xlim":[90,5000],"ylim":[[-0.55,0.4],  [0.01,0.46],  [0.0,101]]}
 				]
 #--------------------------------------------------------------------------------------------------
 
