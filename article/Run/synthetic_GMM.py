@@ -46,7 +46,7 @@ burning_iters   = 1000
 sample_iters    = 2000   # Number of iterations for the MCMC 
 #==============================================================
 
-random_seeds = [1,2,3,4,5,6,7,8,9,10]
+random_seeds = [1]#,2,3,4,5,6,7,8,9,10]
 
 #------------------------- Case----------------------------
 list_of_cases = [
@@ -60,10 +60,10 @@ list_of_cases = [
 # {"location":800, "fraction":0.1, "case_factor":3, "parametrization":"central"},
 # {"location":900, "fraction":0.1, "case_factor":3, "parametrization":"central"},
 # {"location":1000,"fraction":0.1, "case_factor":4, "parametrization":"central"},
-{"location":2000,"fraction":0.1, "case_factor":4, "parametrization":"central"},
-{"location":3000,"fraction":0.1, "case_factor":4, "parametrization":"central"},
-{"location":4000,"fraction":0.1, "case_factor":5, "parametrization":"central"},
-{"location":5000,"fraction":0.1, "case_factor":5, "parametrization":"central"},
+# {"location":2000,"fraction":0.1, "case_factor":5, "parametrization":"central"},
+{"location":3000,"fraction":0.1, "case_factor":6, "parametrization":"central"},
+# {"location":4000,"fraction":0.1, "case_factor":6, "parametrization":"central"},
+# {"location":5000,"fraction":0.1, "case_factor":6, "parametrization":"central"},
 ]
 
 prior = {    
@@ -75,7 +75,7 @@ prior = {
 
 indep_measures = [
 			{"bool":False,"name":"corr", "target_accept":0.9},
-			{"bool":True, "name":"indep","target_accept":0.9}
+			# {"bool":True, "name":"indep","target_accept":0.9}
 			]
 
 #============================ Loop over cases ==================================

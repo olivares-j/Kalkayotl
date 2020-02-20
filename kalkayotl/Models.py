@@ -1,6 +1,8 @@
 import sys
 import numpy as np
 import pymc3 as pm
+from pymc3 import Model
+
 import theano
 from theano import tensor as tt, printing
 
@@ -8,7 +10,7 @@ from kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpac
 from kalkayotl.Priors import EDSD,EFF,King
 
 ################################## Model 1D ####################################
-class Model1D(pm.Model):
+class Model1D(Model):
 	'''
 	Model to infer the distance of a series of stars
 	'''

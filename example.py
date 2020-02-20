@@ -280,6 +280,6 @@ for prior in list_of_prior:
 	# nlive is the number of live points used in the computation. The larger the better
 	# but it will further increase the computing time.
 
-	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
+	p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
 	#----------------------------------------------------------------------------------
 #=======================================================================================

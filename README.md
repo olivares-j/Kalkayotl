@@ -11,7 +11,7 @@ Kalkayotl is a Bayesian inference code designed to obtain posterior estimate of 
 You can do this by Anaconda with the following command:
 
 ```
-conda create -n myenv python=3.6
+conda create -n myenv python=3.6.10
 ```
 with `myenv` the name of your choice.
 
@@ -24,10 +24,10 @@ with `myenv` the name of the environment.
 4. Install the following packages:
 
 ```
-conda install -c conda-forge pymc3
-conda install -c conda-forge matplotlib
-conda install -c conda-forge dynesty
-conda install -c conda-forge arviz
+conda install -c conda-forge pymc3=3.7
+conda install -c conda-forge matplotlib=3.1.3
+conda install -c conda-forge dynesty=1.0.0
+conda install -c conda-forge arviz=0.5.1
 ```
 
 5. Navigate to the Kalkayotl folder and install the latest package:
@@ -45,4 +45,12 @@ python example.py
 It will compute cluster and star distances using the Ruprecht_147.csv data from the Data folder. You must get a Test folder with the outputs.
 
 Whenever you run Kalkayotl, remember to move into its environment (step 3).
+
+## Troubleshooting
+==================
+
+The most common errors that you may face while running Kalkayotl are:
+
+1. ``RuntimeError: Chain failed.``
+ This error is caused generally by a zero derivative in a random variable (RV). In most cases it is solved by running the code again, which will initialize the chain in another point of parameter space. Remember that you must manually remove the failed chains (chain-?.csv) in order to avoid reusing the positions of those chains.
 
