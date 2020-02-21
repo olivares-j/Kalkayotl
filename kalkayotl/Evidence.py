@@ -165,12 +165,7 @@ class Evidence1D():
 				self.D = 3
 				self.names = ["loc","scl","gamma"]
 
-				if hyper_gamma[0] < 2.0:
-					sys.exit("Setting hyper_gamma[0] to values < 2.0 leads to extremely inefficient sampling")
-
-				a, b = (2.0 - hyper_gamma[0]) / hyper_gamma[1], (10. - hyper_gamma[0]) / hyper_gamma[1]
-
-				hp_gamma = st.truncnorm(a=a,b=b,loc=hyper_gamma[0],scale=hyper_gamma[1])
+				hp_x = st.gamma(a=2.0,scale=2.0/hyper_gamma[0])
 
 				def prior_sample(theta):
 					# Sample from the prior
@@ -184,7 +179,7 @@ class Evidence1D():
 					x = np.zeros_like(u)
 					x[0] = hp_loc.ppf(u[0])
 					x[1] = hp_scl.ppf(u[1])
-					x[2] = hp_gamma.ppf(u[2])
+					x[2] = 1.0 + hp_x.ppf(u[2])
 					return x
 
 			else:
