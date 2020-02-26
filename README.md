@@ -45,7 +45,17 @@ It will compute cluster and star distances using the Ruprecht_147.csv data from 
 
 Whenever you run Kalkayotl, remember to move into its environment (step 3).
 
+## Running the code
+
+The easiest way to run the code on your own data sets is to copy the ``example.py`` file and modify it according to your needs. Instructions are given within it.
+
+Before running Kalkayotl:
+
+1. Verify that your input file contains the typical Gaia columns (compare with the input file of the example). 
+2. Remove duplicated sources and identifiers in the input file.
+
 ## Troubleshooting
+
 
 The most common errors that you may face while running Kalkayotl are:
 
@@ -55,5 +65,5 @@ The most common errors that you may face while running Kalkayotl are:
  2. Low effective sampler size and/or divergences.
  The first is caused by a poor sampling while divergences are related to numerical issues. In both cases try to run with more tuning iterations. Another option is to increase the ``target_accept`` parameter of the sampler. Finally, you can reparametrize by constraining the prior distributions (i.e. modify the hyper-parameters).
 
- Advice: Whenever possible use simpler models (i.e. Occam's razor)
+ Advice: Whenever possible use simpler models.
 

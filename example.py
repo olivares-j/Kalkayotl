@@ -208,6 +208,7 @@ list_of_prior = [
 	# 						"hyper_delta":np.array([5,5]),
 	# 						"burning_factor":10,
 	# 						"target_accept":0.95}
+	# NOTE: If you face failures of the style zero derivative try reducing the hyper_beta value.
 	]
 #======================= Inference and Analysis =====================================================
 
