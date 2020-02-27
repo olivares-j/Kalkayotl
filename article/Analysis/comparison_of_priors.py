@@ -28,6 +28,9 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
+plt.rcParams.update({'font.size': 20})
+figsize = (14,14)
+
 loc = 500
 #----------- Prior --------
 list_of_priors = [
@@ -61,7 +64,7 @@ list_observables = ["ID","r","parallax","parallax_error"]
 
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_data   = dir_main  + "Data/Synthetic/Gaussian_500_1/"
-dir_out    = dir_main  + "Outputs/Synthetic/Gaussian_500_1/"
+dir_out    = dir_main  + "Outputs/Synthetic/Comparison/"
 dir_plots  = dir_main  + "Outputs/Plots/"
 file_plot  = dir_plots + "Comparison_of_priors.pdf"
 file_tex   = dir_plots + "Table_rms_bias.tex"
@@ -69,7 +72,7 @@ file_tex   = dir_plots + "Table_rms_bias.tex"
 #================================== Plots ===============================================
 pdf = PdfPages(filename=file_plot)
 #--------- Plot bias ----------------------------
-fig, axes = plt.subplots(num=2,nrows=3, ncols=2, sharex=True,sharey=True,figsize=(10,10))
+fig, axes = plt.subplots(num=2,nrows=3, ncols=2, sharex=True,sharey=True,figsize=figsize)
 for c,case in enumerate(list_of_cases):
 
 	file_data  = dir_data  + case["name"] + "_" + str(case["location"])+".csv"
@@ -80,7 +83,7 @@ for c,case in enumerate(list_of_cases):
 	mean_dist  = np.mean(data["r"])
 	#=======================================================================================================================
 
-	plt.figure(1,figsize=(6,6))
+	plt.figure(1,figsize=figsize)
 	plt.hist(data["r"]-loc,linewidth=1,bins=n_bins,range=range_dist,
 				histtype='step',density=True,linestyle=":",
 				color="red",label="True")
@@ -142,7 +145,7 @@ for c,case in enumerate(list_of_cases):
 
 
 		#---------- Plot fractional error ----------------------
-		plt.figure(0,figsize=(6,6))
+		plt.figure(0,figsize=(10,10))
 		plt.plot(mean["Frac"],mean["Diff"],lw=case["linewidth"],
 					linestyle=case["linestyle"],
 					color=prior["color"],
@@ -177,6 +180,8 @@ for c,case in enumerate(list_of_cases):
 				axes[l,k].set_ylim(range_bias[0],range_bias[1])
 				axes[l,k].set_xlim(range_bias[0],range_bias[1])
 				axes[l,k].annotate(prior["type"],xy=(0.05,0.1),xycoords="axes fraction")
+				axes[l,k].annotate("$\\rho$={0:0.2f}".format(np.corrcoef(df["Offset"],df["Bias"])[0,1]),
+												xy=(0.99,0.9),xycoords="axes fraction",ha="right")
 
 
 priors_hdl = [mlines.Line2D([], [],color=prior["color"],
@@ -229,7 +234,9 @@ plt.legend(
 pdf.savefig(bbox_inches='tight')
 plt.close()
 
-plt.figure(2)
+
+
+plt.figure(2,figsize=figsize)
 plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
 clrb = fig.colorbar(points,orientation="horizontal",pad=0.07,ax=axes)
 clrb.set_label("Parallax fractional uncertainty")
