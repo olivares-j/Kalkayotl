@@ -29,12 +29,12 @@ import matplotlib.lines as mlines
 plt.rcParams.update({'font.size': 20})
 figsize = (15,15)
 
-prior = "Uniform"
+prior = "EFF"
 
 
 #============ Directories and data =================
 dir_main   = "/raid/jromero/Kalkayotl/"
-dir_main   = "/home/javier/Repositories/Kalkayotl/"
+# dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_out    = dir_main  + "Outputs/Synthetic/"+prior+"/"
 dir_data   = dir_main  + "Data/Synthetic/"
 file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision_"+prior+".pdf"
@@ -72,10 +72,28 @@ if prior is "Uniform":
 #----------------------- Gaussian ---------------------------------------------------------------
 if prior is "Gaussian":
 	parameters = [
-				{"name":"Location","xlim":[90,5000],"ylim":[[-0.11,0.11],[0.0005,0.15],[0,101]]},
-				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75],[0.01,0.25],  [0.0,101]]}
+				{"name":"Location","xlim":[90,5000],"ylim":[[-0.11,0.11],[-0.01,0.16],[0,101]]},
+				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75],[0.01,0.26], [0.0,101]]}
 				]
 #------------------------------------------------------------------------------------------------
+
+#---------------------- King -----------------------------------------------------------------------
+if prior is "King":
+	parameters = [
+				{"name":"Location",     "xlim":[90,5000],"ylim":[[-0.11,0.11],[-0.01,0.16],[0.0,101]]},
+				{"name":"Scale",        "xlim":[90,2100],"ylim":[[-0.25,0.75],[0.01,0.85], [0.0,101]]},
+				{"name":"Tidal radius", "xlim":[90,5000],"ylim":[[-0.55,1.05],[0.01,1.95],  [0.0,101]]}
+				]
+#-------------------------------------------------------------------------------------------------- 
+
+#---------------------- EFF -----------------------------------------------------------------------
+if prior is "EFF":
+	parameters = [
+				{"name":"Location","xlim":[90,5000],"ylim":[[-0.11,0.11 ],[-0.01,0.16],[0.0,101]]},
+				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,0.85], [0.0,101]]},
+				{"name":"Gamma",   "xlim":[90,5000],"ylim":[[-0.55,0.4],  [0.01,0.46],  [0.0,101]]}
+				]
+#--------------------------------------------------------------------------------------------------
 
 #----------------------- GMM ---------------------------------------------------------------
 if prior is "GMM":
@@ -87,23 +105,8 @@ if prior is "GMM":
 #------------------------------------------------------------------------------------------------
 
 
-#---------------------- EFF -----------------------------------------------------------------------
-if prior is "EFF":
-	parameters = [
-				{"name":"Location","xlim":[90,5000],"ylim":[[-0.05,0.06 ],[0.0005,0.15],[0.0,101]]},
-				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,1],     [0.0,101]]},
-				{"name":"Gamma",   "xlim":[90,5000],"ylim":[[-0.55,0.4],  [0.01,0.46],  [0.0,101]]}
-				]
-#--------------------------------------------------------------------------------------------------
 
-#---------------------- King -----------------------------------------------------------------------
-if prior is "King":
-	parameters = [
-				{"name":"Location",     "xlim":[90,5000],"ylim":[[-0.09,0.09],[0.0005,0.15],[0.0,101]]},
-				{"name":"Scale",        "xlim":[90,2100],"ylim":[[-0.25,0.75], [0.01,0.95], [0.0,101]]},
-				{"name":"Tidal radius", "xlim":[90,5000],"ylim":[[-0.55,0.9],  [0.01,1.95],  [0.0,101]]}
-				]
-#-------------------------------------------------------------------------------------------------- 
+
 statistics = [
 			{"name":"Credibility [%]",        "ylims":[10,105]},
 			{"name":"Fractional RMS",         "ylims":[0.001,0.15]},
@@ -235,8 +238,9 @@ for p,par in enumerate(parameters):
 			axes[1,p].plot(distances,mu_span,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
 
 			#---------------- Credibility -----------------------------------------------------------------
-			axes[2,p].fill_between(distances,y1=(mu_cred-sd_cred),y2=mu_cred+sd_cred,
-								color=scs["color"],linestyle=ioc["linestyle"],alpha=0.1,label=None)
+			if ioc["name"] == "on":
+				axes[2,p].fill_between(distances,y1=(mu_cred-sd_cred),y2=mu_cred+sd_cred,
+									color=scs["color"],linestyle=ioc["linestyle"],alpha=0.1,label=None)
 			axes[2,p].plot(distances,mu_cred,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
 
 			
