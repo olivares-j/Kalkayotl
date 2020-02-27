@@ -26,7 +26,10 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
-prior = "GMM"
+plt.rcParams.update({'font.size': 20})
+figsize = (15,15)
+
+prior = "Uniform"
 
 
 #============ Directories and data =================
@@ -45,7 +48,7 @@ true_scl2  = 20.0
 true_fract = 0.5
 
 random_states = [1,2,3,4,5,6,7,8,9,10]
-distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000]#,2000,3000,4000,5000]
+distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000,2000,3000,4000,5000]
 
 list_of_sources = [
 			{"number":100, "color":"orange"},
@@ -61,8 +64,8 @@ iocs      = [
 #---------------------- Uniform -----------------------------------------------------------------------
 if prior is "Uniform":
 	parameters = [
-				{"name":"Location","xlim":[90,5000],"ylim":[[-0.11,0.11 ],[0.0005,0.15],[0.0,101]]},
-				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,0.25],  [0.0,101]]}
+				{"name":"Location","xlim":[90,5000],"ylim":[[-0.11,0.11 ],[-0.01,0.16],[0.0,101]]},
+				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,0.26], [0.0,101]]}
 				]
 #--------------------------------------------------------------------------------------------------
 
@@ -77,9 +80,9 @@ if prior is "Gaussian":
 #----------------------- GMM ---------------------------------------------------------------
 if prior is "GMM":
 	parameters = [
-				{"name":"Location", "xlim":[90,1000],"ylim":[[-0.06,0.19],[0.0005,0.085],[0,101]]},
-				{"name":"Scale",    "xlim":[90,1000],"ylim":[[-0.15,1.55],[0.01,0.99],  [0.0,101]]},
-				{"name":"Amplitude","xlim":[90,1000],"ylim":[[-0.25,0.25],[0.01,0.75],   [0.0,101]]}
+				{"name":"Location", "xlim":[90,1000],"ylim":[[-0.03,0.16],[0.0005,0.085],[0,101]]},
+				{"name":"Scale",    "xlim":[90,1000],"ylim":[[-0.15,1.55],[0.09,0.99],  [0.0,101]]},
+				{"name":"Amplitude","xlim":[90,1000],"ylim":[[-0.25,0.25],[0.01,0.65],   [0.0,101]]}
 				]
 #------------------------------------------------------------------------------------------------
 
@@ -191,8 +194,8 @@ line_numbers = [mlines.Line2D([], [],  color=sources["color"],
 								linestyle="-",
 								label=str(sources["number"])) for sources in list_of_sources]
 pdf = PdfPages(filename=file_plot)
-fig, axes = plt.subplots(num=0,nrows=3, ncols=len(parameters), sharex='col',sharey=False,figsize=(12,12))
-fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.15, hspace=0.0)
+fig, axes = plt.subplots(num=0,nrows=3, ncols=len(parameters), sharex='col',sharey=False,figsize=figsize)
+fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.2, hspace=0.0)
 
 axes[0,0].set_ylabel('Fractional error')
 axes[1,0].set_ylabel('Fractional uncertainty')
@@ -232,8 +235,8 @@ for p,par in enumerate(parameters):
 			axes[1,p].plot(distances,mu_span,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
 
 			#---------------- Credibility -----------------------------------------------------------------
-			# axes[2,p].fill_between(distances,y1=(mu_cred-sd_cred),y2=mu_cred+sd_cred,
-			# 					color=scs["color"],linestyle=ioc["linestyle"],alpha=0.1,label=None)
+			axes[2,p].fill_between(distances,y1=(mu_cred-sd_cred),y2=mu_cred+sd_cred,
+								color=scs["color"],linestyle=ioc["linestyle"],alpha=0.1,label=None)
 			axes[2,p].plot(distances,mu_cred,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
 
 			
@@ -241,7 +244,7 @@ axes[0,0].legend(
 	title="Spatial correlations",
 	handles=line_corr,
 	shadow = False,
-	bbox_to_anchor=(0.17,0.0, 0.25, 0.1),
+	bbox_to_anchor=(0.17,-0.02, 0.25, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,
@@ -254,7 +257,7 @@ axes[0,0].legend(
 fig.legend(title="Number of sources",
 	handles=line_numbers,
 	shadow = False,
-	bbox_to_anchor=(0.57,0.0, 0.3, 0.1),
+	bbox_to_anchor=(0.57,-0.02, 0.3, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,
@@ -266,10 +269,8 @@ fig.legend(title="Number of sources",
 
 pdf.savefig(bbox_inches='tight')
 plt.close(0)
-# pdf.close()
-# sys.exit()
 
-fig, axes = plt.subplots(num=1,nrows=len(statistics), ncols=1, sharex=True,figsize=(6,12))
+fig, axes = plt.subplots(num=1,nrows=len(statistics), ncols=1, sharex=True,figsize=(9,18))
 fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=0.0)
 for s,st in enumerate(statistics):
 	for n,nsc in enumerate(list_of_sources):
@@ -289,7 +290,7 @@ axes[0].legend(
 	title="Spatial correlations",
 	handles=line_corr,
 	shadow = False,
-	bbox_to_anchor=(0.1,0.85, 0.4, 0.1),
+	bbox_to_anchor=(0.1,0.86, 0.4, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,
@@ -301,7 +302,7 @@ axes[0].legend(
 fig.legend(title="Number of sources",
 	handles=line_numbers,
 	shadow = False,
-	bbox_to_anchor=(0.5,0.85, 0.4, 0.1),
+	bbox_to_anchor=(0.5,0.86, 0.4, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,
