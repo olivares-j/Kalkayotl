@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='Kalkayotl',
-    version='0.8.0',
+    version='0.9.0',
     author='Javier Olivares',
     author_email='javier.olivares-romero@u-bordeaux.fr',
     packages=['kalkayotl'],
@@ -16,10 +16,10 @@ setup(
         "Natural Language :: English",
         "Topic :: Scientific/Engineering :: Astronomy"
     ],
-    python_requires='>=3.6',
+    python_requires='==3.6.10',
     install_requires=[
         'pymc3==3.7',
-        'matplotlib==3.1.1',
+        'matplotlib==3.1.3',
         'dynesty==1.0.0',
         'arviz==0.5.1'
     ],

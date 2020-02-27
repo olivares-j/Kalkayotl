@@ -26,12 +26,15 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.lines as mlines
 
+plt.rcParams.update({'font.size': 20})
+figsize = (14,14)
+
 prior = "Gaussian"
 
 
 #============ Directories and data =================
 dir_main   = "/home/javier/Repositories/Kalkayotl/"
-dir_out    = dir_main  + "Outputs/Synthetic/"
+dir_out    = dir_main  + "Outputs/Synthetic/Sensitivity/"
 dir_data   = dir_main  + "Data/Synthetic/"
 file_plot  = dir_main  + "Outputs/Plots/Sensitivity_"+prior+".pdf"
 #==================================================================
@@ -61,16 +64,16 @@ iocs      = [
 #---------------------- Uniform -----------------------------------------------------------------------
 if prior is "Uniform":
 	parameters = [
-				{"name":"Location","xlim":[90,5000],"ylim":[[-0.11,0.11 ],[0.0005,0.15],[0.0,101]]},
-				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75], [0.01,0.25],  [0.0,101]]}
+				{"name":"Location","xlim":[90,5000],"ylim":[[-0.14,0.14],[0.01,0.15],[0.0,101]]},
+				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75],[0.01,0.25],  [0.0,101]]}
 				]
 #--------------------------------------------------------------------------------------------------
 
 #----------------------- Gaussian ---------------------------------------------------------------
 if prior is "Gaussian":
 	parameters = [
-				{"name":"Location","xlim":[1000,5000],"ylim":[[-0.11,0.11],[0.0005,0.15],[0.0,101]],"idx_dp":[5,6,7,8,9]},
-				{"name":"Scale",   "xlim":[450,950],  "ylim":[[-0.15,0.75],[0.01,0.25],  [0.0,101]],"idx_dp":[0,1,2,3,4]}
+				{"name":"Location","xlim":[1000,5000],"ylim":[[-0.11,0.11],[0.01,0.17],[0.0,101]],"idx_dp":[5,6,7,8,9]},
+				{"name":"Scale",   "xlim":[450,950],  "ylim":[[-0.25,0.85],[0.25,0.95],[0.0,101]],"idx_dp":[0,1,2,3,4]}
 				]
 #------------------------------------------------------------------------------------------------
 
@@ -190,7 +193,7 @@ line_numbers = [mlines.Line2D([], [],  color=sources["color"],
 								linestyle="-",
 								label=str(sources["number"])) for sources in list_of_sources]
 pdf = PdfPages(filename=file_plot)
-fig, axes = plt.subplots(num=0,nrows=3, ncols=len(parameters), sharex='col',sharey=False,figsize=(12,12))
+fig, axes = plt.subplots(num=0,nrows=3, ncols=len(parameters), sharex='col',sharey=False,figsize=figsize)
 fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.15, hspace=0.0)
 
 axes[0,0].set_ylabel('Fractional error')
@@ -208,23 +211,19 @@ for p,par in enumerate(parameters):
 
 
 
-	# axes[0,p].set_ylim(par["ylim"][0])
-	# axes[1,p].set_ylim(par["ylim"][1])
-	# axes[2,p].set_ylim(par["ylim"][2])
+	axes[0,p].set_ylim(par["ylim"][0])
+	axes[1,p].set_ylim(par["ylim"][1])
+	axes[2,p].set_ylim(par["ylim"][2])
 
 	for i,ioc in enumerate(iocs):
 		for n,scs in enumerate(list_of_sources): 
 			mu_ferror = np.mean(pars[0,i,p,n,par["idx_dp"]],axis=1)
 			sd_ferror = np.std( pars[0,i,p,n,par["idx_dp"]],axis=1)
-			mi_ferror = np.min( pars[0,i,p,n,par["idx_dp"]],axis=1)
-			ma_ferror = np.max( pars[0,i,p,n,par["idx_dp"]],axis=1)
 			mu_span   = np.mean(pars[1,i,p,n,par["idx_dp"]],axis=1)
 			sd_span   = np.std( pars[1,i,p,n,par["idx_dp"]],axis=1)
-			mi_span   = np.min( pars[1,i,p,n,par["idx_dp"]],axis=1)
-			ma_span   = np.max( pars[1,i,p,n,par["idx_dp"]],axis=1)
-			mu_cred   = np.mean(pars[2,i,p,n,par["idx_dp"]],axis=1)
-			mi_cred   = np.min( pars[2,i,p,n,par["idx_dp"]],axis=1)
-			ma_cred   = np.max( pars[2,i,p,n,par["idx_dp"]],axis=1)
+			mu_cred   = 100*np.mean(pars[2,i,p,n,par["idx_dp"]],axis=1)
+			sd_cred   = 100*np.std( pars[2,i,p,n,par["idx_dp"]],axis=1)
+		
 
 			
 
@@ -239,15 +238,16 @@ for p,par in enumerate(parameters):
 			axes[1,p].plot(dsts,mu_span,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
 
 			#---------------- Credibility -----------------------------------------------------------------
-			# axes[2,p].fill_between(distances,y1=mi_cred,y2=ma_cred,color=par["color"],alpha=0.3,label=None)
-			axes[2,p].plot(dsts,100*mu_cred,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
+			axes[2,p].fill_between(dsts,y1=mu_cred-sd_cred,y2=mu_cred+sd_cred,
+								color=scs["color"],linestyle=ioc["linestyle"],alpha=0.1,label=None)
+			axes[2,p].plot(dsts,mu_cred,color=scs["color"],alpha=0.8,linestyle=ioc["linestyle"],label=None)
 
 			
 axes[0,0].legend(
 	title="Hyper-parameter value",
 	handles=line_corr,
 	shadow = False,
-	bbox_to_anchor=(0.17,0.0, 0.25, 0.1),
+	bbox_to_anchor=(0.17,-0.03, 0.3, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,
@@ -260,7 +260,7 @@ axes[0,0].legend(
 fig.legend(title="Number of sources",
 	handles=line_numbers,
 	shadow = False,
-	bbox_to_anchor=(0.57,0.0, 0.3, 0.1),
+	bbox_to_anchor=(0.57,-0.03, 0.3, 0.1),
 	bbox_transform = fig.transFigure,
 	borderaxespad=0.,
 	frameon = True,

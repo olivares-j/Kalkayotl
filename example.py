@@ -74,12 +74,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-burning_iters   = 2000  
+burning_iters   = 1000  
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters    = 1000
+sample_iters    = 2000
 
 # Initialization mode
 # This initialization improves the sampler efficiency.
@@ -91,6 +91,11 @@ init_mode = 'advi+adapt_diag'
 # In most cases the algorithm converges before the total number of
 # iterations have been reached.
 init_iter = 500000 
+
+#----- Target_accept-------
+# This parameter controls the acceptance of the proposed steps in the Hamiltonian
+# Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
+# of the sampler but increases the computing time.
 #---------------------------------------------------------------------------
 
 
@@ -136,21 +141,21 @@ indep_measures = False
 hyper_alpha = [305,30.5]
 
 # hyper_beta controls  the cluster scale, which is Gamma distributed.
-# hyper_beta corresponds to the mode of the distribution.
+# hyper_beta corresponds to the mean of the resulting prior distribution.
 hyper_beta = [100.]
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
-# the EFF and King priors. Set it to None in other priors.
-# The EFF uses a truncated Gaussian as prior, thus you must specify 
-# the mean and standard deviations. It has no units.
-# The King uses a Half Gaussian thus it only uses the first value as
-# standard deviation. It is scaled to the cluster scale.
+# the EFF and King prior families. In both the parameter is distributed as
+# 1+ Gamma(2,2/hyper_gamma) with the mean value at hyper_gamma.
+#Set it to None in other prior families.
 
 # hyper_delta is only used in the GMM prior (use None in the rest),
 # where it represents the vector of hyper-parameters for the Dirichlet
 # distribution controlling the weights in the mixture.
 # IMPORTANT. The number of Gaussians in the mixture corresponds to the
 # length of this vector. 
+
+
 
 
 list_of_prior = [
@@ -166,38 +171,44 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta,
 	# 						"hyper_gamma":None, 
 	# 						"hyper_delta":None,
-	# 						"burning_factor":1},
+	# 						"burning_factor":1,
+	# 						"target_accept":0.8},
 
 	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
 							"hyper_alpha":hyper_alpha,
 							"hyper_beta":hyper_beta,
 							"hyper_gamma":None,
 							"hyper_delta":None,
-							"burning_factor":1},
-
-	
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
-	# 						"hyper_alpha":hyper_alpha,
-	# 						"hyper_beta":hyper_beta, 
-	# 						"hyper_gamma":[3.0,1.0],
-	# 						"hyper_delta":None,
-	# 						"burning_factor":3},
+							"burning_factor":1,
+							"target_accept":0.8},
 
 	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
 	# 						"hyper_alpha":hyper_alpha, 
 	# 						"hyper_beta":hyper_beta, 
 	# 						"hyper_gamma":[10.0],
 	# 						"hyper_delta":None,
-	# 						"burning_factor":5},
-	# # NOTE: the tidal radius and its parameters are scaled.
+	# 						"burning_factor":10,
+	# 						"target_accept":0.8},
+	# NOTE: the tidal radius and its parameters are scaled.
 
+	
+	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
+	# 						"hyper_alpha":hyper_alpha,
+	# 						"hyper_beta":hyper_beta, 
+	# 						"hyper_gamma":[0.5],
+	# 						"hyper_delta":None,
+	# 						"burning_factor":10,
+	# 						"target_accept":0.95},
+	# NOTE: the mean of the Gamma parameter will be at 1.0 + hyper_gamma
 
 	# {"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
 	# 						"hyper_alpha":hyper_alpha, 
-	# 						"hyper_beta":hyper_beta, 
+	# 						"hyper_beta":[50.0], 
 	# 						"hyper_gamma":None,
-	# 						"hyper_delta":np.array([0.5,0.5]),
-	# 						"burning_factor":5}
+	# 						"hyper_delta":np.array([5,5]),
+	# 						"burning_factor":10,
+	# 						"target_accept":0.95}
+	# NOTE: If you face failures of the style zero derivative try reducing the hyper_beta value.
 	]
 #======================= Inference and Analysis =====================================================
 
@@ -224,7 +235,7 @@ for prior in list_of_prior:
 					transformation=transformation,
 					zero_point=zero_point,
 					indep_measures=indep_measures,
-					parametrization="non-central")
+					parametrization="central")
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
 	p1d.load_data(file_data)
@@ -237,6 +248,7 @@ for prior in list_of_prior:
 			burning_iters=burning_iters*prior["burning_factor"],
 			init=init_mode,
 			n_init=init_iter,
+			target_accept=prior["target_accept"],
 			chains=chains,
 			cores=cores)
 
@@ -260,9 +272,7 @@ for prior in list_of_prior:
 	p1d.save_samples()
 
 	#----------------------- Evidence --------------------
-	# Uncomment if you want to compute the evidence.
-	# IMPORTANT. For this cluster the total running time with the five
-	# cluster oriented priors is one hour, of it 90% is of the evidence computation.
+	# IMPORTANT. It will increase the computing time!
 
 	# Output file, it will contain the logarithm of the evidence.
 	# and noisy and inaccurate estimates of the parameters.
@@ -280,6 +290,7 @@ for prior in list_of_prior:
 	# nlive is the number of live points used in the computation. The larger the better
 	# but it will further increase the computing time.
 
+	# UNCOMMENT NEXT LINE
 	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
 	#----------------------------------------------------------------------------------
 #=======================================================================================
