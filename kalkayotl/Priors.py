@@ -425,6 +425,94 @@ class King(Continuous):
 		return r'${} \sim \text{{King}}(\mathit{{loc}}={},\mathit{{scale}}={},\mathit{{tidal_radius}}={})$'.format(name,
 			get_variable_name(location),get_variable_name(scale),get_variable_name(rt))
 
+################################# MvUniform ################################################################
+
+
+
+class MvUniform(Continuous):
+	R"""
+	   
+	========  ==========================================
+	Support   :math:`x \in [-scl,+scl]`
+	========  ==========================================
+	Parameters
+	----------
+
+	loc: float
+		 .
+
+	Examples
+	--------
+	.. code-block:: python
+		with pm.Model():
+			x = pm.King('x', r0=100,rc=2,rt=20)
+	"""
+
+	def __init__(self,location=None,scale=None, *args, **kwargs):
+		self.location   = location  = tt.as_tensor_variable(location)
+		self.scale      = scale     = tt.as_tensor_variable(scale)
+
+		assert_negative_support(scale, 'scale', 'MvUniform')
+
+		self.mean = self.location
+
+		super().__init__( *args, **kwargs)
+
+		
+
+	def random(self, point=None, size=None):
+		"""
+		Draw random values from MvUniform distribution.
+		Parameters
+		----------
+		point : dict, optional
+			Dict of variable values on which random values are to be
+			conditioned (uses default point if not specified).
+		size : int, optional
+			Desired size of random sample (returns one sample if not
+			specified).
+		Returns
+		-------
+		array
+		"""
+		location,scale = draw_values([self.location,self.scale],point=point,size=size)
+		return generate_samples(mvunif.rvs,loc=location,scale=scale,
+								dist_shape=self.shape,
+								size=size)
+
+	def logp(self, value):
+		"""
+		Calculate log-probability of King distribution at specified value.
+		Parameters
+		----------
+		value : numeric
+			Value(s) for which log-probability is calculated. If the log probabilities for multiple
+			values are desired the values must be provided in a numpy array or theano tensor
+		Returns
+		-------
+		TensorVariable
+		"""
+		r = (value-self.location)/self.scale
+		v = 1.0/tt.sqrt(1.+ r**2)
+		u = 1.0/tt.sqrt(1.+self.rt**2)
+
+		cte = 2*self.scale*(self.rt/(1+self.rt**2) + tt.arctan(self.rt) - 2.*tt.arcsinh(self.rt)/np.sqrt(1.+self.rt**2))
+
+		log_d = 2.*tt.log(v-u) - tt.log(cte)
+
+		return tt.switch(tt.abs_(r) < self.rt,log_d,-1e20) #avoids inf in advi
+		# return bound(log_d,tt.abs_(r) < self.rt)
+
+	def _repr_latex_(self, name=None, dist=None):
+		if dist is None:
+			dist = self
+		rt       = dist.rt
+		location = dist.location
+		scale    = dist.scale
+		name = r'\text{%s}' % name
+		return r'${} \sim \text{{King}}(\mathit{{loc}}={},\mathit{{scale}}={},\mathit{{tidal_radius}}={})$'.format(name,
+			get_variable_name(location),get_variable_name(scale),get_variable_name(rt))
+
 ###################################################### TEST ################################################################################
 
 import matplotlib
