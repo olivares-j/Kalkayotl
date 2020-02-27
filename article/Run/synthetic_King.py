@@ -74,8 +74,8 @@ prior = {
 }
 
 indep_measures = [
-			{"bool":False,"name":"corr", "target_accept":0.9},
-			# {"bool":True, "name":"indep","target_accept":0.9}
+			# {"bool":False,"name":"corr", "target_accept":0.9},
+			{"bool":True, "name":"indep","target_accept":0.9}
 			]
 
 #============================ Loop over cases ==================================
