@@ -6,7 +6,7 @@ Kalkayotl is a Bayesian inference code designed to obtain posterior estimate of 
 1. Get the code from https://github.com/olivares-j/Kalkayotl, you can either clone or download. Remember to use the master branch.
 
 
-2. I strongly recommend to create an independent environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.6 or higher.
+2. I strongly recommend to create an independent environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.6.
 You can do this by Anaconda with the following command:
 
 ```
@@ -28,6 +28,7 @@ conda install -c conda-forge matplotlib=3.1.3
 conda install -c conda-forge dynesty=1.0.0
 conda install -c conda-forge arviz=0.5.1
 ```
+Note that newer versions of this libraries may cause conflicts amongst them. 
 
 5. Navigate to the Kalkayotl folder and install the latest package:
 
@@ -41,13 +42,13 @@ pip install dist/Kalkayotl-0.9.0.tar.gz
 python example.py
 ```
 
-It will compute cluster and star distances using the Ruprecht_147.csv data from the Data folder. You must get a Test folder with the outputs.
+It will compute cluster and star distances using the Ruprecht_147.csv data from the Data folder. You must get a Test folder with the outputs (chains, statistics and plots).
 
 Whenever you run Kalkayotl, remember to move into its environment (step 3).
 
 ## Running the code
 
-The easiest way to run the code on your own data sets is to copy the ``example.py`` file and modify it according to your needs. Instructions are given within it, read it carefully.
+The easiest way to run the code on your own data sets is to copy the ``example.py`` file and modify it according to your needs. Instructions are given within it. Please read it carefully.
 
 Before running Kalkayotl:
 
@@ -63,7 +64,7 @@ The most common errors that you may face while running Kalkayotl are:
 1. ``RuntimeError: Chain failed.``
  This error is caused generally by a zero derivative in a random variable (RV). In most cases it is solved by running the code again, which will initialize the chain in another point of parameter space. Remember that you must manually remove the files (chain-?.csv) in order to avoid reusing the positions of those failed chains.
 
-2. Low effective sampler size and/or divergences.
+2. Low effective sample size and/or divergences.
  The first is caused by a poor sampling while divergences are related to numerical issues. In both cases try to run with more tuning iterations. Another option is to increase the ``target_accept`` parameter of the sampler. 
 
  Finally, if you still have convergence problems try to reparametrize the model by either fixing some parameter (e.g. gamma:5 in the EFF will produce a Plummer profile) and/or constrain the prior by changing the hyper-parameters (set hyper_beta to 10.0 instead of 100).
