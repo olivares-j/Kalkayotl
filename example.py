@@ -121,6 +121,12 @@ zero_point = -0.029  # This is Lindegren+208 value
 # Set it to True if you want to assume independence, 
 # and thus neglect the parallax spatial correlations. 
 indep_measures = False
+
+#------ Parametrization -----------------
+# The performance of the HMC sampler can be improved by non-central parametrizations.
+# Kalkayotl comes with two options: central and non-central. While the former works better
+# for nearby clusters the latter does it for faraway clusters.
+parametrization="central"
 #==========================================================
 
 
@@ -232,7 +238,7 @@ for prior in list_of_prior:
 					transformation=transformation,
 					zero_point=zero_point,
 					indep_measures=indep_measures,
-					parametrization="central")
+					parametrization=parametrization)
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
 	p1d.load_data(file_data)

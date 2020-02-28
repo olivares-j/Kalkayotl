@@ -67,7 +67,10 @@ The most common errors that you may face while running Kalkayotl are:
 2. Low effective sample size and/or divergences.
  The first is caused by a poor sampling while divergences are related to numerical issues. In both cases try to run with more tuning iterations. Another option is to increase the ``target_accept`` parameter of the sampler. 
 
- Finally, if you still have convergence problems try to reparametrize the model by either fixing some parameter (e.g. gamma:5 in the EFF will produce a Plummer profile) and/or constrain the prior by changing the hyper-parameters (set hyper_beta to 10.0 instead of 100).
+ Finally, if you still have convergence problems try to reparametrize the model by:
+ * Fixing some parameter like gamma= 5 in the EFF, which will produce a Plummer profile.
+ * Constraining the prior information by changing the hyper-parameters. For example use smaller values of hyper_beta.
+ * Testing the two types of parameterization: "central" and "non-central". The former works better for nearby clusters (<500 pc).
 
  Advice: Whenever possible use simpler models.
 
