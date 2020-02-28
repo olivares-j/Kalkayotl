@@ -52,7 +52,8 @@ The easiest way to run the code on your own data sets is to copy the ``example.p
 Before running Kalkayotl:
 
 1. Verify that your input file contains the typical Gaia columns (compare with the input file of the example). 
-2. Remove duplicated sources and identifiers in the input file.
+2. Remove possible duplicated sources and/or duplicated identifiers from the input file.
+3. Execute the file. E.g. ```python example.py```
 
 ## Troubleshooting
 
