@@ -125,17 +125,13 @@ indep_measures = False
 
 
 
-#============= Prior and hyper-parameters ================================================
-# The following is a list of priors with different parameters and
-# hyper-parameters. 
-
-# parameters is a dictionary with two entries: "location" and "scale".
+#============= hyper-parameters ================================================
+# parameters is a dictionary with at least two entries: "location" and "scale".
 # For each of them you can either provide a value or set it to None to infer it.
 # Notice that you can infer one or both.
 # IMPORTANT. In the EDSD prior you must set both. Location to zero and
 # scale to the scale length (in pc).
 
-#----- Hyper-parameters --------------------------------------------
 # hyper_alpha controls the cluster location, which is Gaussian distributed.
 # Therefore you need to specify the median and standard deviation, in that order.
 hyper_alpha = [305,30.5]
@@ -149,7 +145,7 @@ hyper_beta = [100.]
 # 1+ Gamma(2,2/hyper_gamma) with the mean value at hyper_gamma.
 #Set it to None in other prior families.
 
-# hyper_delta is only used in the GMM prior (use None in the rest),
+# hyper_delta is only used in the GMM prior (use None in the rest of prior families),
 # where it represents the vector of hyper-parameters for the Dirichlet
 # distribution controlling the weights in the mixture.
 # IMPORTANT. The number of Gaussians in the mixture corresponds to the
@@ -157,7 +153,8 @@ hyper_beta = [100.]
 
 
 
-
+#========================= PRIORS ===========================================
+# Uncomment those prior families that you are interested in using. 
 list_of_prior = [
 	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
 	# 						"hyper_alpha":None, 
@@ -262,7 +259,7 @@ for prior in list_of_prior:
 
 	#-------- Plot the trace of the chains -------------
 	# If you provide the list of IDs (string list) it will plot the traces
-	# of the provided sources.
+	# of the provided sources. If empty it will only plot population parameters.
 	p1d.plot_chains(dir_out,IDs=['4087735025198194176'])
 
 	#----- Compute and save the posterior statistics ---------
@@ -271,7 +268,7 @@ for prior in list_of_prior:
 	#------- Save the samples into HDF5 file --------------
 	p1d.save_samples()
 
-	#----------------------- Evidence --------------------
+	#=============== Evidence ==============================
 	# IMPORTANT. It will increase the computing time!
 
 	# Output file, it will contain the logarithm of the evidence.

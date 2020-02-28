@@ -47,11 +47,11 @@ Whenever you run Kalkayotl, remember to move into its environment (step 3).
 
 ## Running the code
 
-The easiest way to run the code on your own data sets is to copy the ``example.py`` file and modify it according to your needs. Instructions are given within it.
+The easiest way to run the code on your own data sets is to copy the ``example.py`` file and modify it according to your needs. Instructions are given within it, read it carefully.
 
 Before running Kalkayotl:
 
-1. Verify that your input file contains the typical Gaia columns (compare with the input file of the example). 
+1. Verify that your input file contains the typical Gaia columns. You can compare with the input file of the example. 
 2. Remove possible duplicated sources and/or duplicated identifiers from the input file.
 3. Execute the file. E.g. ```python example.py```
 
@@ -63,10 +63,12 @@ The most common errors that you may face while running Kalkayotl are:
 1. ``RuntimeError: Chain failed.``
  This error is caused generally by a zero derivative in a random variable (RV). In most cases it is solved by running the code again, which will initialize the chain in another point of parameter space. Remember that you must manually remove the files (chain-?.csv) in order to avoid reusing the positions of those failed chains.
 
- 2. Low effective sampler size and/or divergences.
+2. Low effective sampler size and/or divergences.
  The first is caused by a poor sampling while divergences are related to numerical issues. In both cases try to run with more tuning iterations. Another option is to increase the ``target_accept`` parameter of the sampler. 
 
- Finally, if you still have convergence problems try to reparametrize the model by either fixing some parameter (e.g. gamma:5 in the EFF will produce a Plummer profile) and/or constrain the prior by changing the hyper-parameters (set hyper_beta to 10.0 instead of 100.) .
+ Finally, if you still have convergence problems try to reparametrize the model by either fixing some parameter (e.g. gamma:5 in the EFF will produce a Plummer profile) and/or constrain the prior by changing the hyper-parameters (set hyper_beta to 10.0 instead of 100).
 
  Advice: Whenever possible use simpler models.
+
+ If nothing of the above solves your problem create a GitHub issue explaining the problem and the error message.
 
