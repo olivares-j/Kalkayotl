@@ -29,12 +29,12 @@ import matplotlib.lines as mlines
 plt.rcParams.update({'font.size': 20})
 figsize = (15,15)
 
-prior = "EFF"
+prior = "GMM"
 
 
 #============ Directories and data =================
 dir_main   = "/raid/jromero/Kalkayotl/"
-# dir_main   = "/home/javier/Repositories/Kalkayotl/"
+dir_main   = "/home/javier/Repositories/Kalkayotl/"
 dir_out    = dir_main  + "Outputs/Synthetic/"+prior+"/"
 dir_data   = dir_main  + "Data/Synthetic/"
 file_plot  = dir_main  + "Outputs/Plots/Accuracy_and_precision_"+prior+".pdf"
@@ -48,7 +48,7 @@ true_scl2  = 20.0
 true_fract = 0.5
 
 random_states = [1,2,3,4,5,6,7,8,9,10]
-distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000,2000,3000,4000,5000]
+distances = [100 ,200 ,300 ,400 ,500 ,600 ,700 ,800 ,900 ,1000]#,2000,3000,4000,5000]
 
 list_of_sources = [
 			{"number":100, "color":"orange"},
