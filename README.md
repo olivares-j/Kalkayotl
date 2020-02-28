@@ -64,7 +64,9 @@ The most common errors that you may face while running Kalkayotl are:
  This error is caused generally by a zero derivative in a random variable (RV). In most cases it is solved by running the code again, which will initialize the chain in another point of parameter space. Remember that you must manually remove the files (chain-?.csv) in order to avoid reusing the positions of those failed chains.
 
  2. Low effective sampler size and/or divergences.
- The first is caused by a poor sampling while divergences are related to numerical issues. In both cases try to run with more tuning iterations. Another option is to increase the ``target_accept`` parameter of the sampler. Finally, you can reparametrize by constraining the prior distributions (i.e. modify the hyper-parameters).
+ The first is caused by a poor sampling while divergences are related to numerical issues. In both cases try to run with more tuning iterations. Another option is to increase the ``target_accept`` parameter of the sampler. 
+
+ Finally, if you still have convergence problems try to reparametrize the model by either fixing some parameter (e.g. gamma:5 in the EFF will produce a Plummer profile) and/or constrain the prior by changing the hyper-parameters (set hyper_beta to 10.0 instead of 100.) .
 
  Advice: Whenever possible use simpler models.
 
