@@ -10,6 +10,7 @@ from pymc3.util import get_variable_name
 from pymc3.distributions.dist_math import bound
 from pymc3.distributions.continuous import PositiveContinuous,Continuous,assert_negative_support
 from pymc3.distributions.distribution import draw_values, generate_samples
+from pymc3.distributions.continuous import Uniform
 
 from scipy.stats import rv_continuous
 from scipy.optimize import root_scalar
@@ -426,9 +427,6 @@ class King(Continuous):
 			get_variable_name(location),get_variable_name(scale),get_variable_name(rt))
 
 ################################# MvUniform ################################################################
-
-
-
 class MvUniform(Continuous):
 	R"""
 	   
@@ -437,20 +435,12 @@ class MvUniform(Continuous):
 	========  ==========================================
 	Parameters
 	----------
-
-	loc: float
-		 .
-
-	Examples
-	--------
-	.. code-block:: python
-		with pm.Model():
-			x = pm.King('x', r0=100,rc=2,rt=20)
 	"""
 
 	def __init__(self,location=None,scale=None, *args, **kwargs):
 		self.location   = location  = tt.as_tensor_variable(location)
 		self.scale      = scale     = tt.as_tensor_variable(scale)
+		self.dimension  = location.shape.eval()[0]
 
 		assert_negative_support(scale, 'scale', 'MvUniform')
 
@@ -476,9 +466,9 @@ class MvUniform(Continuous):
 		array
 		"""
 		location,scale = draw_values([self.location,self.scale],point=point,size=size)
-		return generate_samples(mvunif.rvs,loc=location,scale=scale,
-								dist_shape=self.shape,
-								size=size)
+		sample   = Uniform.dist(lower=-1,upper=1).random(size=(size,self.dimension))
+		return self.location + self.scale*sample
+
 
 	def logp(self, value):
 		"""
@@ -514,7 +504,7 @@ class MvUniform(Continuous):
 			get_variable_name(location),get_variable_name(scale),get_variable_name(rt))
 
 ###################################################### TEST ################################################################################
-
+import sys
 import matplotlib
 matplotlib.use('PDF')
 import matplotlib.pyplot as plt
@@ -610,13 +600,38 @@ def test_king(n=100000,r0=100.,rc=2.,rt=20.):
 	plt.close(1)
 	
 	pdf.close()
+
+def test_MvUnif(n=10000,loc=[20.,0.,10.],scl=[5,1,2]):
+
+	t = MvUniform.dist(location=loc,scale=scl).random(size=n).eval()
+	Falta hacer el logp y logcdf
+
+	lower,upper = loc[0]-scl[0] , loc[0]+scl[0]
+	unif = Uniform.dist(lower=lower,upper=upper)
+
+	x = np.linspace(lower,upper,100)
+	y = np.exp(unif.logp(x).eval())
+	
+	pdf = PdfPages(filename="Test_MvUnif.pdf")
+	plt.figure(0)
+	plt.hist(t[:,0],bins=100,density=True,color="grey",label="Samples")
+	plt.plot(x,y,color="black",label="PDF")
+	plt.legend()
+	
+	#-------------- Save fig --------------------------
+	pdf.savefig(bbox_inches='tight')
+	plt.close(0)
+	
+	pdf.close()
 	
 
 if __name__ == "__main__":
 
 
-	test_edsd()
+	# test_edsd()
 
-	test_eff()
+	# test_eff()
 
-	test_king()
+	# test_king()
+
+	test_MvUnif()
