@@ -1,14 +1,15 @@
 import sys
 import numpy as np
 import pymc3 as pm
+from pymc3 import Model
 import theano
 from theano import tensor as tt, printing
 
 from kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
-from kalkayotl.Priors import EDSD,EFF,King
+from kalkayotl.Priors import EDSD,EFF,King,MvUniform
 
 ################################## Model 1D ####################################
-class Model1D(pm.Model):
+class Model1D(Model):
 	'''
 	Model to infer the distance of a series of stars
 	'''
@@ -150,7 +151,7 @@ class Model1D(pm.Model):
 ####################################################################################################
 
 ############################ ND Model ###########################################################
-class ModelND(pm.Model):
+class ModelND(Model):
 	'''
 	Model to infer the N-dimensional parameter vector of a cluster
 	'''
@@ -219,20 +220,24 @@ class ModelND(pm.Model):
 						shape=shape) for i in range(D) ]
 
 			#--------- Join variables --------------
-			mu = pm.math.stack(location,axis=1)
+			loc = pm.math.stack(location,axis=1)
 
 		else:
-			mu = parameters["location"]
+			loc = parameters["location"]
 		#------------------------------------------------------
 
 		#------------- Scale --------------------------
+
 		if parameters["scale"] is None:
 			scale = [ pm.Gamma("scl_{0}".format(i),
-						alpha=2.0,beta=2.0/hyper_beta[i][0],
+						alpha=2.0,
+						beta=2.0/hyper_beta[0],
 						shape=shape) for i in range(D) ]
+			#--------- Join variables --------------
+			scl = pm.math.stack(scale,axis=1)
 
 		else:
-			scale = parameters["scale"]
+			scl = parameters["scale"]
 		#--------------------------------------------------
 
 		if prior in ["Gaussian","Mixture"]:
@@ -257,9 +262,9 @@ class ModelND(pm.Model):
 		#========================================================================
 
 		#===================== True values ============================================
-		if prior is "Uniform":
-			MvUniform("source",loc=mu,scale=scale,shape=(N,D))
-		if prior is "Gaussian":
+		if prior == "Uniform":
+			MvUniform("source",location=loc,scale=scl,dimension=D,shape=(N,D))
+		elif prior == "Gaussian":
 			pm.MvNormal("source",mu=mu,cov=cov[0],shape=(N,D))
 
 		elif "Mixture" in prior:

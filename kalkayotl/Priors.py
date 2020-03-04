@@ -437,10 +437,10 @@ class MvUniform(Continuous):
 	----------
 	"""
 
-	def __init__(self,location=None,scale=None, *args, **kwargs):
+	def __init__(self,location=None,scale=None,dimension=1, *args, **kwargs):
 		self.location   = location  = tt.as_tensor_variable(location)
 		self.scale      = scale     = tt.as_tensor_variable(scale)
-		self.dimension  = location.shape.eval()[0]
+		self.dimension  = dimension 
 
 		assert_negative_support(scale, 'scale', 'MvUniform')
 
@@ -472,7 +472,7 @@ class MvUniform(Continuous):
 
 	def logp(self, value):
 		"""
-		Calculate log-probability of King distribution at specified value.
+		Calculate log-probability of the MvUniform distribution at specified value.
 		Parameters
 		----------
 		value : numeric
@@ -483,25 +483,21 @@ class MvUniform(Continuous):
 		TensorVariable
 		"""
 		r = (value-self.location)/self.scale
-		v = 1.0/tt.sqrt(1.+ r**2)
-		u = 1.0/tt.sqrt(1.+self.rt**2)
 
-		cte = 2*self.scale*(self.rt/(1+self.rt**2) + tt.arctan(self.rt) - 2.*tt.arcsinh(self.rt)/np.sqrt(1.+self.rt**2))
+		cte = tt.log(tt.prod(1./(2.*self.scale)))
 
-		log_d = 2.*tt.log(v-u) - tt.log(cte)
+		cnd = tt.all(tt.abs_(r) <= 1,axis=1)
 
-		return tt.switch(tt.abs_(r) < self.rt,log_d,-1e20) #avoids inf in advi
-		# return bound(log_d,tt.abs_(r) < self.rt)
+		return tt.switch(cnd,cte,-1e20)
 
 	def _repr_latex_(self, name=None, dist=None):
 		if dist is None:
 			dist = self
-		rt       = dist.rt
 		location = dist.location
 		scale    = dist.scale
 		name = r'\text{%s}' % name
-		return r'${} \sim \text{{King}}(\mathit{{loc}}={},\mathit{{scale}}={},\mathit{{tidal_radius}}={})$'.format(name,
-			get_variable_name(location),get_variable_name(scale),get_variable_name(rt))
+		return r'${} \sim \text{{MvUniform}}(\mathit{{loc}}={},\mathit{{scale}}={}={})$'.format(name,
+			get_variable_name(location),get_variable_name(scale))
 
 ###################################################### TEST ################################################################################
 import sys
@@ -601,21 +597,33 @@ def test_king(n=100000,r0=100.,rc=2.,rt=20.):
 	
 	pdf.close()
 
-def test_MvUnif(n=10000,loc=[20.,0.,10.],scl=[5,1,2]):
+def test_MvUnif(n=10000,loc=[20.,10],scl=[1,3]):
+	nx = 20
+	ny = 20
 
-	t = MvUniform.dist(location=loc,scale=scl).random(size=n).eval()
-	Falta hacer el logp y logcdf
+	loc = np.array(loc)
+	scl = np.array(scl)
 
-	lower,upper = loc[0]-scl[0] , loc[0]+scl[0]
-	unif = Uniform.dist(lower=lower,upper=upper)
+	mvunif = MvUniform.dist(location=loc,scale=scl,dimension=2)
 
-	x = np.linspace(lower,upper,100)
-	y = np.exp(unif.logp(x).eval())
+	t = mvunif.random(size=n).eval()
+
+	lower,upper = loc-scl , loc+scl
+	x = np.linspace(lower[0]-1,upper[0]+1, nx)
+	y = np.linspace(lower[1]-1,upper[1]+1, ny)
+	xy = np.empty((nx*ny,2))
+	c = 0
+	for i in range(nx):
+		for j in range(ny):
+			xy[c] = x[i],y[j] 
+			c += 1
+
+	z = np.exp(mvunif.logp(xy).eval())
 	
 	pdf = PdfPages(filename="Test_MvUnif.pdf")
 	plt.figure(0)
-	plt.hist(t[:,0],bins=100,density=True,color="grey",label="Samples")
-	plt.plot(x,y,color="black",label="PDF")
+	plt.scatter(t[:,0],t[:,1],color="grey",label="Samples")
+	plt.scatter(xy[:,0],xy[:,1],c=z,label="PDF")
 	plt.legend()
 	
 	#-------------- Save fig --------------------------

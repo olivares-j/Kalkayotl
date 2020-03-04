@@ -133,7 +133,7 @@ uvw_sd = 10.
 #============= Prior and hyper-parameters ================================================
 # The following is a list of priors with different parameters and
 # hyper-parameters. 
-dimension = 6
+dimension = 3
 
 # parameters is a dictionary with two entries: "location" and "scale".
 # For each of them you can either provide a value or set it to None to infer it.
@@ -148,7 +148,7 @@ hyper_alpha = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],[u,uvw_sd],[v,uvw_sd],[w,uvw_sd]
 
 # hyper_beta controls  the cluster scale, which is Gamma distributed.
 # hyper_beta corresponds to the mode of the distribution.
-hyper_beta = [[100.] for i in range(6)]
+hyper_beta = [100. for i in range(6)]
 
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
@@ -173,19 +173,19 @@ list_of_prior = [
 	# 						"hyper_delta": None,
 	# 						"burning_factor":1},
 
-	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":hyper_alpha,
-	# 						"hyper_beta":hyper_beta,
-	# 						"hyper_gamma":None, 
-	# 						"hyper_delta":None,
-	# 						"burning_factor":1},
-
-	{"type":"Gaussian",     "parameters":{"location":None,"scale":None,"corr":False},
+	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
 							"hyper_alpha":hyper_alpha[:dimension],
 							"hyper_beta":hyper_beta[:dimension],
-							"hyper_gamma":None,
+							"hyper_gamma":None, 
 							"hyper_delta":None,
 							"burning_factor":1},
+
+	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None,"corr":False},
+	# 						"hyper_alpha":hyper_alpha[:dimension],
+	# 						"hyper_beta":hyper_beta[:dimension],
+	# 						"hyper_gamma":None,
+	# 						"hyper_delta":None,
+	# 						"burning_factor":1},
 
 	
 	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
@@ -234,9 +234,9 @@ for prior in list_of_prior:
 					hyper_delta=prior["hyper_delta"],
 					dir_out=dir_out,
 					transformation=transformation,
-					zero_point=zero_point,
+					zero_point=zero_point[:dimension],
 					indep_measures=indep_measures,
-					parametrization="non-central")
+					parametrization="central")
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
 	p1d.load_data(file_data)
@@ -245,12 +245,12 @@ for prior in list_of_prior:
 	p1d.setup()
 
 	#------- Run the sampler ---------------------
-	# p1d.run(sample_iters=sample_iters,
-	# 		burning_iters=burning_iters*prior["burning_factor"],
-	# 		init=init_mode,
-	# 		n_init=init_iter,
-	# 		chains=chains,
-	# 		cores=cores)
+	p1d.run(sample_iters=sample_iters,
+			burning_iters=burning_iters*prior["burning_factor"],
+			init=init_mode,
+			n_init=init_iter,
+			chains=chains,
+			cores=cores)
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
