@@ -75,12 +75,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-burning_iters   = 2000  
+burning_iters   = 100 
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters    = 1000
+sample_iters    = 100
 
 # Initialization mode
 # This initialization improves the sampler efficiency.
@@ -91,7 +91,7 @@ init_mode = 'advi+adapt_diag'
 #---- Iterations to run the advi algorithm-----
 # In most cases the algorithm converges before the total number of
 # iterations have been reached.
-init_iter = 500000 
+init_iter = 1000000
 #---------------------------------------------------------------------------
 
 
@@ -100,7 +100,7 @@ init_iter = 500000
 # This will be computed and written in both 
 # Source_{statistic}.csv and Cluster_{statistic}.csv files
 statistic = "mean"
-quantiles = [0.025,0.975]
+credible_interval = 0.95
 #----------------------------------------------------------------------
 
 
@@ -173,19 +173,19 @@ list_of_prior = [
 	# 						"hyper_delta": None,
 	# 						"burning_factor":1},
 
-	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
-							"hyper_alpha":hyper_alpha[:dimension],
-							"hyper_beta":hyper_beta[:dimension],
-							"hyper_gamma":None, 
-							"hyper_delta":None,
-							"burning_factor":1},
-
-	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None,"corr":False},
+	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
 	# 						"hyper_alpha":hyper_alpha[:dimension],
 	# 						"hyper_beta":hyper_beta[:dimension],
-	# 						"hyper_gamma":None,
+	# 						"hyper_gamma":None, 
 	# 						"hyper_delta":None,
 	# 						"burning_factor":1},
+
+	{"type":"Gaussian",     "parameters":{"location":None,"scale":None,"corr":False},
+							"hyper_alpha":hyper_alpha[:dimension],
+							"hyper_beta":hyper_beta[:dimension],
+							"hyper_gamma":None,
+							"hyper_delta":None,
+							"burning_factor":1},
 
 	
 	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
@@ -252,11 +252,6 @@ for prior in list_of_prior:
 			chains=chains,
 			cores=cores)
 
-	# -------- Load the chains --------------------------------
-	# This is useful if you have already computed the chains
-	# and want to re-analyse (in that case comment the p1d.run() line)
-	p1d.load_trace(sample_iters=sample_iters)
-
 	# ------- Re-analyse the convergence of the sampler---
 	p1d.convergence()
 
@@ -266,7 +261,7 @@ for prior in list_of_prior:
 	p1d.plot_chains(dir_out)
 
 	#----- Compute and save the posterior statistics ---------
-	p1d.save_statistics(statistic=statistic,quantiles=quantiles)
+	# p1d.save_statistics(statistic=statistic,credible_interval=credible_interval)
 
 	#------- Save the samples into HDF5 file --------------
 	# p1d.save_samples()

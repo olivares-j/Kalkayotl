@@ -333,14 +333,11 @@ class Inference:
 
 		print("Computing posterior")
 
-		with self.Model as model:
-			db = pm.backends.Text(self.dir_out)
-
+		with self.Model:
 			if self.prior is "GMM" and self.parametrization == "non-central":
 					step = pm.ElemwiseCategorical(vars=[model.component], values=[0, 1])
 					trace = pm.sample(draws=sample_iters, 
 									tune=burning_iters, 
-									trace=db,
 									chains=chains, cores=cores,
 									discard_tuned_samples=True,
 									step=[step])
@@ -348,24 +345,13 @@ class Inference:
 				trace = pm.sample(draws=sample_iters, 
 							tune=burning_iters,
 							init=init,
-							trace=db,
 							nuts_kwargs=nuts_kwargs,
 							chains=chains, cores=cores,
 							discard_tuned_samples=True,
 							*args,**kwargs)
 
+			self.trace = trace
 
-	def load_trace(self,sample_iters):
-		'''
-		Loads a previously saved sampling of the model
-		'''
-		print("Loading existing chains ... ")
-		with self.Model as model:
-			#---------Load Trace --------------------
-			all_trace = pm.backends.text.load(self.dir_out)
-
-			#-------- Discard burn -----
-			self.trace = all_trace[-sample_iters:]
 
 		#------- Variable names -----------------------------------------------------------
 		source_names = list(filter(lambda x: "source" in x, self.trace.varnames.copy()))
@@ -399,6 +385,7 @@ class Inference:
 
 		self.global_names = global_names
 		self.source_names = source_names
+		self.variables    = sum([global_names,source_names],[])
 		#-------------------------------------------------------------------------------------
 
 	def convergence(self):
@@ -406,21 +393,21 @@ class Inference:
 		Analyse the chains.		
 		"""
 		print("Computing convergence statistics ...")
-		dict_rhat  = pm.diagnostics.gelman_rubin(self.trace)
-		dict_effn  = pm.diagnostics.effective_n(self.trace)
+		rhat  = pm.stats.rhat(self.trace)
+		ess   = pm.stats.ess(self.trace)
 
 		print("Gelman-Rubin statistics:")
-		for key,value in dict_rhat.items():
-			print("{0} : {1:2.4f}".format(key,np.mean(value)))
+		for var in self.variables:
+			print("{0} : {1:2.4f}".format(var,np.mean(rhat[var].values)))
+
 		print("Effective sample size:")
-		for key,value in dict_effn.items():
-			print("{0} : {1:2.4f}".format(key,np.mean(value)))
+		for var in self.variables:
+			print("{0} : {1:2.4f}".format(var,np.mean(ess[var].values)))
 
 	def plot_chains(self,dir_plots,
 		IDs=None,
 		divergences='bottom', 
 		figsize=None, 
-		textsize=None, 
 		lines=None, 
 		combined=False, 
 		plot_kwargs=None, 
@@ -447,7 +434,6 @@ class Inference:
 				axes = pm.plots.traceplot(self.trace,var_names=self.source_names,
 						coords=coords,
 						figsize=figsize,
-						textsize=textsize, 
 						lines=lines, 
 						combined=combined, 
 						plot_kwargs=plot_kwargs, 
@@ -477,7 +463,6 @@ class Inference:
 			plt.figure(1)
 			axes = pm.plots.traceplot(self.trace,var_names=self.global_names,
 					figsize=figsize,
-					textsize=textsize, 
 					lines=lines, 
 					combined=combined, 
 					plot_kwargs=plot_kwargs, 
@@ -504,7 +489,7 @@ class Inference:
 		
 		pdf.close()
 
-	def save_statistics(self,statistic,quantiles=[0.05,0.95]):
+	def save_statistics(self,statistic,credible_interval=0.95):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -523,33 +508,23 @@ class Inference:
 			return ctr
 
 
-		def trace_mean(x):
-			return pn.Series(np.mean(x, 0), name='mean')
-
-		def trace_median(x):
-			return pn.Series(np.median(x, 0), name='median')
-
-		def trace_mode(x):
-			return pn.Series(np.apply_along_axis(my_mode,0,x), name='mode')
-
-		def trace_quantiles(x):
-			return pn.DataFrame(np.quantile(x,quantiles,axis=0).T,
-							columns=["lower","upper"])
 		#---------------------------------------------------------------------
 
 		if statistic is "mean":
-			stat_funcs = [trace_mean, trace_quantiles]
+			stat_funcs = None
 		elif statistic is "median":
-			stat_funcs = [trace_median, trace_quantiles]
+			stat_funcs = {"median":lambda x:np.median(x)}
 		elif statistic is "mode":
-			stat_funcs = [trace_mode, trace_quantiles]
+			stat_funcs = {"mode":lambda x:my_mode(x)}
 		else:
 			sys.exit("Incorrect statistic:"+statistic)
 
 
 		#-------------- Source statistics ----------------------------------------------------
 		source_csv = self.dir_out +"/Sources_"+statistic+".csv"
-		df_source  = pm.stats.summary(self.trace,varnames=self.source_names,stat_funcs=stat_funcs)
+		df_source  = pm.stats.summary(self.trace,var_names=self.source_names,
+						stat_funcs=stat_funcs,
+						credible_interval=credible_interval)
 
 		#------------- Replace parameter id by source ID--------------------
 		# If D is five we still infer six parameters
@@ -571,7 +546,10 @@ class Inference:
 		#-------------- Global statistics ------------------------
 		if len(self.global_names) > 0:
 			global_csv = self.dir_out +"/Cluster_"+statistic+".csv"
-			df_global = pm.stats.summary(self.trace,varnames=self.global_names,stat_funcs=stat_funcs)
+			df_global = pm.stats.summary(self.trace,var_names=self.global_names,
+							stat_funcs=stat_funcs,
+							credible_interval=credible_interval)
+			
 			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
 
 	def save_samples(self):

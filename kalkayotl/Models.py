@@ -251,11 +251,10 @@ class ModelND(Model):
 			#-----------------------------------------------------------------------------
 
 			#-------------------- Covariance -------------------------
-			sigma_diag  = pm.math.stack(scale,axis=1)
 			cov         = theano.shared(np.zeros((shape,D,D)))
 
 			for i in range(shape):
-				sigma       = tt.nlinalg.diag(sigma_diag[i])
+				sigma       = tt.nlinalg.diag(scl[i])
 				covi        = tt.nlinalg.matrix_dot(sigma, C, sigma)
 				cov         = tt.set_subtensor(cov[i],covi)
 			#---------------------------------------------------------
@@ -265,7 +264,7 @@ class ModelND(Model):
 		if prior == "Uniform":
 			MvUniform("source",location=loc,scale=scl,dimension=D,shape=(N,D))
 		elif prior == "Gaussian":
-			pm.MvNormal("source",mu=mu,cov=cov[0],shape=(N,D))
+			pm.MvNormal("source",mu=loc,cov=cov[0],shape=(N,D))
 
 		elif "Mixture" in prior:
 			pm.Dirichlet("weights",a=hyper_delta,shape=shape)
