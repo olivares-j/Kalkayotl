@@ -109,8 +109,8 @@ class Model1D(Model):
 
 		elif prior is "EFF":
 			if parameters["gamma"] is None:
-				pm.TruncatedNormal("gamma",mu=hyper_gamma[0],sigma=hyper_gamma[1],
-									lower=2.0,upper=10.0)
+				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma[0])
+				pm.Deterministic("gamma",1.0+self.x)
 			else:
 				self.gamma = parameters["gamma"]
 
@@ -180,12 +180,13 @@ class ModelND(Model):
 		# variables in several ways note, that all variables
 		# will get model's name prefix
 
-
 		#------------------- Data ------------------------------------------------------
 		N = int(len(mu_data)/D)
 		if N == 0:
 			sys.exit("Data has length zero!. You must provide at least one data point")
 		#-------------------------------------------------------------------------------
+
+		print("Using {0} parametrization".format(parametrization))
 
 		#============= Transformations ====================================
 
@@ -245,35 +246,71 @@ class ModelND(Model):
 			if parameters["corr"] :
 				pm.LKJCorr('chol_corr', eta=hyper_gamma, n=D)
 				C = tt.fill_diagonal(self.chol_corr[np.zeros((D, D),dtype=np.int64)], 1.)
-				# print_ = tt.printing.Print('C')(C)
 			else:
 				C = np.eye(D)
 			#-----------------------------------------------------------------------------
 
 			#-------------------- Covariance -------------------------
-			cov         = theano.shared(np.zeros((shape,D,D)))
+			# cov         = theano.shared(np.zeros((shape,D,D)))
 
-			for i in range(shape):
-				sigma       = tt.nlinalg.diag(scl[i])
-				covi        = tt.nlinalg.matrix_dot(sigma, C, sigma)
-				cov         = tt.set_subtensor(cov[i],covi)
+			# for i in range(shape):
+			# 	diag       = tt.nlinalg.diag(scl[i])
+			# 	covi        = tt.nlinalg.matrix_dot(diag, C, diag)
+			# 	cov         = tt.set_subtensor(cov[i],covi)
+
+			# print_ = tt.printing.Print('Sigma')(cov[0])
 			#---------------------------------------------------------
 		#========================================================================
 
 		#===================== True values ============================================
 		if prior == "Uniform":
-			MvUniform("source",location=loc,scale=scl,dimension=D,shape=(N,D))
+			if parametrization == "central":
+				MvUniform("source",location=loc,scale=scl,shape=(N,D))
+			else:
+				pm.Uniform("offset",lower=-1,upper=1,shape=(N,D))
+				pm.Deterministic("source",loc + scl*self.offset)
+				
 		elif prior == "Gaussian":
-			pm.MvNormal("source",mu=loc,cov=cov[0],shape=(N,D))
+			if parametrization == "central":
+				pm.MvNormal("source",mu=loc,cov=cov[0],shape=(N,D))
+			else:
+				pm.Normal("offset",mu=0,sigma=1,shape=(N,D))
+				pm.Deterministic("source",loc + scl*self.offset)
+
+		elif prior == "King":
+			if parameters["rt"] is None:
+				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma[0])
+				pm.Deterministic("rt",1.0+self.x)
+			else:
+				self.rt = parameters["rt"]
+
+			if parametrization == "central":
+				MvKing("source",location=loc,scale=scl,rt=self.rt,shape=(N,D))
+			else:
+				King("offset",location=0.0,scale=1.0,rt=self.rt,shape=(N,D))
+				pm.Deterministic("source",loc + scl*self.offset)
+
+		elif prior is "EFF":
+			if parameters["gamma"] is None:
+				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma[0])
+				pm.Deterministic("gamma",1.0+self.x)
+			else:
+				self.gamma = parameters["gamma"]
+
+			if parametrization == "central":
+				MvEFF("source",location=loc,scale=scl,gamma=self.gamma,shape=(N,D))
+			else:
+				EFF("offset",location=0.0,scale=1.0,gamma=self.gamma,shape=(N,D))
+				pm.Deterministic("source",loc + scl*self.offset)
 
 		elif "Mixture" in prior:
 			pm.Dirichlet("weights",a=hyper_delta,shape=shape)
 
 			if "GMM" in prior:
-				comps = [ pm.MvNormal.dist(mu=mu[i],cov=cov[i]) for i in range(shape)]
+				comps = [ pm.MvNormal.dist(mu=loc[i],cov=cov[i]) for i in range(shape)]
 			elif "GUM" in prior:
-				comps = [ pm.MvNormal.dist(mu=mu[i],cov=cov[i]) for i in range(shape-1) ]
-				comps.extend(MvUniform.dist(loc=mu[-1],scale=scale[-1]))
+				comps = [ pm.MvNormal.dist(mu=loc[i],cov=cov[i]) for i in range(shape-1) ]
+				comps.extend(MvUniform.dist(location=loc[-1],scale=scl[-1]))
 
 			#---- Sample from the mixture ----------------------------------
 			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(N,D))
@@ -281,6 +318,7 @@ class ModelND(Model):
 		else:
 			sys.exit("The specified prior is not supported")
 		#=================================================================================
+		# print_ = tt.printing.Print('source')(self.source)
 
 		#----------------------- Transformation---------------------------------------
 		transformed = Transformation(self.source)

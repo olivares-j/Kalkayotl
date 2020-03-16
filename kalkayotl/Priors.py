@@ -431,16 +431,15 @@ class MvUniform(Continuous):
 	R"""
 	   
 	========  ==========================================
-	Support   :math:`x \in [-scl,+scl]`
+	Support   :math:`x \in [loc-scl,loc+scl]`
 	========  ==========================================
 	Parameters
 	----------
 	"""
 
-	def __init__(self,location=None,scale=None,dimension=1, *args, **kwargs):
+	def __init__(self,location=None,scale=None, *args, **kwargs):
 		self.location   = location  = tt.as_tensor_variable(location)
 		self.scale      = scale     = tt.as_tensor_variable(scale)
-		self.dimension  = dimension 
 
 		assert_negative_support(scale, 'scale', 'MvUniform')
 
@@ -448,7 +447,6 @@ class MvUniform(Continuous):
 
 		super().__init__( *args, **kwargs)
 
-		
 
 	def random(self, point=None, size=None):
 		"""
@@ -466,7 +464,8 @@ class MvUniform(Continuous):
 		array
 		"""
 		location,scale = draw_values([self.location,self.scale],point=point,size=size)
-		sample   = Uniform.dist(lower=-1,upper=1).random(size=(size,self.dimension))
+
+		sample   = Uniform.dist(lower=-1,upper=1).random(size=self.shape)
 		return self.location + self.scale*sample
 
 
@@ -488,7 +487,10 @@ class MvUniform(Continuous):
 
 		cnd = tt.all(tt.abs_(r) <= 1,axis=1)
 
-		return tt.switch(cnd,cte,-1e20)
+		# Try to catch those cases outside the range with something like an embudo.
+
+		# return tt.switch(cnd,cte,-1e20)
+		return bound(cte,cnd)
 
 	def _repr_latex_(self, name=None, dist=None):
 		if dist is None:
@@ -604,9 +606,8 @@ def test_MvUnif(n=10000,loc=[20.,10],scl=[1,3]):
 	loc = np.array(loc)
 	scl = np.array(scl)
 
-	mvunif = MvUniform.dist(location=loc,scale=scl,dimension=2)
-
-	t = mvunif.random(size=n).eval()
+	mvunif = MvUniform.dist(location=loc,scale=scl,shape=(n,2))
+	t = mvunif.random().eval()
 
 	lower,upper = loc-scl , loc+scl
 	x = np.linspace(lower[0]-1,upper[0]+1, nx)
@@ -618,7 +619,7 @@ def test_MvUnif(n=10000,loc=[20.,10],scl=[1,3]):
 			xy[c] = x[i],y[j] 
 			c += 1
 
-	z = np.exp(mvunif.logp(xy).eval())
+	z = mvunif.logp(xy).eval()
 	
 	pdf = PdfPages(filename="Test_MvUnif.pdf")
 	plt.figure(0)

@@ -29,25 +29,23 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 #============ Data and Directories =============================
 #-------Main directory ---------------
-dir_main  = os.getcwd() + "/"
+dir_main  = "/home/javier/Cumulos/IC348/"
 #-------------------------------------
 
 #------------------------- Cluster ----------------------------
-case      = "Ruprecht_147"     # Case name
-file_csv  = "Ruprecht_147.csv" # File name of the data set
+case      = "IC348"     # Case name
+file_csv  = "members_run_1.csv" # File name of the data set
 #-----------------------------------------------------------
 
 #----------- Data file --------------------
-file_data = dir_main + "Data/" + file_csv
+file_data = dir_main + file_csv
 #-----------------------------------------
 
 #--------- Directories where chains and plots will be saved ----
-dir_out    = dir_main + "Test/"
-dir_case   = dir_out  + case +"/"
+dir_case    = dir_main + "3D/"
 #--------------------------------------
 
 #------- Creates directories -------
-os.makedirs(dir_out,exist_ok=True)
 os.makedirs(dir_case,exist_ok=True)
 #---------------------------------
 
@@ -75,12 +73,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-burning_iters   = 100
+burning_iters   = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters    = 100
+sample_iters    = 1000
 
 # Initialization mode
 # This initialization improves the sampler efficiency.
@@ -116,24 +114,24 @@ zero_point = [0,0,-0.029,0,0,0]  # This is Lindegren+2018 value
 # By default, Kalkayotl will not assume independence amongst sources.
 # Set it to True if you want to assume independence, 
 # and thus neglect the parallax spatial correlations. 
-indep_measures = False
+indep_measures = True
 
 #--------- Parametrization --------
 # Two types of parametrizations are available for the non-mixture prior families:
 # Central, used for highly constraint data sets, like those of nearby clusters.
 # Non-central, used for less constraining data sets, i.e clusters beyond 500 pc.
-parametrization = "central"
+parametrization = "non-central"
 #==========================================================
 
 #=========== Cluster initial parameters ===========================
 #----- First guess of cluster observational position -------
-astrometry = np.array([[289.02,-16.43,3.25,-0.98,-26.7,40.0]])
+astrometry = np.array([[56.13,32.17,3.17,4.55,-6.99,17.24]])
 #----- Cluster Cartesian position ---------
 x,y,z,u,v,w = astrometryToPhaseSpace(astrometry)[0]
 
 #---- Cluster dispersion -------
-xyz_sd = 10.
-uvw_sd = 10.
+xyz_sd = 20.
+uvw_sd = 20.
 #=======================================================================
 
 #============= Prior and hyper-parameters ================================================
@@ -154,7 +152,7 @@ hyper_alpha = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],[u,uvw_sd],[v,uvw_sd],[w,uvw_sd]
 
 # hyper_beta controls  the cluster scale, which is Gamma distributed.
 # hyper_beta corresponds to the mode of the distribution.
-hyper_beta = [10. for i in range(6)]
+hyper_beta = [100. for i in range(6)]
 
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
@@ -172,19 +170,19 @@ hyper_beta = [10. for i in range(6)]
 
 
 list_of_prior = [
-	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
-	# 						"hyper_alpha":None, 
-	# 						"hyper_beta":None, 
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta": None,
-	# 						"burning_factor":1},
-
-	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
-							"hyper_alpha":hyper_alpha[:dimension],
-							"hyper_beta":hyper_beta[:dimension],
-							"hyper_gamma":None, 
-							"hyper_delta":None,
+	{"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
+							"hyper_alpha":None, 
+							"hyper_beta":None, 
+							"hyper_gamma":None,
+							"hyper_delta": None,
 							"burning_factor":1},
+
+	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
+	# 						"hyper_alpha":hyper_alpha[:dimension],
+	# 						"hyper_beta":hyper_beta[:dimension],
+	# 						"hyper_gamma":None, 
+	# 						"hyper_delta":None,
+	# 						"burning_factor":1},
 
 	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None,"corr":False},
 	# 						"hyper_alpha":hyper_alpha[:dimension],
@@ -192,6 +190,14 @@ list_of_prior = [
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta":None,
 	# 						"burning_factor":1},
+
+	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
+	# 						"hyper_alpha":hyper_alpha, 
+	# 						"hyper_beta":hyper_beta, 
+	# 						"hyper_gamma":[10.0],
+	# 						"hyper_delta":None,
+	# 						"burning_factor":5},
+	# # NOTE: the tidal radius and its parameters are scaled.
 
 	
 	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
@@ -201,13 +207,7 @@ list_of_prior = [
 	# 						"hyper_delta":None,
 	# 						"burning_factor":3},
 
-	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
-	# 						"hyper_alpha":hyper_alpha, 
-	# 						"hyper_beta":hyper_beta, 
-	# 						"hyper_gamma":[10.0],
-	# 						"hyper_delta":None,
-	# 						"burning_factor":5},
-	# # NOTE: the tidal radius and its parameters are scaled.
+	
 
 
 	# {"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
@@ -267,7 +267,7 @@ for prior in list_of_prior:
 	p1d.plot_chains(dir_out)
 
 	#----- Compute and save the posterior statistics ---------
-	# p1d.save_statistics(statistic=statistic,credible_interval=credible_interval)
+	p1d.save_statistics(statistic=statistic,credible_interval=credible_interval)
 
 	#------- Save the samples into HDF5 file --------------
 	# p1d.save_samples()

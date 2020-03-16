@@ -311,7 +311,8 @@ class Inference:
 								  hyper_beta=self.hyper_beta,
 								  hyper_gamma=self.hyper_gamma,
 								  hyper_delta=self.hyper_delta,
-								  transformation=self.transformation)
+								  transformation=self.transformation,
+								  parametrization=self.parametrization)
 		else:
 			sys.exit("Dimension not valid!")
 
@@ -511,20 +512,27 @@ class Inference:
 		#---------------------------------------------------------------------
 
 		if statistic is "mean":
-			stat_funcs = None
+			stat_funcs = {"mean":lambda x:np.mean(x),
+						  "lower":lambda x:np.quantile(x,0.5*(1.-credible_interval)),
+						  "upper":lambda x:np.quantile(x,0.5*(1.+credible_interval))}
 		elif statistic is "median":
-			stat_funcs = {"median":lambda x:np.median(x)}
+			stat_funcs = {"median":lambda x:np.median(x),
+						   "lower":lambda x:np.quantile(x,0.5*(1.-credible_interval)),
+						   "upper":lambda x:np.quantile(x,0.5*(1.+credible_interval))}
 		elif statistic is "mode":
-			stat_funcs = {"mode":lambda x:my_mode(x)}
+			stat_funcs = { "mode":lambda x:my_mode(x),
+						  "lower":lambda x:np.quantile(x,0.5*(1.-credible_interval)),
+						  "upper":lambda x:np.quantile(x,0.5*(1.+credible_interval))}
 		else:
 			sys.exit("Incorrect statistic:"+statistic)
 
 
 		#-------------- Source statistics ----------------------------------------------------
 		source_csv = self.dir_out +"/Sources_"+statistic+".csv"
-		df_source  = pm.stats.summary(self.trace,var_names=self.source_names,
+		df_source  = pm.stats.summary(self.trace,
+						var_names=self.source_names,
 						stat_funcs=stat_funcs,
-						credible_interval=credible_interval)
+						extend=False)
 
 		#------------- Replace parameter id by source ID--------------------
 		# If D is five we still infer six parameters
@@ -534,10 +542,24 @@ class Inference:
 
 		n_sources = len(self.ID)
 		ID  = np.repeat(self.ID,D,axis=0)
-		idx = np.tile(np.arange(D),n_sources).astype('str')
+		idx = np.tile(np.arange(D),n_sources)
 
 		df_source.set_index(ID,inplace=True)
 		df_source.insert(loc=0,column="parameter",value=idx)
+
+		# ------ Parameters into columns ------------------------
+		suffixes  = ["_X","_Y","_Z"]
+		dfs = []
+		for i in range(D):
+			idx = np.where(df_source["parameter"] == i)[0]
+			tmp = df_source.drop(columns="parameter").add_suffix(suffixes[i])
+			dfs.append(tmp.iloc[idx])
+
+		#-------- Join on index --------------------
+		df_source = dfs[0]
+		for i,suffix in enumerate(suffixes[1:]):
+			df_source = df_source.join(dfs[i+1],how="inner",lsuffix="",rsuffix=suffix)
+
 		#---------------------------------------------------------------------
 
 		#---------- Save source data frame ----------------------
