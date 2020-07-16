@@ -1,6 +1,7 @@
 docs/
 Outputs/
 Real/
+Example/
 *.pyc
 *.pdf
 *.csv
