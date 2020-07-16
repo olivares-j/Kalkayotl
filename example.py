@@ -31,23 +31,16 @@ from kalkayotl import Inference
 dir_main  = os.getcwd() + "/"
 #-------------------------------------
 
-#------------------------- Cluster ----------------------------
-case      = "Ruprecht_147"     # Case name
-file_csv  = "Ruprecht_147.csv" # File name of the data set
-#-----------------------------------------------------------
-
-#----------- Data file --------------------
-file_data = dir_main + "Data/" + file_csv
-#-----------------------------------------
-
-#--------- Directories where chains and plots will be saved ----
-dir_out    = dir_main + "Test/"
-dir_case   = dir_out  + case +"/"
+#--------- Directory where chains and plots will be saved ----
+dir_out    = dir_main + "Example/"
 #--------------------------------------
 
-#------- Creates directories -------
+#----------- Data file --------------------
+file_data = dir_out + "Ruprecht_147.csv"
+#-----------------------------------------
+
+#------- Creates directory -------
 os.makedirs(dir_out,exist_ok=True)
-os.makedirs(dir_case,exist_ok=True)
 #---------------------------------
 
 #==================================================
@@ -219,11 +212,10 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_case + prior["type"]
-	dir_out   = dir_prior + "/" 
+	dir_prior = dir_out + prior["type"] + "/"
 
+	#---------- Create prior directory -------------
 	os.makedirs(dir_prior,exist_ok=True)
-	os.makedirs(dir_out,exist_ok=True)
 	#------------------------------------------------
 
 	#--------- Initialize the inference module ----------------------------------------
@@ -234,7 +226,7 @@ for prior in list_of_prior:
 					hyper_beta=prior["hyper_beta"],
 					hyper_gamma=prior["hyper_gamma"],
 					hyper_delta=prior["hyper_delta"],
-					dir_out=dir_out,
+					dir_out=dir_prior,
 					transformation=transformation,
 					zero_point=zero_point,
 					indep_measures=indep_measures,
@@ -263,7 +255,7 @@ for prior in list_of_prior:
 	# ------- Re-analyse the convergence of the sampler---
 	p1d.convergence()
 
-	#-------- Plot the trace of the chains -------------
+	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources. If empty it will only plot population parameters.
 	p1d.plot_chains(dir_out,IDs=['4087735025198194176'])
