@@ -118,7 +118,7 @@ indep_measures = False
 #------ Parametrization -----------------
 # The performance of the HMC sampler can be improved by non-central parametrizations.
 # Kalkayotl comes with two options: central and non-central. While the former works better
-# for nearby clusters the latter does it for faraway clusters.
+# for nearby clusters (<500 pc) the latter does it for faraway clusters (>500 pc).
 parametrization="central"
 #==========================================================
 
@@ -135,8 +135,8 @@ parametrization="central"
 # Therefore you need to specify the median and standard deviation, in that order.
 hyper_alpha = [305,30.5]
 
-# hyper_beta controls  the cluster scale, which is Gamma distributed.
-# hyper_beta corresponds to the mean of the resulting prior distribution.
+# The hyper_beta hyper-parameter controls the cluster scale, which is Gamma distributed.
+# hyper_beta corresponds to the mean of the prior distribution.
 hyper_beta = [100.]
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
@@ -184,7 +184,7 @@ list_of_prior = [
 	# 						"hyper_gamma":[10.0],
 	# 						"hyper_delta":None,
 	# 						"burning_factor":10,
-	# 						"target_accept":0.8},
+	# 						"target_accept":0.95},
 	# NOTE: the tidal radius and its parameters are scaled.
 
 	
@@ -238,6 +238,8 @@ for prior in list_of_prior:
 	#------ Prepares the model -------------------
 	p1d.setup()
 
+	#============ Sampling with HMC ======================================
+
 	#------- Run the sampler ---------------------
 	p1d.run(sample_iters=sample_iters,
 			burning_iters=burning_iters*prior["burning_factor"],
@@ -258,7 +260,7 @@ for prior in list_of_prior:
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources. If empty it will only plot population parameters.
-	p1d.plot_chains(dir_out,IDs=['4087735025198194176'])
+	p1d.plot_chains(dir_prior,IDs=['4087735025198194176'])
 
 	#----- Compute and save the posterior statistics ---------
 	p1d.save_statistics(statistic=statistic,quantiles=quantiles)
@@ -266,12 +268,12 @@ for prior in list_of_prior:
 	#------- Save the samples into HDF5 file --------------
 	p1d.save_samples()
 
-	#=============== Evidence ==============================
+	#=============== Evidence computation ==============================
 	# IMPORTANT. It will increase the computing time!
 
 	# Output file, it will contain the logarithm of the evidence.
 	# and noisy and inaccurate estimates of the parameters.
-	file_Z    = dir_out   + "Cluster_Z.csv"
+	file_Z    = dir_prior   + "Cluster_Z.csv"
 
 	# N_samples is the number of sources from the data set that will be used
 	# Set to None to use all sources
