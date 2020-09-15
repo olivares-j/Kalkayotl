@@ -46,6 +46,8 @@ It will compute cluster and star distances using the Ruprecht_147.csv data from 
 
 Whenever you run Kalkayotl, remember to move into its environment (step 3).
 
+Note: PyMC3 does not work in old operative systems (e.g. MAC OS < 10.14)
+
 ## Running the code
 
 The easiest way to run the code on your own data sets is to copy the ``example.py`` file and modify it according to your needs. Instructions are given within it. Please read it carefully.
@@ -65,14 +67,18 @@ The most common errors that you may face while running Kalkayotl are:
  This error is caused generally by a zero derivative in a random variable (RV). In most cases it is solved by running the code again, which will initialize the chain in another point of parameter space. Remember that you must manually remove the files (chain-?.csv) in order to avoid reusing the positions of those failed chains.
 
 2. Low effective sample size and/or divergences.
- The first is caused by a poor sampling while divergences are related to numerical issues. In both cases try to run with more tuning iterations. Another option is to increase the ``target_accept`` parameter of the sampler. 
+ The first is caused by a poor sampling while divergences are related to numerical issues. 
 
- Finally, if you still have convergence problems try to reparametrize the model by:
- * Fixing some parameter like gamma= 5 in the EFF, which will produce a Plummer profile.
- * Constraining the prior information by changing the hyper-parameters. For example use smaller values of hyper_beta.
+ Possible solutions:
+ * Increase the number tuning iterations. 
+ * Increase the ``target_accept`` parameter of the sampler: from 0.8 to 0.9 or 0.95. 
+ * Constrain the model by adding adding prior information in the hyper-parameters (e.g. set hyper_beta to 10 or 20 pc).
  * Testing the two types of parameterization: "central" and "non-central". The former works better for nearby clusters (<500 pc).
+  * Fixing some parameter like gamma= 5 in the EFF, which will produce a Plummer profile.
 
  Advice: Whenever possible use simpler models.
+
+ If you absolutely need the GMM prior I strongly recommend to compute statistics with only one chain (i.e. remove or rename chain-1.csv, and recompute the statistics). Due to lack of identifiability the Gaussians components can be interchanged. For example component A and B are first and second in one chain and second and first in other chain, since statistics are computed with the mixed chains the results are no longer correct.
 
  If nothing of the above solves your problem create a GitHub issue explaining the problem and the error message.
 

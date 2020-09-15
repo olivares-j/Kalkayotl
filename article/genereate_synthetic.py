@@ -17,7 +17,7 @@ from pygaia.errors.astrometric import parallaxErrorSkyAvg
 from isochrones import get_ichrone
 from isochrones.priors import ChabrierPrior
 
-dir_main      =  "/home/javier/Repositories/Kalkayotl/Data/Synthetic/"
+dir_main      =  "/home/javier/Repositories/Kalkayotl/article/Synthetic/"
 random_seeds  = [1,2,3,4,5,6,7,8,9,10]    # Random state for the synthetic data
 n_stars       = 1000   # 100,500, 1000
 metallicity   = 0.02  # Solar metallicity
@@ -28,7 +28,7 @@ tracks        = get_ichrone('mist', tracks=True,bands="VIG")
 extension_yrs = 0.0
 
 ####### FAMILY PARAMETERS ####################################################
-family        = "GMM"
+family        = "Gaussian"
 scale         = 10.0
 
 #---- Only for GMM -------

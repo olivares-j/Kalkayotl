@@ -133,11 +133,11 @@ parametrization="central"
 
 # hyper_alpha controls the cluster location, which is Gaussian distributed.
 # Therefore you need to specify the median and standard deviation, in that order.
-hyper_alpha = [305,30.5]
+hyper_alpha = [305.,30.]
 
 # The hyper_beta hyper-parameter controls the cluster scale, which is Gamma distributed.
 # hyper_beta corresponds to the mean of the prior distribution.
-hyper_beta = [100.]
+hyper_beta = [50.]
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
 # the EFF and King prior families. In both the parameter is distributed as
@@ -160,7 +160,8 @@ list_of_prior = [
 	# 						"hyper_beta":None, 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta": None,
-	# 						"burning_factor":1},
+	# 						"burning_factor":1,
+	# 						"target_accept":0.8},
 
 	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
 	# 						"hyper_alpha":hyper_alpha,

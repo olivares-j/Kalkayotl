@@ -62,10 +62,10 @@ list_observables = ["ID","r","parallax","parallax_error"]
 
 #============ Directories and data =================
 
-dir_main   = "/home/javier/Repositories/Kalkayotl/"
-dir_data   = dir_main  + "Data/Synthetic/Gaussian_500_1/"
-dir_out    = dir_main  + "Outputs/Synthetic/Comparison/"
-dir_plots  = dir_main  + "Outputs/Plots/"
+dir_main   = "/home/javier/Repositories/Kalkayotl/article/"
+dir_data   = dir_main  + "Synthetic/Gaussian_500_4/"
+dir_out    = dir_main  + "Outputs/Comparison/"
+dir_plots  = dir_main  + "Outputs/Comparison/Plots/"
 file_plot  = dir_plots + "Comparison_of_priors.pdf"
 file_tex   = dir_plots + "Table_rms_bias.tex"
 
@@ -93,20 +93,20 @@ for c,case in enumerate(list_of_cases):
 		print(prior["type"])
 
 		#----------- Files --------------------------------------------------------------
-		dir_chains = dir_out    + case["name"] + "_" + str(case["location"]) + "/" + prior["type"] + "/" + case["type"]+"/"
+		dir_chains = dir_out    + prior["type"] + "/" + case["type"]+"/"
 		# file_cls   = dir_chains + "Cluster_"+prior["statistic"]+".csv"
 		file_stats = dir_chains + "Sources_"+prior["statistic"]+".csv"
 		file_Z     = dir_chains + "Cluster_Z.csv"
 		#-------------------------------------------------------------------------------
 
-		#--------------------- Evidence ----------------------------------------
-		if case["type"] is "corr" and prior["type"] is not "EDSD":
-			evidence = pn.read_csv(file_Z)
-			evidence.set_index("Parameter",inplace=True)
-			z[c,j] = evidence.loc["logZ"]
-			print("Evidence: {0:5.2f}+{1:2.2f}-{2:2.2f}".format(z[c,j,1],
-				z[c,j,2]-z[c,j,1],z[c,j,1]-z[c,j,0]))
-		#-----------------------------------------------------------------------
+		# #--------------------- Evidence ----------------------------------------
+		# if case["type"] is "corr" and prior["type"] is not "EDSD":
+		# 	evidence = pn.read_csv(file_Z)
+		# 	evidence.set_index("Parameter",inplace=True)
+		# 	z[c,j] = evidence.loc["logZ"]
+		# 	print("Evidence: {0:5.2f}+{1:2.2f}-{2:2.2f}".format(z[c,j,1],
+		# 		z[c,j,2]-z[c,j,1],z[c,j,1]-z[c,j,0]))
+		# #-----------------------------------------------------------------------
 
 		#--------------------- Statistic ---------------------------------
 		infered  = pn.read_csv(file_stats,usecols=["ID",prior["statistic"],"lower","upper"])
@@ -127,20 +127,20 @@ for c,case in enumerate(list_of_cases):
 		#-------------------------------------------------------------------------------
 
 		#----------- Compute offset and uncertainty -------------------------------------------------
-		df["Bias"]   = df.apply(lambda x: x[prior["statistic"]]-x["r"], axis = 1)
+		df["Error"]   = df.apply(lambda x: x[prior["statistic"]]-x["r"], axis = 1)
 		df["Offset"] = df.apply(lambda x: x["r"]-mean_dist, axis = 1)
 		y_err = np.vstack((df[prior["statistic"]]-df["lower"],df["upper"]-df[prior["statistic"]]))
 
 		df["In"]   = df.apply(lambda x: ((x["r"]>=x["lower"]) and (x["r"]<=x["upper"])), axis = 1)
 
 		print("Good distances:{0:2.1f}".format(100.*np.sum(df["In"])/len(df)))
-		print("RMS: {1:0.4f}".format(prior["type"],np.sqrt(np.mean(df["Bias"]**2))))
+		print("RMS: {1:0.4f}".format(prior["type"],np.sqrt(np.mean(df["Error"]**2))))
 		print("Rho: {1:0.4f}".format(prior["type"],
-			np.corrcoef(df["Offset"],df["Bias"])[0,1]))
+			np.corrcoef(df["Offset"],df["Error"])[0,1]))
 
-		bias[c,j,0] = np.sqrt(np.mean(df.loc[df["Frac"]<0.05,"Bias"]**2))
-		bias[c,j,1] = np.sqrt(np.mean(df.loc[(df["Frac"]>0.05)&(df["Frac"]<0.1),"Bias"]**2))
-		bias[c,j,2] = np.sqrt(np.mean(df.loc[df["Frac"]>0.1,"Bias"]**2))
+		bias[c,j,0] = np.sqrt(np.mean(df.loc[df["Frac"]<0.05,"Error"]**2))
+		bias[c,j,1] = np.sqrt(np.mean(df.loc[(df["Frac"]>0.05)&(df["Frac"]<0.1),"Error"]**2))
+		bias[c,j,2] = np.sqrt(np.mean(df.loc[df["Frac"]>0.1,"Error"]**2))
 		#-----------------------------------------------------------------------------------------
 
 
@@ -169,18 +169,18 @@ for c,case in enumerate(list_of_cases):
 					k = 1
 					l = j-3
 				axes[l,k].plot(range_bias,np.flip(range_bias),color="grey",linestyle="--",zorder=0)
-				axes[l,k].errorbar(df["Offset"],df["Bias"],yerr=y_err,
+				axes[l,k].errorbar(df["Offset"],df["Error"],yerr=y_err,
 					fmt='none',ls='none',marker="o",ms=5,
 					ecolor="grey",elinewidth=0.01,zorder=1,label=None)
 				
-				points = axes[l,k].scatter(df["Offset"],df["Bias"],s=20,c=df["Frac"],
+				points = axes[l,k].scatter(df["Offset"],df["Error"],s=20,c=df["Frac"],
 					zorder=2,
 					vmax=0.1,
 					cmap="viridis")
 				axes[l,k].set_ylim(range_bias[0],range_bias[1])
 				axes[l,k].set_xlim(range_bias[0],range_bias[1])
 				axes[l,k].annotate(prior["type"],xy=(0.05,0.1),xycoords="axes fraction")
-				axes[l,k].annotate("$\\rho$={0:0.2f}".format(np.corrcoef(df["Offset"],df["Bias"])[0,1]),
+				axes[l,k].annotate("$\\rho$={0:0.2f}".format(np.corrcoef(df["Offset"],df["Error"])[0,1]),
 												xy=(0.99,0.9),xycoords="axes fraction",ha="right")
 
 
@@ -243,12 +243,12 @@ clrb.set_label("Parallax fractional uncertainty")
 for i in range(2):
 	axes[2,i].set_xlabel("Offset from centre [pc]")
 for i in range(3):
-	axes[i,0].set_ylabel("Distance bias [pc]")
+	axes[i,0].set_ylabel("Error [pc]")
 pdf.savefig(bbox_inches='tight')
 plt.close()
 pdf.close()
 #================================================================================================
-
+sys.exit()
 #=============== Table of bias rms for prior and uncertainty regime ==========================
 print(30*"-")
 print("Printing table of rms bias ... ")
