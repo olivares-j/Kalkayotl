@@ -260,7 +260,7 @@ for prior in list_of_prior:
 
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
-	# of the provided sources. If empty it will only plot population parameters.
+	# of the provided sources. If IDs keyword removed only plots the population parameters.
 	p1d.plot_chains(dir_prior,IDs=['4087735025198194176'])
 
 	#----- Compute and save the posterior statistics ---------
@@ -292,3 +292,27 @@ for prior in list_of_prior:
 	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
 	#----------------------------------------------------------------------------------
 #=======================================================================================
+
+
+#=============== Extract Samples =========================================
+import h5py
+file_distances = dir_out + "/Gaussian/Samples.h5"
+hf = h5py.File(file_distances,'r')
+srcs = hf.get("Sources")
+
+n_samples = 100
+samples = np.empty((len(srcs.keys()),n_samples))
+#-------- loop over array and fill it with samples -------
+for i,ID in enumerate(srcs.keys()):
+	#--- Extracts a random choice of the samples --------------
+	samples[i] = np.random.choice(np.array(srcs.get(str(ID))),
+							size=n_samples,replace=False)
+	#----------------------------------------------------------
+
+	print("Source {0} at {1:3.1f} +/- {2:3.1f} pc.".format(ID,
+										samples[i].mean(),
+										samples[i].std()))
+
+#- Close HDF5 file ---
+hf.close()
+#============================================================================
