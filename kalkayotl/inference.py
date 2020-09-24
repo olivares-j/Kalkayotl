@@ -416,7 +416,7 @@ class Inference:
 		for key,value in dict_effn.items():
 			print("{0} : {1:2.4f}".format(key,np.mean(value)))
 
-	def plot_chains(self,show=False,
+	def plot_chains(self,
 		IDs=None,
 		divergences='bottom', 
 		figsize=None, 
@@ -432,10 +432,8 @@ class Inference:
 		"""
 
 		print("Plotting traces ...")
-
-		if not show 
-			#----- Open PDFPages -------------
-			pdf = PdfPages(filename=self.dir_out +"/Traces.pdf")
+		#----- Open PDFPages -------------
+		pdf = PdfPages(filename=self.dir_out +"/Traces.pdf")
 
 		if IDs is not None:
 			#--------- Loop over ID in list ---------------
@@ -469,6 +467,8 @@ class Inference:
 					ax[0].set_title(None)
 					ax[1].set_title(None)
 				plt.gcf().suptitle(self.id_name +" "+ID,fontsize=fontsize_title)
+				pdf.savefig(bbox_inches='tight')
+				plt.close(0)
 
 
 		if len(self.global_names) > 0:
@@ -496,17 +496,9 @@ class Inference:
 			plt.gcf().suptitle("Population parameters",fontsize=fontsize_title)
 				
 			#-------------- Save fig --------------------------
-
-		#-------------- Save fig --------------------------
-
-		if show:
-			plt.show()
-		else:
-			for i in range(2):
-				plt.figure(i)
-				pdf.savefig(bbox_inches='tight')
-				plt.close(i)
-			pdf.close()
+			pdf.savefig(bbox_inches='tight')
+			plt.close(1)
+		pdf.close()
 
 	def save_statistics(self,statistic,quantiles=[0.05,0.95]):
 		'''
