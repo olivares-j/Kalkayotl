@@ -10,15 +10,15 @@ Kalkayotl is a Bayesian inference code designed to obtain posterior estimate of 
 You can do this by Anaconda with the following command:
 
 ```
-conda create -n myenv python=3.6.10
+conda create -n kalkayotl python=3.6.10
 ```
-with `myenv` the name of your choice.
+with `kalkayotl` the name of your choice.
 
 3. Move into the new environment
 
-```conda activate myenv```
+```conda activate kalkayotl```
 
-with `myenv` the name of the environment.
+with `kalkayotl` the name of the environment.
 
 4. Install the following packages:
 
@@ -28,12 +28,18 @@ conda install -c conda-forge matplotlib=3.1.3
 conda install -c conda-forge dynesty=1.0.0
 conda install -c conda-forge arviz=0.5.1
 ```
-Note that newer versions of this libraries may cause conflicts amongst them. 
+Note that newer versions of this libraries may cause conflicts amongst them. So, please stick to these ones.
+
+Note: if you want to run the nootebook you also need to install `jupyterlab`:
+```
+conda install -c conda-forge jupyterlab
+```
+
 
 5. Navigate to the Kalkayotl folder and install the latest package:
 
 ```
-pip install dist/Kalkayotl-0.9.0.tar.gz
+pip install dist/Kalkayotl-1.0.tar.gz
 ```
 
 6. Test the installation by running
