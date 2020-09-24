@@ -416,7 +416,7 @@ class Inference:
 		for key,value in dict_effn.items():
 			print("{0} : {1:2.4f}".format(key,np.mean(value)))
 
-	def plot_chains(self,dir_plots,
+	def plot_chains(self,show=False,
 		IDs=None,
 		divergences='bottom', 
 		figsize=None, 
@@ -433,7 +433,9 @@ class Inference:
 
 		print("Plotting traces ...")
 
-		pdf = PdfPages(filename=dir_plots+"/Traces.pdf")
+		if not show 
+			#----- Open PDFPages -------------
+			pdf = PdfPages(filename=self.dir_out +"/Traces.pdf")
 
 		if IDs is not None:
 			#--------- Loop over ID in list ---------------
@@ -468,10 +470,6 @@ class Inference:
 					ax[1].set_title(None)
 				plt.gcf().suptitle(self.id_name +" "+ID,fontsize=fontsize_title)
 
-					
-				#-------------- Save fig --------------------------
-				pdf.savefig(bbox_inches='tight')
-				plt.close(0)
 
 		if len(self.global_names) > 0:
 			plt.figure(1)
@@ -498,11 +496,17 @@ class Inference:
 			plt.gcf().suptitle("Population parameters",fontsize=fontsize_title)
 				
 			#-------------- Save fig --------------------------
-			pdf.savefig(bbox_inches='tight')
-			plt.close(1)
 
-		
-		pdf.close()
+		#-------------- Save fig --------------------------
+
+		if show:
+			plt.show()
+		else:
+			for i in range(2):
+				plt.figure(i)
+				pdf.savefig(bbox_inches='tight')
+				plt.close(i)
+			pdf.close()
 
 	def save_statistics(self,statistic,quantiles=[0.05,0.95]):
 		'''
@@ -602,7 +606,6 @@ class Inference:
 
 	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,
 		quantiles=[0.05,0.95],
-		file="Evidence.csv",
 		print_progress=False,
 		plot=False):
 
@@ -635,6 +638,8 @@ class Inference:
 		evidence   = pn.DataFrame(data={"lower":logZ-logZerr,"median":logZ,"upper":logZ+logZerr}, index=["logZ"])
 		parameters = dyn.parameters_statistics(results)
 		summary    = parameters.append(evidence)
+
+		file = self.dir_out +"/Evidence.csv"
 
 		summary.to_csv(file,index_label="Parameter")
 

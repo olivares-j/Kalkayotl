@@ -26,34 +26,22 @@ import numpy as np
 from kalkayotl import Inference
 
 
-#============ Data and Directories =============================
-#-------Main directory ---------------
-dir_main  = os.getcwd() + "/"
-#-------------------------------------
-
-#--------- Directory where chains and plots will be saved ----
-dir_out    = dir_main + "Example/"
+#============ Directory and data =============================
+#----- Directory where chains and plots will be saved ----
+dir_out    = os.getcwd() + "/Example/"
 #--------------------------------------
+
+#------- Creates directory if it does not exists -------
+os.makedirs(dir_out,exist_ok=True)
+#---------------------------------
 
 #----------- Data file --------------------
 file_data = dir_out + "Ruprecht_147.csv"
 #-----------------------------------------
-
-#------- Creates directory -------
-os.makedirs(dir_out,exist_ok=True)
-#---------------------------------
-
 #==================================================
 
 
 #=============== Tuning knobs ============================
-# --------- Transformation------------------------------------
-# In which space you want to sample: distance or parallax?
-# For distance use "pc", for parallax use "mas"
-# IMPORTANT: The units of the parameters and hyper-parameters
-# defined below must coincide with those of the chosen transformation.
-transformation = "pc"
-
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -91,7 +79,6 @@ init_iter = 500000
 # of the sampler but increases the computing time.
 #---------------------------------------------------------------------------
 
-
 #------------ Statistic ----------------------------------------------
 # Chose your favourite statistic and quantiles.
 # This will be computed and written in both 
@@ -100,12 +87,18 @@ statistic = "mean"
 quantiles = [0.025,0.975]
 #----------------------------------------------------------------------
 
+# --------- Transformation------------------------------------
+# In which space you want to sample: distance or parallax?
+# For distance use "pc", for parallax use "mas"
+# IMPORTANT: The units of the parameters and hyper-parameters
+# defined below must coincide with those of the chosen transformation.
+transformation = "pc"
 
 #--------- Zero point -----------------------------------------------
 # The zero point of the parallax measurements
 # You can provide either a scalar or a vector of the same dimension
 # as the valid sources in your data set.
-zero_point = -0.029  # This is Lindegren+208 value
+zero_point = -0.029  # This is Lindegren+2018 value
 #---------------------------------------------------------------------
 
 #------- Independent measurements--------
@@ -160,7 +153,7 @@ list_of_prior = [
 	# 						"hyper_beta":None, 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta": None,
-	# 						"burning_factor":1,
+	# 						"burning_iters":1*burinig_iters,
 	# 						"target_accept":0.8},
 
 	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
@@ -168,7 +161,7 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta,
 	# 						"hyper_gamma":None, 
 	# 						"hyper_delta":None,
-	# 						"burning_factor":1,
+	# 						"burning_iters":1*burinig_iters,
 	# 						"target_accept":0.8},
 
 	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
@@ -176,7 +169,7 @@ list_of_prior = [
 							"hyper_beta":hyper_beta,
 							"hyper_gamma":None,
 							"hyper_delta":None,
-							"burning_factor":1,
+							"burning_iters":1*burinig_iters,
 							"target_accept":0.8},
 
 	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
@@ -184,7 +177,7 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta, 
 	# 						"hyper_gamma":[10.0],
 	# 						"hyper_delta":None,
-	# 						"burning_factor":10,
+	# 						"burning_iters":10*burinig_iters,
 	# 						"target_accept":0.95},
 	# NOTE: the tidal radius and its parameters are scaled.
 
@@ -194,7 +187,7 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta, 
 	# 						"hyper_gamma":[0.5],
 	# 						"hyper_delta":None,
-	# 						"burning_factor":10,
+	# 						"burning_iters":10*burinig_iters,
 	# 						"target_accept":0.95},
 	# NOTE: the mean of the Gamma parameter will be at 1.0 + hyper_gamma
 
@@ -203,7 +196,7 @@ list_of_prior = [
 	# 						"hyper_beta":[50.0], 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta":np.array([5,5]),
-	# 						"burning_factor":10,
+	# 						"burning_iters":10*burinig_iters,
 	# 						"target_accept":0.95}
 	# NOTE: If you face failures of the style zero derivative try reducing the hyper_beta value.
 	]
@@ -243,7 +236,7 @@ for prior in list_of_prior:
 
 	#------- Run the sampler ---------------------
 	p1d.run(sample_iters=sample_iters,
-			burning_iters=burning_iters*prior["burning_factor"],
+			burning_iters=prior["burning_iters"],
 			init=init_mode,
 			n_init=init_iter,
 			target_accept=prior["target_accept"],
@@ -261,7 +254,7 @@ for prior in list_of_prior:
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources. If IDs keyword removed only plots the population parameters.
-	p1d.plot_chains(dir_prior,IDs=['4087735025198194176'])
+	p1d.plot_chains(IDs=['4087735025198194176'])
 
 	#----- Compute and save the posterior statistics ---------
 	p1d.save_statistics(statistic=statistic,quantiles=quantiles)
@@ -271,10 +264,6 @@ for prior in list_of_prior:
 
 	#=============== Evidence computation ==============================
 	# IMPORTANT. It will increase the computing time!
-
-	# Output file, it will contain the logarithm of the evidence.
-	# and noisy and inaccurate estimates of the parameters.
-	file_Z    = dir_prior   + "Cluster_Z.csv"
 
 	# N_samples is the number of sources from the data set that will be used
 	# Set to None to use all sources
@@ -289,7 +278,7 @@ for prior in list_of_prior:
 	# but it will further increase the computing time.
 
 	# UNCOMMENT NEXT LINE
-	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
+	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100)
 	#----------------------------------------------------------------------------------
 #=======================================================================================
 
