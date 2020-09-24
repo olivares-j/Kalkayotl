@@ -6,3 +6,4 @@ Example/
 *.pdf
 *.csv
 *.pkl
+.ipynb_checkpoints/
