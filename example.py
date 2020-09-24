@@ -153,7 +153,7 @@ list_of_prior = [
 	# 						"hyper_beta":None, 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta": None,
-	# 						"burning_iters":1*burinig_iters,
+	# 						"burning_iters":1*burning_iters,
 	# 						"target_accept":0.8},
 
 	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
@@ -161,7 +161,7 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta,
 	# 						"hyper_gamma":None, 
 	# 						"hyper_delta":None,
-	# 						"burning_iters":1*burinig_iters,
+	# 						"burning_iters":1*burning_iters,
 	# 						"target_accept":0.8},
 
 	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
@@ -169,7 +169,7 @@ list_of_prior = [
 							"hyper_beta":hyper_beta,
 							"hyper_gamma":None,
 							"hyper_delta":None,
-							"burning_iters":1*burinig_iters,
+							"burning_iters":1*burning_iters,
 							"target_accept":0.8},
 
 	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
@@ -177,7 +177,7 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta, 
 	# 						"hyper_gamma":[10.0],
 	# 						"hyper_delta":None,
-	# 						"burning_iters":10*burinig_iters,
+	# 						"burning_iters":10*burning_iters,
 	# 						"target_accept":0.95},
 	# NOTE: the tidal radius and its parameters are scaled.
 
@@ -187,7 +187,7 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta, 
 	# 						"hyper_gamma":[0.5],
 	# 						"hyper_delta":None,
-	# 						"burning_iters":10*burinig_iters,
+	# 						"burning_iters":10*burning_iters,
 	# 						"target_accept":0.95},
 	# NOTE: the mean of the Gamma parameter will be at 1.0 + hyper_gamma
 
@@ -196,7 +196,7 @@ list_of_prior = [
 	# 						"hyper_beta":[50.0], 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta":np.array([5,5]),
-	# 						"burning_iters":10*burinig_iters,
+	# 						"burning_iters":10*burning_iters,
 	# 						"target_accept":0.95}
 	# NOTE: If you face failures of the style zero derivative try reducing the hyper_beta value.
 	]
