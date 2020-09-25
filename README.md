@@ -27,6 +27,7 @@ conda install -c conda-forge pymc3=3.7
 conda install -c conda-forge matplotlib=3.1.3
 conda install -c conda-forge dynesty=1.0.0
 conda install -c conda-forge arviz=0.5.1
+conda install mkl-service
 ```
 Note that newer versions of this libraries may cause conflicts amongst them. So, please stick to these ones.
 
