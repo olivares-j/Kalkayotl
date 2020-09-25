@@ -1,7 +1,9 @@
 docs/
 Outputs/
 Real/
+Example/
 *.pyc
 *.pdf
 *.csv
 *.pkl
+.ipynb_checkpoints/
