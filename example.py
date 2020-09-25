@@ -27,41 +27,22 @@ from kalkayotl import Inference
 from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
-#============ Data and Directories =============================
-#-------Main directory ---------------
-dir_main  = os.getcwd() + "/"
-#-------------------------------------
-
-#------------------------- Cluster ----------------------------
-case      = "Ruprecht_147"     # Case name
-file_csv  = "Ruprecht_147.csv" # File name of the data set
-#-----------------------------------------------------------
-
-#----------- Data file --------------------
-file_data = dir_main + "Data/" + file_csv
-#-----------------------------------------
-
-#--------- Directories where chains and plots will be saved ----
-dir_out    = dir_main + "Test/"
-dir_case   = dir_out  + case +"/"
+#============ Directory and data =============================
+#----- Directory where chains and plots will be saved ----
+dir_out    = os.getcwd() + "/Example/"
 #--------------------------------------
 
-#------- Creates directories -------
+#------- Creates directory if it does not exists -------
 os.makedirs(dir_out,exist_ok=True)
-os.makedirs(dir_case,exist_ok=True)
 #---------------------------------
 
+#----------- Data file --------------------
+file_data = dir_out + "Ruprecht_147.csv"
+#-----------------------------------------
 #==================================================
 
 
 #=============== Tuning knobs ============================
-# --------- Transformation------------------------------------
-# In which space you want to sample: distance or parallax?
-# For distance use "pc", for parallax use "mas"
-# IMPORTANT: The units of the parameters and hyper-parameters
-# defined below must coincide with those of the chosen transformation.
-transformation = "pc"
-
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -75,12 +56,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-burning_iters   = 100
+burning_iters   = 1000  
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters    = 100
+sample_iters    = 2000
 
 # Initialization mode
 # This initialization improves the sampler efficiency.
@@ -91,24 +72,34 @@ init_mode = 'advi+adapt_diag'
 #---- Iterations to run the advi algorithm-----
 # In most cases the algorithm converges before the total number of
 # iterations have been reached.
-init_iter = 10000000
-#---------------------------------------------------------------------------
+init_iter = 500000 
 
+#----- Target_accept-------
+# This parameter controls the acceptance of the proposed steps in the Hamiltonian
+# Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
+# of the sampler but increases the computing time.
+#---------------------------------------------------------------------------
 
 #------------ Statistic ----------------------------------------------
 # Chose your favourite statistic and quantiles.
 # This will be computed and written in both 
 # Source_{statistic}.csv and Cluster_{statistic}.csv files
 statistic = "mean"
-credible_interval = 0.95
+quantiles = [0.025,0.975]
 #----------------------------------------------------------------------
 
+# --------- Transformation------------------------------------
+# In which space you want to sample: distance or parallax?
+# For distance use "pc", for parallax use "mas"
+# IMPORTANT: The units of the parameters and hyper-parameters
+# defined below must coincide with those of the chosen transformation.
+transformation = "pc"
 
 #--------- Zero point -----------------------------------------------
 # The zero point of the parallax measurements
 # You can provide either a scalar or a vector of the same dimension
 # as the valid sources in your data set.
-zero_point = [0,0,-0.029,0,0,0]  # This is Lindegren+2018 value
+zero_point = [0.,0.,-0.029,0.,0.,0.]  # This is Lindegren+2018 value
 #---------------------------------------------------------------------
 
 #------- Independent measurements--------
@@ -118,11 +109,11 @@ zero_point = [0,0,-0.029,0,0,0]  # This is Lindegren+2018 value
 # and thus neglect the parallax spatial correlations. 
 indep_measures = False
 
-#--------- Parametrization --------
-# Two types of parametrizations are available for the non-mixture prior families:
-# Central, used for highly constraint data sets, like those of nearby clusters.
-# Non-central, used for less constraining data sets, i.e clusters beyond 500 pc.
-parametrization = "central"
+#------ Parametrization -----------------
+# The performance of the HMC sampler can be improved by non-central parametrizations.
+# Kalkayotl comes with two options: central and non-central. While the former works better
+# for nearby clusters (<500 pc) the latter does it for faraway clusters (>500 pc).
+parametrization="central"
 #==========================================================
 
 #=========== Cluster initial parameters ===========================
@@ -158,64 +149,71 @@ hyper_beta = [10. for i in range(6)]
 
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
-# the EFF and King priors. Set it to None in other priors.
-# The EFF uses a truncated Gaussian as prior, thus you must specify 
-# the mean and standard deviations. It has no units.
-# The King uses a Half Gaussian thus it only uses the first value as
-# standard deviation. It is scaled to the cluster scale.
+# the EFF and King prior families. In both the parameter is distributed as
+# 1+ Gamma(2,2/hyper_gamma) with the mean value at hyper_gamma.
+#Set it to None in other prior families.
 
-# hyper_delta is only used in the GMM prior (use None in the rest),
+# hyper_delta is only used in the GMM prior (use None in the rest of prior families),
 # where it represents the vector of hyper-parameters for the Dirichlet
 # distribution controlling the weights in the mixture.
 # IMPORTANT. The number of Gaussians in the mixture corresponds to the
 # length of this vector. 
 
-
+#========================= PRIORS ===========================================
+# Uncomment those prior families that you are interested in using. 
 list_of_prior = [
-	# {"type":"EDSD",         "parameters":{"location":0.0,"scale":1350.0}, 
+	# {"type":"EDSD",       "parameters":{"location":0.0,"scale":1350.0}, 
 	# 						"hyper_alpha":None, 
 	# 						"hyper_beta":None, 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta": None,
-	# 						"burning_factor":1},
+	# 						"burning_iters":1*burning_iters,
+	#						"target_accept":0.8},
 
-	{"type":"Uniform",      "parameters":{"location":None,"scale":None},
-							"hyper_alpha":hyper_alpha[:dimension],
-							"hyper_beta":hyper_beta[:dimension],
-							"hyper_gamma":None, 
-							"hyper_delta":None,
-							"burning_factor":1},
-
-	# {"type":"Gaussian",     "parameters":{"location":None,"scale":None,"corr":False},
+	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
 	# 						"hyper_alpha":hyper_alpha[:dimension],
 	# 						"hyper_beta":hyper_beta[:dimension],
-	# 						"hyper_gamma":None,
+	# 						"hyper_gamma":None, 
 	# 						"hyper_delta":None,
-	# 						"burning_factor":1},
+	# 						"burning_iters":1*burning_iters,
+	# 						"target_accept":0.8},
+
+	{"type":"Gaussian",     "parameters":{"location":None,"scale":None,"corr":False},
+							"hyper_alpha":hyper_alpha[:dimension],
+							"hyper_beta":hyper_beta[:dimension],
+							"hyper_gamma":None,
+							"hyper_delta":None,
+							"burning_iters":1*burning_iters,
+							"target_accept":0.8},
 
 	
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
-	# 						"hyper_alpha":hyper_alpha,
-	# 						"hyper_beta":hyper_beta, 
-	# 						"hyper_gamma":[3.0,1.0],
-	# 						"hyper_delta":None,
-	# 						"burning_factor":3},
-
 	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
 	# 						"hyper_alpha":hyper_alpha, 
 	# 						"hyper_beta":hyper_beta, 
 	# 						"hyper_gamma":[10.0],
 	# 						"hyper_delta":None,
-	# 						"burning_factor":5},
-	# # NOTE: the tidal radius and its parameters are scaled.
+	# 						"burning_iters":10*burning_iters,
+	# 						"target_accept":0.95},
+	# NOTE: the tidal radius and its parameters are scaled.
 
+	
+	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
+	# 						"hyper_alpha":hyper_alpha,
+	# 						"hyper_beta":hyper_beta, 
+	# 						"hyper_gamma":[0.5],
+	# 						"hyper_delta":None,
+	# 						"burning_iters":10*burning_iters,
+	# 						"target_accept":0.95},
+	# NOTE: the mean of the Gamma parameter will be at 1.0 + hyper_gamma
 
 	# {"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
 	# 						"hyper_alpha":hyper_alpha, 
-	# 						"hyper_beta":hyper_beta, 
+	# 						"hyper_beta":[50.0], 
 	# 						"hyper_gamma":None,
-	# 						"hyper_delta":np.array([0.5,0.5]),
-	# 						"burning_factor":5}
+	# 						"hyper_delta":np.array([5,5]),
+	# 						"burning_iters":10*burning_iters,
+	# 						"target_accept":0.95}
+	# NOTE: If you face failures of the style zero derivative try reducing the hyper_beta value.
 	]
 #======================= Inference and Analysis =====================================================
 
@@ -223,22 +221,21 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_case + prior["type"]
-	dir_out   = dir_prior + "/" 
+	dir_prior = dir_out + prior["type"] + "/"
 
+	#---------- Create prior directory -------------
 	os.makedirs(dir_prior,exist_ok=True)
-	os.makedirs(dir_out,exist_ok=True)
 	#------------------------------------------------
 
 	#--------- Initialize the inference module ----------------------------------------
-	p1d = Inference(dimension=dimension,                       # For now it only works in 1D.
+	p1d = Inference(dimension=dimension,     # For now it only works in 3D.
 					prior=prior["type"],
 					parameters=prior["parameters"],
 					hyper_alpha=prior["hyper_alpha"],
 					hyper_beta=prior["hyper_beta"],
 					hyper_gamma=prior["hyper_gamma"],
 					hyper_delta=prior["hyper_delta"],
-					dir_out=dir_out,
+					dir_out=dir_prior,
 					transformation=transformation,
 					zero_point=zero_point[:dimension],
 					indep_measures=indep_measures,
@@ -250,36 +247,38 @@ for prior in list_of_prior:
 	#------ Prepares the model -------------------
 	p1d.setup()
 
+	#============ Sampling with HMC ======================================
+
 	#------- Run the sampler ---------------------
 	p1d.run(sample_iters=sample_iters,
-			burning_iters=burning_iters*prior["burning_factor"],
+			burning_iters=prior["burning_iters"],
 			init=init_mode,
 			n_init=init_iter,
+			target_accept=prior["target_accept"],
 			chains=chains,
 			cores=cores)
+
+	# -------- Load the chains --------------------------------
+	# This is useful if you have already computed the chains
+	# and want to re-analyse (in that case comment the p1d.run() line)
+	p1d.load_trace(sample_iters=sample_iters)
 
 	# ------- Re-analyse the convergence of the sampler---
 	p1d.convergence()
 
-	#-------- Plot the trace of the chains -------------
+	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
-	# of the provided sources.
-	p1d.plot_chains(dir_out)
+	# of the provided sources. If IDs keyword removed only plots the population parameters.
+	p1d.plot_chains(IDs=['4087735025198194176'])
 
 	#----- Compute and save the posterior statistics ---------
-	# p1d.save_statistics(statistic=statistic,credible_interval=credible_interval)
+	p1d.save_statistics(statistic=statistic,quantiles=quantiles)
 
 	#------- Save the samples into HDF5 file --------------
-	# p1d.save_samples()
+	p1d.save_samples()
 
-	#----------------------- Evidence --------------------
-	# Uncomment if you want to compute the evidence.
-	# IMPORTANT. For this cluster the total running time with the five
-	# cluster oriented priors is one hour, of it 90% is of the evidence computation.
-
-	# Output file, it will contain the logarithm of the evidence.
-	# and noisy and inaccurate estimates of the parameters.
-	file_Z    = dir_out   + "Cluster_Z.csv"
+	#=============== Evidence computation ==============================
+	# IMPORTANT. It will increase the computing time!
 
 	# N_samples is the number of sources from the data set that will be used
 	# Set to None to use all sources
@@ -293,6 +292,31 @@ for prior in list_of_prior:
 	# nlive is the number of live points used in the computation. The larger the better
 	# but it will further increase the computing time.
 
-	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100,file=file_Z)
+	# UNCOMMENT NEXT LINE
+	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100)
 	#----------------------------------------------------------------------------------
 #=======================================================================================
+
+
+#=============== Extract Samples =========================================
+import h5py
+file_distances = dir_out + "/Gaussian/Samples.h5"
+hf = h5py.File(file_distances,'r')
+srcs = hf.get("Sources")
+
+n_samples = 100
+samples = np.empty((len(srcs.keys()),n_samples))
+#-------- loop over array and fill it with samples -------
+for i,ID in enumerate(srcs.keys()):
+	#--- Extracts a random choice of the samples --------------
+	samples[i] = np.random.choice(np.array(srcs.get(str(ID))),
+							size=n_samples,replace=False)
+	#----------------------------------------------------------
+
+	print("Source {0} at {1:3.1f} +/- {2:3.1f} pc.".format(ID,
+										samples[i].mean(),
+										samples[i].std()))
+
+#- Close HDF5 file ---
+hf.close()
+#============================================================================

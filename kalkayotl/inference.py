@@ -155,12 +155,6 @@ class Inference:
 		#------- index as string ------
 		data[list_observables[0]] = data[list_observables[0]].astype('str')
 
-		# if self.D > 1:
-		# 	#--- Uncertainties in must be in same units as means -----------
-		# 	data["ra_error"]       = data["ra_error"]/(1e3*3600.0)  + radec_inflation/3600.0
-		# 	data["dec_error"]      = data["dec_error"]/(1e3*3600.0) + radec_inflation/3600.0
-		#============================================================
-
 		#----- put ID as row name-----
 		data.set_index(list_observables[0],inplace=True)
 
@@ -405,7 +399,7 @@ class Inference:
 		for var in self.variables:
 			print("{0} : {1:2.4f}".format(var,np.mean(ess[var].values)))
 
-	def plot_chains(self,dir_plots,
+	def plot_chains(self,
 		IDs=None,
 		divergences='bottom', 
 		figsize=None, 
@@ -421,7 +415,7 @@ class Inference:
 
 		print("Plotting traces ...")
 
-		pdf = PdfPages(filename=dir_plots+"/Traces.pdf")
+		pdf = PdfPages(filename=self.dir_out +"/Traces.pdf")
 
 		if IDs is not None:
 			#--------- Loop over ID in list ---------------
@@ -602,7 +596,6 @@ class Inference:
 
 	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,
 		quantiles=[0.05,0.95],
-		file="Evidence.csv",
 		print_progress=False,
 		plot=False):
 
@@ -635,6 +628,8 @@ class Inference:
 		evidence   = pn.DataFrame(data={"lower":logZ-logZerr,"median":logZ,"upper":logZ+logZerr}, index=["logZ"])
 		parameters = dyn.parameters_statistics(results)
 		summary    = parameters.append(evidence)
+
+		file = self.dir_out +"/Evidence.csv"
 
 		summary.to_csv(file,index_label="Parameter")
 
