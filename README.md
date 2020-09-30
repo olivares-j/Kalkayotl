@@ -19,15 +19,14 @@ conda create -n kalkayotl -c conda-forge clang=4.0.1 python=3.6.10 pymc3=3.7 mat
 ```
 Note: PyMC3 may have problems to run in old operative systems (e.g. MAC OS < 10.14)
 
-with `kalkayotl` the name of your choice.
+The option `kalkayotl` is the name of the environment and you can choose another name.
 
-Note that newer versions of these libraries may cause conflicts amongst them. So, please stick to these ones.
+Newer versions of these libraries may cause conflicts amongst them, therefore try to stick to these ones.
 
-3. Move into the new environment
+3. Move into the newly created `kalkayotl` environment
 
 ```conda activate kalkayotl```
 
-with `kalkayotl` the name of the environment that we just created.
 
 4. Test pymc3 installation:
 
@@ -36,10 +35,10 @@ Open a python console and type:
 
 If an error appears follow the instructions of [PyMC3](https://docs.pymc.io/)
 
-If asked for also install mkl-service by typing within the Kalkayotl environement:
+If asked for also install mkl-service by typing within the Kalkayotl environment:
 `conda install mkl-service`
 
-Note: if you want to run the nootebook you also need to install `jupyterlab`:
+Note: if you want to run the nootebook you also need to install `jupyterlab` in the same environment:
 ```
 conda install -c conda-forge jupyterlab
 ```
