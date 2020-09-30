@@ -251,14 +251,14 @@ class ModelND(Model):
 			#-----------------------------------------------------------------------------
 
 			#-------------------- Covariance -------------------------
-			# cov         = theano.shared(np.zeros((shape,D,D)))
+			cov = theano.shared(np.zeros((shape,D,D)))
 
-			# for i in range(shape):
-			# 	diag       = tt.nlinalg.diag(scl[i])
-			# 	covi        = tt.nlinalg.matrix_dot(diag, C, diag)
-			# 	cov         = tt.set_subtensor(cov[i],covi)
+			for i in range(shape):
+				diag = tt.nlinalg.diag(scl[i])
+				covi = tt.nlinalg.matrix_dot(diag, C, diag)
+				cov  = tt.set_subtensor(cov[i],covi)
 
-			# print_ = tt.printing.Print('Sigma')(cov[0])
+			print_ = tt.printing.Print('Sigma')(cov[0])
 			#---------------------------------------------------------
 		#========================================================================
 

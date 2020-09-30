@@ -317,7 +317,7 @@ class Inference:
 	def run(self,sample_iters,burning_iters,
 		init=None,
 		chains=None,cores=None,
-		step=None,nuts_kwargs=None,
+		step=None,
 		*args,**kwargs):
 		"""
 		Performs the MCMC run.
@@ -340,7 +340,6 @@ class Inference:
 				trace = pm.sample(draws=sample_iters, 
 							tune=burning_iters,
 							init=init,
-							nuts_kwargs=nuts_kwargs,
 							chains=chains, cores=cores,
 							discard_tuned_samples=True,
 							*args,**kwargs)

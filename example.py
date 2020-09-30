@@ -123,8 +123,8 @@ astrometry = np.array([[289.02,-16.43,3.25,-0.98,-26.7,40.0]])
 x,y,z,u,v,w = astrometryToPhaseSpace(astrometry)[0]
 
 #---- Cluster dispersion -------
-xyz_sd = 10.
-uvw_sd = 10.
+xyz_sd = 5.
+uvw_sd = 5.
 #=======================================================================
 
 #============= Prior and hyper-parameters ================================================
@@ -261,7 +261,7 @@ for prior in list_of_prior:
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
 	# and want to re-analyse (in that case comment the p1d.run() line)
-	p1d.load_trace(sample_iters=sample_iters)
+	# p1d.load_trace(sample_iters=sample_iters)
 
 	# ------- Re-analyse the convergence of the sampler---
 	p1d.convergence()

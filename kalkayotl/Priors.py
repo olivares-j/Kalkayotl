@@ -6,7 +6,6 @@ This file contains the non-standard prior
 import numpy as np
 import theano.tensor as tt
 
-from pymc3.util import get_variable_name
 from pymc3.distributions.dist_math import bound
 from pymc3.distributions.continuous import PositiveContinuous,Continuous,assert_negative_support
 from pymc3.distributions.distribution import draw_values, generate_samples
@@ -124,13 +123,6 @@ class EDSD(PositiveContinuous):
 		log_d  = 2.0 * tt.log(value) - tt.log(2.0 * scale**3) -  value/scale
 		return bound(log_d,value >= 0,scale > 0)
 
-	def _repr_latex_(self, name=None, dist=None):
-		if dist is None:
-			dist = self
-		scale = dist.scale
-		name = r'\text{%s}' % name
-		return r'${} \sim \text{{EDSD}}(\mathit{{scale}}={})$'.format(name,
-																		 get_variable_name(scale))
 
 	def logcdf(self, value):
 		"""
@@ -271,12 +263,6 @@ class EFF(Continuous):
 		log_d  = -0.5*gamma*tt.log(1.+ x**2) - tt.log(cte)
 		return bound(log_d,gamma > 1.)
 
-	def _repr_latex_(self, name=None, dist=None):
-		if dist is None:
-			dist = self
-		gamma = dist.gamma
-		name = r'\text{%s}' % name
-		return r'${} \sim \text{{EFF}}(\mathit{{\gamma}}={})$'.format(name,get_variable_name(gamma))
 
 ################################################################################################################
 
@@ -416,15 +402,6 @@ class King(Continuous):
 		return tt.switch(tt.abs_(r) < self.rt,log_d,-1e20) #avoids inf in advi
 		# return bound(log_d,tt.abs_(r) < self.rt)
 
-	def _repr_latex_(self, name=None, dist=None):
-		if dist is None:
-			dist = self
-		rt       = dist.rt
-		location = dist.location
-		scale    = dist.scale
-		name = r'\text{%s}' % name
-		return r'${} \sim \text{{King}}(\mathit{{loc}}={},\mathit{{scale}}={},\mathit{{tidal_radius}}={})$'.format(name,
-			get_variable_name(location),get_variable_name(scale),get_variable_name(rt))
 
 ################################# MvUniform ################################################################
 class MvUniform(Continuous):
@@ -492,14 +469,6 @@ class MvUniform(Continuous):
 		# return tt.switch(cnd,cte,-1e20)
 		return bound(cte,cnd)
 
-	def _repr_latex_(self, name=None, dist=None):
-		if dist is None:
-			dist = self
-		location = dist.location
-		scale    = dist.scale
-		name = r'\text{%s}' % name
-		return r'${} \sim \text{{MvUniform}}(\mathit{{loc}}={},\mathit{{scale}}={}={})$'.format(name,
-			get_variable_name(location),get_variable_name(scale))
 
 ###################################################### TEST ################################################################################
 import sys
