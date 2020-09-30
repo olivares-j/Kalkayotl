@@ -9,11 +9,11 @@ Kalkayotl is a Bayesian inference code designed to obtain posterior estimate of 
 2. I strongly recommend to create an independent environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.6.
 You can do this by Anaconda with the following command:
 
-** Linux users **
+**Linux users**
 ```
 conda create -n kalkayotl -c conda-forge python=3.6.10 pymc3=3.7 matplotlib=3.1.3 dynesty=1.0.0 arviz=0.5.1
 ```
-** Mac OS users **
+**Mac OS users**
 ```
 conda create -n kalkayotl -c conda-forge clang=4.0.1 python=3.6.10 pymc3=3.7 matplotlib=3.1.3 dynesty=1.0.0 arviz=0.5.1
 ```
