@@ -37,21 +37,20 @@ Newer versions of these libraries may cause conflicts amongst them, stick to the
 Open a python console and type:
 ```import pymc3```
 
-If an error appears follow the [PyMC3](https://docs.pymc.io/) installation instructions.
+It should be loaded silently. However, if an error occurs follow the [PyMC3](https://docs.pymc.io/) installation instructions.
 
-If asked for, then also install the mkl-service by typing within the Kalkayotl environment:
+If you have a warning about the mkl-service library, install it by typing:
 `conda install mkl-service`
+within the Kalkayotl environment.
 
 Note: if you want to run the Tutorial notebook you also need to install `jupyterlab` in the same environment:
 ```
 conda install -c conda-forge jupyterlab
 ```
 
-
-
 5. Install Kalkayotl:
 
-Once you have successfully installed PyMC3, fork, clone, or download the Kalkayotl repository, move into it and type:
+Once you have successfully installed PyMC3 move to the Kalkayotl directory (the one you forked, cloned, or downloaded in step 1) and type:
 
 ```
 pip install dist/Kalkayotl-1.0.tar.gz
@@ -63,11 +62,13 @@ Test the installation by running
 python example.py
 ```
 
-It will compute cluster and star distances using the Ruprecht_147.csv data from the Data folder. You must get an Example folder with the outputs (chains, statistics, and plots).
+It will compute cluster and star distances using the Ruprecht_147.csv data from the Example folder. You must get the outputs (chains, statistics, and plots) within the same Example folder. If you have no errors the you are ready to move to the next section. If errors appear, identify if they are related to Kalkayotl, PyMC3 or the dependencies. If they are related to PyMC3 or the dependencies follow the specific instructions in their web pages. If it is related to the installation of Kalkayotl, this is step 5, then submit an issue explaining the error. 
 
-Whenever you run Kalkayotl, remember to move into its environment (step 3).
+
 
 ## Running the code
+
+Whenever you run Kalkayotl, remember to move into its environment by typing ``conda activate kalkayotl`` (or the name that you use in step 3 of the installation).
 
 The easiest way to run the code on your own data sets is to copy the ``example.py`` file and modify it according to your needs. Instructions are given within it. Please read it carefully, especially the comments.
 
