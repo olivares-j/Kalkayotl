@@ -56,12 +56,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-burning_iters   = 1000  
+burning_iters   = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters    = 2000
+sample_iters    = 1000
 
 # Initialization mode
 # This initialization improves the sampler efficiency.
@@ -80,13 +80,11 @@ init_iter = 500000
 # of the sampler but increases the computing time.
 #---------------------------------------------------------------------------
 
-#------------ Statistic ----------------------------------------------
-# Chose your favourite statistic and quantiles.
-# This will be computed and written in both 
-# Source_{statistic}.csv and Cluster_{statistic}.csv files
-statistic = "mean"
-quantiles = [0.025,0.975]
-#----------------------------------------------------------------------
+#------------ Statistic -------------------------------------------------------
+# mean, median and mode together with high density interval will be computed
+# The outputs will be at Source_statistics.csv and Cluster_statistics.csv files
+hdi_prob = 0.95
+#------------------------------------------------------------------------------
 
 # --------- Transformation------------------------------------
 # In which space you want to sample: distance or parallax?
@@ -221,7 +219,7 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_out + prior["type"] + "/"
+	dir_prior = dir_out + prior["type"]
 
 	#---------- Create prior directory -------------
 	os.makedirs(dir_prior,exist_ok=True)
@@ -248,7 +246,6 @@ for prior in list_of_prior:
 	p1d.setup()
 
 	#============ Sampling with HMC ======================================
-
 	#------- Run the sampler ---------------------
 	p1d.run(sample_iters=sample_iters,
 			burning_iters=prior["burning_iters"],
@@ -257,11 +254,12 @@ for prior in list_of_prior:
 			target_accept=prior["target_accept"],
 			chains=chains,
 			cores=cores)
+	
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
 	# and want to re-analyse (in that case comment the p1d.run() line)
-	# p1d.load_trace(sample_iters=sample_iters)
+	p1d.load_trace(sample_iters=sample_iters)
 
 	# ------- Re-analyse the convergence of the sampler---
 	p1d.convergence()
@@ -272,7 +270,7 @@ for prior in list_of_prior:
 	p1d.plot_chains(IDs=['4087735025198194176'])
 
 	#----- Compute and save the posterior statistics ---------
-	p1d.save_statistics(statistic=statistic,quantiles=quantiles)
+	p1d.save_statistics(hdi_prob=hdi_prob)
 
 	#------- Save the samples into HDF5 file --------------
 	p1d.save_samples()
@@ -305,17 +303,19 @@ hf = h5py.File(file_distances,'r')
 srcs = hf.get("Sources")
 
 n_samples = 100
-samples = np.empty((len(srcs.keys()),n_samples))
+samples = np.empty((len(srcs.keys()),dimension,n_samples))
 #-------- loop over array and fill it with samples -------
 for i,ID in enumerate(srcs.keys()):
 	#--- Extracts a random choice of the samples --------------
-	samples[i] = np.random.choice(np.array(srcs.get(str(ID))),
-							size=n_samples,replace=False)
+	tmp = np.array(srcs.get(str(ID)))
+	idx = np.random.choice(np.arange(tmp.shape[1]),size=n_samples,replace=False)
+	samples[i] = tmp[:,idx]
 	#----------------------------------------------------------
 
+	distance = np.sqrt(np.sum(samples[i]**2,axis=0))
 	print("Source {0} at {1:3.1f} +/- {2:3.1f} pc.".format(ID,
-										samples[i].mean(),
-										samples[i].std()))
+										distance.mean(),
+										distance.std()))
 
 #- Close HDF5 file ---
 hf.close()

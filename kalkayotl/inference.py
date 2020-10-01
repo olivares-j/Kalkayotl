@@ -22,6 +22,7 @@ import random
 import pymc3 as pm
 import numpy as np
 import pandas as pn
+import arviz as az
 import h5py
 import scipy.stats as st
 from scipy.linalg import inv as inverse
@@ -131,7 +132,7 @@ class Inference:
 			assert hyper_delta is None, "Parameter hyper_delta is only valid for GMM prior."
 
 
-	def load_data(self,file_data,id_name='source_id',radec_inflation=10.0,id_length=10,corr_func="Vasiliev+2019",*args,**kwargs):
+	def load_data(self,file_data,id_name='source_id',corr_func="Vasiliev+2019",*args,**kwargs):
 		"""
 		This function reads the data.
 
@@ -318,6 +319,7 @@ class Inference:
 		init=None,
 		chains=None,cores=None,
 		step=None,
+		file_chains=None,
 		*args,**kwargs):
 		"""
 		Performs the MCMC run.
@@ -328,7 +330,10 @@ class Inference:
 
 		print("Computing posterior")
 
+		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
+
 		with self.Model:
+			#---------- Only for GMM --------------------------------------------------
 			if self.prior is "GMM" and self.parametrization == "non-central":
 					step = pm.ElemwiseCategorical(vars=[model.component], values=[0, 1])
 					trace = pm.sample(draws=sample_iters, 
@@ -336,6 +341,8 @@ class Inference:
 									chains=chains, cores=cores,
 									discard_tuned_samples=True,
 									step=[step])
+
+			#------- Other prior families ----------------------
 			else:
 				trace = pm.sample(draws=sample_iters, 
 							tune=burning_iters,
@@ -344,11 +351,29 @@ class Inference:
 							discard_tuned_samples=True,
 							*args,**kwargs)
 
-			self.trace = trace
 
+			#--------- Save with arviz ------------
+			chains = az.from_pymc3(trace)
+			az.to_netcdf(chains,file_chains)
+			#-------------------------------------
+
+
+	def load_trace(self,sample_iters,file_chains=None):
+		'''
+		Loads a previously saved sampling of the model
+		'''
+
+		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
+
+		print("Loading existing chains ... ")
+		#---------Load Trace --------------------
+		self.trace = az.from_netcdf(file_chains).posterior
+
+		#-------- Discard burn -----
+		# self.trace = all_trace[-sample_iters:]
 
 		#------- Variable names -----------------------------------------------------------
-		source_names = list(filter(lambda x: "source" in x, self.trace.varnames.copy()))
+		source_names = list(filter(lambda x: "source" in x, self.trace.data_vars))
 		global_names = list(filter(lambda x: ( ("loc" in x) 
 											or ("scl" in x) 
 											or ("weights" in x)
@@ -356,30 +381,11 @@ class Inference:
 											or ("beta" in x)
 											or ("gamma" in x)
 											or ("rt" in x)
-														  ),self.trace.varnames.copy()))
-		
-		names = global_names.copy()
-
-		for i,var in enumerate(names):
-			test = (("interval" in var) 
-					or ("log" in var)
-					or ("stickbreaking" in var)
-					or ("lowerbound") in var)
-			if test:
-				global_names.remove(var)
-
-
-		names = source_names.copy()
-
-		for i,var in enumerate(names):
-			test = (("interval" in var) 
-					or ("log" in var))
-			if test:
-				source_names.remove(var)
+														  ),self.trace.data_vars))
 
 		self.global_names = global_names
 		self.source_names = source_names
-		self.variables    = sum([global_names,source_names],[])
+		self.variables    = self.trace.data_vars
 		#-------------------------------------------------------------------------------------
 
 	def convergence(self):
@@ -391,14 +397,15 @@ class Inference:
 		ess   = pm.stats.ess(self.trace)
 
 		print("Gelman-Rubin statistics:")
-		for var in self.variables:
+		for var in self.trace.data_vars:
 			print("{0} : {1:2.4f}".format(var,np.mean(rhat[var].values)))
 
 		print("Effective sample size:")
-		for var in self.variables:
+		for var in self.trace.data_vars:
 			print("{0} : {1:2.4f}".format(var,np.mean(ess[var].values)))
 
 	def plot_chains(self,
+		file_plots=None,
 		IDs=None,
 		divergences='bottom', 
 		figsize=None, 
@@ -414,7 +421,9 @@ class Inference:
 
 		print("Plotting traces ...")
 
-		pdf = PdfPages(filename=self.dir_out +"/Traces.pdf")
+		file_plots = self.dir_out+"/Traces.pdf" if (file_plots is None) else file_plots
+
+		pdf = PdfPages(filename=file_plots)
 
 		if IDs is not None:
 			#--------- Loop over ID in list ---------------
@@ -425,7 +434,7 @@ class Inference:
 				idx = np.where(id_in_IDs)[0]
 				coords = {str(self.D)+"D_source_dim_0" : idx}
 				plt.figure(0)
-				axes = pm.plots.traceplot(self.trace,var_names=self.source_names,
+				axes = az.plot_trace(self.trace,var_names=self.source_names,
 						coords=coords,
 						figsize=figsize,
 						lines=lines, 
@@ -455,7 +464,7 @@ class Inference:
 
 		if len(self.global_names) > 0:
 			plt.figure(1)
-			axes = pm.plots.traceplot(self.trace,var_names=self.global_names,
+			axes = az.plot_trace(self.trace,var_names=self.global_names,
 					figsize=figsize,
 					lines=lines, 
 					combined=combined, 
@@ -483,12 +492,11 @@ class Inference:
 		
 		pdf.close()
 
-	def save_statistics(self,statistic,credible_interval=0.95):
+	def save_statistics(self,hdi_prob=0.95):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
-		dir_csv (string) Directory where to save the statistics
-		statistic (string) Type of statistic (mean,median or mode)
+		
 		'''
 		print("Saving statistics ...")
 
@@ -501,41 +509,23 @@ class Inference:
 			ctr       = x[np.argmax(gkde(x))]
 			return ctr
 
-
+		stat_funcs = {"mean":lambda x:np.mean(x),
+					  "median":lambda x:np.median(x),
+					  "mode":lambda x:my_mode(x)}
 		#---------------------------------------------------------------------
 
-		if statistic is "mean":
-			stat_funcs = {"mean":lambda x:np.mean(x),
-						  "lower":lambda x:np.quantile(x,0.5*(1.-credible_interval)),
-						  "upper":lambda x:np.quantile(x,0.5*(1.+credible_interval))}
-		elif statistic is "median":
-			stat_funcs = {"median":lambda x:np.median(x),
-						   "lower":lambda x:np.quantile(x,0.5*(1.-credible_interval)),
-						   "upper":lambda x:np.quantile(x,0.5*(1.+credible_interval))}
-		elif statistic is "mode":
-			stat_funcs = { "mode":lambda x:my_mode(x),
-						  "lower":lambda x:np.quantile(x,0.5*(1.-credible_interval)),
-						  "upper":lambda x:np.quantile(x,0.5*(1.+credible_interval))}
-		else:
-			sys.exit("Incorrect statistic:"+statistic)
-
-
 		#-------------- Source statistics ----------------------------------------------------
-		source_csv = self.dir_out +"/Sources_"+statistic+".csv"
-		df_source  = pm.stats.summary(self.trace,
+		source_csv = self.dir_out +"/Sources_statistics.csv"
+		df_source  = az.summary(self.trace,
 						var_names=self.source_names,
 						stat_funcs=stat_funcs,
-						extend=False)
+						hdi_prob=hdi_prob,
+						extend=True)
 
 		#------------- Replace parameter id by source ID--------------------
-		# If D is five we still infer six parameters
-		D = self.D
-		if self.D is 5 :
-			D = 6
-
 		n_sources = len(self.ID)
-		ID  = np.repeat(self.ID,D,axis=0)
-		idx = np.tile(np.arange(D),n_sources)
+		ID  = np.repeat(self.ID,self.D,axis=0)
+		idx = np.tile(np.arange(self.D),n_sources)
 
 		df_source.set_index(ID,inplace=True)
 		df_source.insert(loc=0,column="parameter",value=idx)
@@ -543,7 +533,7 @@ class Inference:
 		# ------ Parameters into columns ------------------------
 		suffixes  = ["_X","_Y","_Z"]
 		dfs = []
-		for i in range(D):
+		for i in range(self.D):
 			idx = np.where(df_source["parameter"] == i)[0]
 			tmp = df_source.drop(columns="parameter").add_suffix(suffixes[i])
 			dfs.append(tmp.iloc[idx])
@@ -560,14 +550,15 @@ class Inference:
 
 		#-------------- Global statistics ------------------------
 		if len(self.global_names) > 0:
-			global_csv = self.dir_out +"/Cluster_"+statistic+".csv"
+			global_csv = self.dir_out +"/Cluster_statistics.csv"
 			df_global = pm.stats.summary(self.trace,var_names=self.global_names,
 							stat_funcs=stat_funcs,
-							credible_interval=credible_interval)
+							hdi_prob=hdi_prob,
+							extend=True)
 			
 			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
 
-	def save_samples(self):
+	def save_samples(self,merge=True):
 		'''
 		Saves the chain samples to an h5 file.
 		Arguments:
@@ -578,7 +569,8 @@ class Inference:
 		#------ Open h5 file -------------------
 		file_h5 = self.dir_out + "/Samples.h5"
 
-		source_trace = self.trace[self.source_names[0]].T
+		sources_trace = self.trace[self.source_names].to_array().T
+
 		with h5py.File(file_h5,'w') as hf:
 			grp_glb = hf.create_group("Cluster")
 			grp_src = hf.create_group("Sources")
@@ -586,17 +578,25 @@ class Inference:
 			#------ Loop over global parameters ---
 			for name in self.global_names:
 				label = name.replace(self.Model.name+"_","")
-				grp_glb.create_dataset(label, data=self.trace[name])
+				data = np.array(self.trace[name]).T
+				if merge:
+					data = data.reshape((data.shape[0],-1))
+				grp_glb.create_dataset(label, data=data)
 
 			#------ Loop over source parameters ---
 			for i,name in enumerate(self.ID):
-				grp_src.create_dataset(name, data=source_trace[i])
+				data = sources_trace[{str(self.D)+"D_source_dim_0" : i}].values
+				if merge:
+					data = data.reshape((data.shape[0],-1))
+				grp_src.create_dataset(name, data=data)
 
 
 	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,
 		quantiles=[0.05,0.95],
 		print_progress=False,
 		plot=False):
+
+		assert self.D == 1, "Evidence is only implemented for dimension 1."
 
 		#------ Add media to quantiles ---------------
 		quantiles = [quantiles[0],0.5,quantiles[1]]

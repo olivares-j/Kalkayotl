@@ -258,7 +258,7 @@ class ModelND(Model):
 				covi = tt.nlinalg.matrix_dot(diag, C, diag)
 				cov  = tt.set_subtensor(cov[i],covi)
 
-			print_ = tt.printing.Print('Sigma')(cov[0])
+			# print_ = tt.printing.Print('Sigma')(cov[0])
 			#---------------------------------------------------------
 		#========================================================================
 
