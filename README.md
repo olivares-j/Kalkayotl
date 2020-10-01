@@ -1,6 +1,10 @@
 # Kalkayotl
 Kalkayotl is a Bayesian inference code designed to obtain posterior estimate of cluster parameters, this is location and scale, and distance to the cluster stars.
 
+**Please read the example.py and the Tutorial.ipynb files, and the associated paper, they contain details on the use of the code. Specific details of the models and assumptions are given in the associated paper.**
+
+**If you still have doubts or face problems during installation or running of the code, please send an issue instead of an e-mail. Your question/issue may help other users.**
+
 ## Installation
 
 1. Get the code from https://github.com/olivares-j/Kalkayotl, you can either clone or download. Remember to use the master branch.
