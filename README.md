@@ -62,7 +62,7 @@ Test the installation by running
 python example.py
 ```
 
-It will compute cluster and star distances using the Ruprecht_147.csv data from the Example folder. You must get the outputs (chains, statistics, and plots) within the same Example folder. If you have no errors the you are ready to move to the next section. If errors appear, identify if they are related to Kalkayotl, PyMC3 or the dependencies. If they are related to PyMC3 or the dependencies follow the specific instructions in their web pages. If it is related to the installation of Kalkayotl, this is step 5, then submit an issue explaining the error. 
+It will compute cluster and star distances using the Ruprecht_147.csv data from the Example folder. You must get the outputs (chains, statistics, and plots) within the same Example folder. If you have no errors then you are ready to move to the next section. If errors appear, identify if they are related to Kalkayotl, PyMC3, or the dependencies. If they are related to PyMC3 or the dependencies follow the specific instructions in their web pages. If it is related to the installation of Kalkayotl, then submit an issue explaining the error. 
 
 
 
