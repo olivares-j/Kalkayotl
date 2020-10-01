@@ -89,7 +89,7 @@ The most common errors that you may face while running Kalkayotl are:
  This error is caused generally by a zero derivative in a random variable (RV). In most cases it is solved by running the code again, which will initialize the chain in another point of parameter space. Remember that you must manually remove the files (chain-?.csv) in order to avoid reusing the positions of those failed chains.
 
 2. Low effective sample size and/or divergences.
- The first is caused by a poor sampling while divergences are related to numerical issues. While very few effective samples means that the parameter precision is lower, the divergences indicate that the posterior is hard to sample. A few divergences are generally not an issue, but still look the chains.
+ The first is caused by a poor sampling while divergences are related to numerical issues. While very few effective samples means that the parameter precision is lower, the divergences indicate that the posterior is hard to sample. A few divergences are generally not an issue, but still take a look at the chains.
 
  Possible solutions:
  * Increase the number tuning iterations. 
