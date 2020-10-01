@@ -7,7 +7,7 @@ Kalkayotl is a Bayesian inference code designed to obtain samples of the joint p
 
 ## Installation
 
-1. Get the code from https://github.com/olivares-j/Kalkayotl, you can either clone or download. Remember to use the master branch which contains the already tested 1D version.
+1. Get the code from https://github.com/olivares-j/Kalkayotl, you can fork, clone, or download. Remember to use the master branch which contains the already tested 1D version.
 
 
 2. I strongly recommend creating an independent conda environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.6.
