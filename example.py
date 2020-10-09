@@ -20,6 +20,8 @@ This file is part of Kalkayotl.
 from __future__ import absolute_import, unicode_literals, print_function
 import sys
 import os
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1" 
 import numpy as np
 
 #----- Import the module ----------

@@ -187,6 +187,15 @@ class eff_gen(rv_continuous):
 eff = eff_gen(name='EFF')
 #===============================================================
 
+#=============== Multivariate EFF generator ===============================
+class multivariate_eff_gen(rv_continuous):
+	"Multivariate EFF distribution"
+	""" Implement as multivariate t distribution"""
+	
+
+mveff = multivariate_eff_gen(name='EFF')
+#===============================================================
+
 
 class EFF(Continuous):
 	R"""
@@ -263,7 +272,60 @@ class EFF(Continuous):
 		log_d  = -0.5*gamma*tt.log(1.+ x**2) - tt.log(cte)
 		return bound(log_d,gamma > 1.)
 
+class MvEFF(_QuadFormBase):
+    R"""
+    Multivariate Elson, Fall, and Freeman log-likelihood.
+    .. math::
+       f(x \mid \pi, T) =
+    ========  ==========================
+    Support   :math:`x \in \mathbb{R}^k`
+    Mean      :math:`\mu`
+    Variance  :math:`T^{-1}`
+    ========  ==========================
+    Parameters
+    ----------
+    mu: array
+        Vector of means.
+    cov: array
+        Covariance matrix. Exactly one of cov, tau, or chol is needed.
+    tau: array
+        Precision matrix. Exactly one of cov, tau, or chol is needed.
+    chol: array
+        Cholesky decomposition of covariance matrix. Exactly one of cov,
+        tau, or chol is needed.
+    lower: bool, default=True
+        Whether chol is the lower tridiagonal cholesky factor.
+	"""
+	def __init__(self, location, scale, gamma, *args, **kwargs):
+        super().__init__(mu=location, cov=scale, *args, **kwargs)
 
+        self.gamma    = tt.as_tensor_variable(gamma)
+		self.location = tt.as_tensor_variable(location)
+		self.scale    = tt.as_tensor_variable(scale)
+
+		self.mean = self.location
+
+
+
+    def random(self, point=None, size=None):
+		"""
+		Draw random values from HalfNormal distribution.
+		Parameters
+		----------
+		point : dict, optional
+			Dict of variable values on which random values are to be
+			conditioned (uses default point if not specified).
+		size : int, optional
+			Desired size of random sample (returns one sample if not
+			specified).
+		Returns
+		-------
+		array
+		"""
+		location,scale,gamma = draw_values([self.location,self.scale,self.gamma],point=point,size=size)
+		return generate_samples(mv_eff.rvs,loc=location,scale=scale,gamma=gamma,
+								dist_shape=self.shape,
+								size=size)
 ################################################################################################################
 
 ################################# KING ################################################################

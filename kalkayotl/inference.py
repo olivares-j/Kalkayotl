@@ -104,14 +104,6 @@ class Inference:
 			index_corr = [12,13,16]
 
 
-		elif self.D == 5:
-			index_obs  = [0,1,2,3,4,6,7,8,9,10,12,13,14,15,16,17,18,19,20,21]
-			index_mu   = [0,1,2,3,4]
-			index_sd   = [6,7,8,9,10]
-			index_corr = [12,13,14,15,16,17,18,19,20,21]
-			idx_plx    = 2
-
-
 		elif self.D == 6:
 			index_obs  = range(22)
 			index_mu   = [0,1,2,3,4,5]
@@ -130,6 +122,10 @@ class Inference:
 
 		if prior is "Gaussian":
 			assert hyper_delta is None, "Parameter hyper_delta is only valid for GMM prior."
+		elif prior is "EDSD":
+			assert self.D == 1, "EDSD prior is only valid for 1D."
+		elif prior is "Uniform":
+			assert self.D == 1, "Uniform prior is only valid for 1D"
 
 
 	def load_data(self,file_data,id_name='source_id',corr_func="Vasiliev+2019",*args,**kwargs):
@@ -230,7 +226,7 @@ class Inference:
 			sg_data[np.ix_(ida_plx,ida_plx)] += cov_plx
 			#------------------------------------------------------
 			
-			if self.D > 3:
+			if self.D == 6:
 				#------ Covariance in PM ----------------------------
 				# Same for mu_alpha and mu_delta
 				cov_pms = CovariancePM(theta,case=corr_func)
@@ -298,7 +294,7 @@ class Inference:
 								  transformation=self.transformation,
 								  parametrization=self.parametrization)
 
-		elif self.D in [3,5,6]:
+		elif self.D in [3,6]:
 			self.Model = ModelND(dimension=self.D,mu_data=self.mu_data,tau_data=self.tau_data,
 								  prior=self.prior,
 								  parameters=self.parameters,

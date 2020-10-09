@@ -167,7 +167,7 @@ class ModelND(Model):
 		name='', model=None):
 
 		assert isinstance(dimension,int), "dimension must be integer!"
-		assert dimension in [3,5,6],"Not a valid dimension!"
+		assert dimension in [3,6],"Not a valid dimension!"
 
 		D = dimension
 
@@ -198,10 +198,6 @@ class ModelND(Model):
 				Transformation = cartesianToSpherical
 			elif D is 6:
 				Transformation = phaseSpaceToAstrometry_and_RV
-			elif D is 5:
-				Transformation = phaseSpaceToAstrometry
-				D = 6
-
 		else:
 			sys.exit("Transformation is not accepted")
 		#==================================================================
@@ -228,7 +224,6 @@ class ModelND(Model):
 		#------------------------------------------------------
 
 		#------------- Scale --------------------------
-
 		if parameters["scale"] is None:
 			scale = [ pm.Gamma("scl_{0}".format(i),
 						alpha=2.0,
@@ -262,15 +257,8 @@ class ModelND(Model):
 			#---------------------------------------------------------
 		#========================================================================
 
-		#===================== True values ============================================
-		if prior == "Uniform":
-			if parametrization == "central":
-				MvUniform("source",location=loc,scale=scl,shape=(N,D))
-			else:
-				pm.Uniform("offset",lower=-1,upper=1,shape=(N,D))
-				pm.Deterministic("source",loc + scl*self.offset)
-				
-		elif prior == "Gaussian":
+		#===================== True values ============================================		
+		if prior == "Gaussian":
 			if parametrization == "central":
 				pm.MvNormal("source",mu=loc,cov=cov[0],shape=(N,D))
 			else:
