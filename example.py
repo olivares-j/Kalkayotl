@@ -54,10 +54,10 @@ chains = 2
 # I recommend to use 2 cores; this is one per chain.
 cores  = 2
 
-# burining_iters is the number of iterations used to tune the sampler
+# tuning_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-burning_iters   = 1000  
+tuning_iters   = 1000  
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
@@ -155,7 +155,7 @@ list_of_prior = [
 	# 						"hyper_beta":None, 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta": None,
-	# 						"burning_iters":1*burning_iters,
+	# 						"tuning_iters":1*tuning_iters,
 	# 						"target_accept":0.8},
 
 	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
@@ -163,7 +163,7 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta,
 	# 						"hyper_gamma":None, 
 	# 						"hyper_delta":None,
-	# 						"burning_iters":1*burning_iters,
+	# 						"tuning_iters":1*tuning_iters,
 	# 						"target_accept":0.8},
 
 	{"type":"Gaussian",     "parameters":{"location":None,"scale":None},
@@ -171,7 +171,7 @@ list_of_prior = [
 							"hyper_beta":hyper_beta,
 							"hyper_gamma":None,
 							"hyper_delta":None,
-							"burning_iters":1*burning_iters,
+							"tuning_iters":1*tuning_iters,
 							"target_accept":0.8},
 
 	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
@@ -179,7 +179,7 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta, 
 	# 						"hyper_gamma":[10.0],
 	# 						"hyper_delta":None,
-	# 						"burning_iters":10*burning_iters,
+	# 						"tuning_iters":10*tuning_iters,
 	# 						"target_accept":0.95},
 	# NOTE: the tidal radius and its parameters are scaled.
 
@@ -189,7 +189,7 @@ list_of_prior = [
 	# 						"hyper_beta":hyper_beta, 
 	# 						"hyper_gamma":[0.5],
 	# 						"hyper_delta":None,
-	# 						"burning_iters":10*burning_iters,
+	# 						"tuning_iters":10*tuning_iters,
 	# 						"target_accept":0.95},
 	# NOTE: the mean of the Gamma parameter will be at 1.0 + hyper_gamma
 
@@ -198,7 +198,7 @@ list_of_prior = [
 	# 						"hyper_beta":[50.0], 
 	# 						"hyper_gamma":None,
 	# 						"hyper_delta":np.array([5,5]),
-	# 						"burning_iters":10*burning_iters,
+	# 						"tuning_iters":10*tuning_iters,
 	# 						"target_accept":0.95}
 	# NOTE: If you face failures of the style zero derivative try reducing the hyper_beta value.
 	]
@@ -238,12 +238,14 @@ for prior in list_of_prior:
 
 	#------- Run the sampler ---------------------
 	p1d.run(sample_iters=sample_iters,
-			burning_iters=prior["burning_iters"],
+			burning_iters=prior["tuning_iters"],
 			init=init_mode,
 			n_init=init_iter,
 			target_accept=prior["target_accept"],
 			chains=chains,
 			cores=cores)
+	# Note: whenever you want to analyze a previously run model, comment the .run() line.
+	# This will load the model, the data and the following line will load the traces.
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
@@ -255,7 +257,8 @@ for prior in list_of_prior:
 
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
-	# of the provided sources. If IDs keyword removed only plots the population parameters.
+	# of the provided sources. If IDs keyword is removed it only plots the population parameters.
+	# Note: if you run the example with your own data either provide a valid ID or remove the keyword.
 	p1d.plot_chains(IDs=['4087735025198194176'])
 
 	#----- Compute and save the posterior statistics ---------
@@ -280,7 +283,7 @@ for prior in list_of_prior:
 	# but it will further increase the computing time.
 
 	# UNCOMMENT NEXT LINE
-	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100)
+	# p1d.evidence(N_samples=100,M_samples=1000,dlogz=1.0,nlive=100)
 	#----------------------------------------------------------------------------------
 #=======================================================================================
 
