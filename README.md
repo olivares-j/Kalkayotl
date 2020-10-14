@@ -81,6 +81,7 @@ Before running Kalkayotl:
 
 For more information open the Tutorial notebook by typing:
 `jupyter notebook Tutorial.ipynb`
+always within the Kalkayotl environement created in the installation steps.
 
 ## Troubleshooting
 
