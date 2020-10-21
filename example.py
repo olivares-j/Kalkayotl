@@ -58,28 +58,19 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-burning_iters   = 1000
+tuning_iters = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters    = 1000
+sample_iters = 1000
 
-# Initialization mode
-# This initialization improves the sampler efficiency.
-# Notice that in some cases errors like "Bad initial energy"
-# or "X.rvel is zero" may require additional random initializations.
-init_mode = 'advi+adapt_diag'
-
-#---- Iterations to run the advi algorithm-----
-# In most cases the algorithm converges before the total number of
-# iterations have been reached.
-init_iter = 500000 
 
 #----- Target_accept-------
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
 # Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
 # of the sampler but increases the computing time.
+target_accept = 0.8
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------
@@ -113,7 +104,6 @@ indep_measures = False
 # The performance of the HMC sampler can be improved by non-central parametrizations.
 # Kalkayotl comes with two options: central and non-central. While the former works better
 # for nearby clusters (<500 pc) the latter does it for faraway clusters (>500 pc).
-parametrization="central"
 #==========================================================
 
 #=========== Cluster initial parameters ===========================
@@ -145,7 +135,7 @@ hyper_alpha = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],[u,uvw_sd],[v,uvw_sd],[w,uvw_sd]
 
 # hyper_beta controls  the cluster scale, which is Gamma distributed.
 # hyper_beta corresponds to the mode of the distribution.
-hyper_beta = [10. for i in range(6)]
+hyper_beta = 10.
 
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
@@ -159,60 +149,71 @@ hyper_beta = [10. for i in range(6)]
 # IMPORTANT. The number of Gaussians in the mixture corresponds to the
 # length of this vector. 
 
+# hyper_eta controls the LKJCorr distribution. 
+# The most similar to 1 the most uniform the correlations
+hyper_eta = 10.
+
 #========================= PRIORS ===========================================
 # Uncomment those prior families that you are interested in using. 
 list_of_prior = [
-	# {"type":"EDSD",       "parameters":{"location":0.0,"scale":1350.0}, 
-	# 						"hyper_alpha":None, 
-	# 						"hyper_beta":None, 
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta": None,
-	# 						"burning_iters":1*burning_iters,
-	#						"target_accept":0.8},
-
-	# {"type":"Uniform",      "parameters":{"location":None,"scale":None},
-	# 						"hyper_alpha":hyper_alpha[:dimension],
-	# 						"hyper_beta":hyper_beta[:dimension],
-	# 						"hyper_gamma":None, 
-	# 						"hyper_delta":None,
-	# 						"burning_iters":1*burning_iters,
-	# 						"target_accept":0.8},
-
-	{"type":"Gaussian",     "parameters":{"location":None,"scale":None,"corr":False},
-							"hyper_alpha":hyper_alpha[:dimension],
-							"hyper_beta":hyper_beta[:dimension],
-							"hyper_gamma":None,
-							"hyper_delta":None,
-							"burning_iters":1*burning_iters,
-							"target_accept":0.8},
+	{"type":"Gaussian",     
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"central"},
 
 	
-	# {"type":"King",         "parameters":{"location":None,"scale":None,"rt":None},
-	# 						"hyper_alpha":hyper_alpha, 
-	# 						"hyper_beta":hyper_beta, 
-	# 						"hyper_gamma":[10.0],
-	# 						"hyper_delta":None,
-	# 						"burning_iters":10*burning_iters,
-	# 						"target_accept":0.95},
+	{"type":"King",         
+		"parameters":{"location":None,"scale":None,"rt":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension], 
+							"beta":hyper_beta, 
+							"gamma":10.0,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"non-central"},
 	# NOTE: the tidal radius and its parameters are scaled.
 
 	
-	# {"type":"EFF",          "parameters":{"location":None,"scale":None,"gamma":None},
-	# 						"hyper_alpha":hyper_alpha,
-	# 						"hyper_beta":hyper_beta, 
-	# 						"hyper_gamma":[0.5],
-	# 						"hyper_delta":None,
-	# 						"burning_iters":10*burning_iters,
-	# 						"target_accept":0.95},
-	# NOTE: the mean of the Gamma parameter will be at 1.0 + hyper_gamma
+	{"type":"EFF",          
+		"parameters":{"location":None,"scale":None,"gamma":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta, 
+							"gamma":0.5,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"non-central"},
+	# # NOTE: the mean of the Gamma parameter will be at 1.0 + hyper_gamma
 
-	# {"type":"GMM",          "parameters":{"location":None,"scale":None,"weights":None},
-	# 						"hyper_alpha":hyper_alpha, 
-	# 						"hyper_beta":[50.0], 
-	# 						"hyper_gamma":None,
-	# 						"hyper_delta":np.array([5,5]),
-	# 						"burning_iters":10*burning_iters,
-	# 						"target_accept":0.95}
+	{"type":"GMM",          
+		"parameters":{"location":None,"scale":None,"weights":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension], 
+							"beta":hyper_beta, 
+							"gamma":None,
+							"delta":np.array([5,5]),
+							"eta":hyper_eta
+							},
+		"parametrization":"central"},
+
+	{"type":"CGMM",         
+		"parameters":{"location":None,"scale":None,"weights":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension], 
+							"beta":hyper_beta, 
+							"gamma":None,
+							"delta":np.array([5,5]),
+							"eta":hyper_eta
+							},
+		"parametrization":"central"}
 	# NOTE: If you face failures of the style zero derivative try reducing the hyper_beta value.
 	]
 #======================= Inference and Analysis =====================================================
@@ -231,15 +232,12 @@ for prior in list_of_prior:
 	p1d = Inference(dimension=dimension,     # For now it only works in 3D.
 					prior=prior["type"],
 					parameters=prior["parameters"],
-					hyper_alpha=prior["hyper_alpha"],
-					hyper_beta=prior["hyper_beta"],
-					hyper_gamma=prior["hyper_gamma"],
-					hyper_delta=prior["hyper_delta"],
+					hyper_parameters=prior["hyper_parameters"],
 					dir_out=dir_prior,
 					transformation=transformation,
 					zero_point=zero_point[:dimension],
 					indep_measures=indep_measures,
-					parametrization=parametrization)
+					parametrization=prior["parametrization"])
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
 	p1d.load_data(file_data)
@@ -250,18 +248,15 @@ for prior in list_of_prior:
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
 	p1d.run(sample_iters=sample_iters,
-			burning_iters=prior["burning_iters"],
-			init=init_mode,
-			n_init=init_iter,
-			target_accept=prior["target_accept"],
+			tuning_iters=tuning_iters,
+			target_accept=target_accept,
 			chains=chains,
 			cores=cores)
-	
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
 	# and want to re-analyse (in that case comment the p1d.run() line)
-	p1d.load_trace(sample_iters=sample_iters)
+	p1d.load_trace()
 
 	# ------- Re-analyse the convergence of the sampler---
 	p1d.convergence()
@@ -299,26 +294,26 @@ for prior in list_of_prior:
 
 
 #=============== Extract Samples =========================================
-import h5py
-file_distances = dir_out + "/Gaussian/Samples.h5"
-hf = h5py.File(file_distances,'r')
-srcs = hf.get("Sources")
+# import h5py
+# file_distances = dir_out + "/Gaussian/Samples.h5"
+# hf = h5py.File(file_distances,'r')
+# srcs = hf.get("Sources")
 
-n_samples = 100
-samples = np.empty((len(srcs.keys()),dimension,n_samples))
-#-------- loop over array and fill it with samples -------
-for i,ID in enumerate(srcs.keys()):
-	#--- Extracts a random choice of the samples --------------
-	tmp = np.array(srcs.get(str(ID)))
-	idx = np.random.choice(np.arange(tmp.shape[1]),size=n_samples,replace=False)
-	samples[i] = tmp[:,idx]
-	#----------------------------------------------------------
+# n_samples = 100
+# samples = np.empty((len(srcs.keys()),dimension,n_samples))
+# #-------- loop over array and fill it with samples -------
+# for i,ID in enumerate(srcs.keys()):
+# 	#--- Extracts a random choice of the samples --------------
+# 	tmp = np.array(srcs.get(str(ID)))
+# 	idx = np.random.choice(np.arange(tmp.shape[1]),size=n_samples,replace=False)
+# 	samples[i] = tmp[:,idx]
+# 	#----------------------------------------------------------
 
-	distance = np.sqrt(np.sum(samples[i]**2,axis=0))
-	print("Source {0} at {1:3.1f} +/- {2:3.1f} pc.".format(ID,
-										distance.mean(),
-										distance.std()))
+# 	distance = np.sqrt(np.sum(samples[i]**2,axis=0))
+# 	print("Source {0} at {1:3.1f} +/- {2:3.1f} pc.".format(ID,
+# 										distance.mean(),
+# 										distance.std()))
 
-#- Close HDF5 file ---
-hf.close()
+# #- Close HDF5 file ---
+# hf.close()
 #============================================================================

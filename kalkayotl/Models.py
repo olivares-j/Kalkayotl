@@ -65,7 +65,7 @@ class Model1D(Model):
 
 		#------------------------ Scale ---------------------------------------
 		if parameters["scale"] is None:
-			pm.Gamma("scl",alpha=2.0,beta=2.0/hyper_beta[0],shape=shape)
+			pm.Gamma("scl",alpha=2.0,beta=2.0/hyper_beta,shape=shape)
 		else:
 			self.scl = parameters["scale"]
 		#========================================================================
@@ -109,7 +109,7 @@ class Model1D(Model):
 
 		elif prior is "EFF":
 			if parameters["gamma"] is None:
-				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma[0])
+				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma)
 				pm.Deterministic("gamma",1.0+self.x)
 			else:
 				self.gamma = parameters["gamma"]
@@ -122,7 +122,7 @@ class Model1D(Model):
 
 		elif prior is "King":
 			if parameters["rt"] is None:
-				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma[0])
+				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma)
 				pm.Deterministic("rt",1.0+self.x)
 			else:
 				self.rt = parameters["rt"]
@@ -157,11 +157,12 @@ class ModelND(Model):
 	'''
 	def __init__(self,dimension,mu_data,tau_data,
 		prior="Gaussian",
-		parameters={"location":None,"scale":None,"corr":False},
+		parameters={"location":None,"scale":None},
 		hyper_alpha=None,
 		hyper_beta=None,
 		hyper_gamma=None,
 		hyper_delta=None,
+		hyper_eta=None,
 		transformation=None,
 		parametrization="non-central",
 		name='', model=None):
@@ -183,7 +184,7 @@ class ModelND(Model):
 		#------------------- Data ------------------------------------------------------
 		N = int(len(mu_data)/D)
 		if N == 0:
-			sys.exit("Data has length zero!. You must provide at least one data point")
+			sys.exit("Data has length zero! You must provide at least one data point.")
 		#-------------------------------------------------------------------------------
 
 		print("Using {0} parametrization".format(parametrization))
@@ -203,71 +204,117 @@ class ModelND(Model):
 		#==================================================================
 
 		#================ Hyper-parameters =====================================
-		if hyper_delta is None:
-			shape = 1
-		else:
+		#----------------- Mixture prior families ----------------------------
+		if prior in ["GMM","GUM","CGMM"]:
+			#------------- Shapes -------------------------
 			shape = len(hyper_delta)
-
-		#--------- Location ----------------------------------
-		if parameters["location"] is None:
-
-			location = [ pm.Normal("loc_{0}".format(i),
-						mu=hyper_alpha[i][0],
-						sigma=hyper_alpha[i][1],
-						shape=shape) for i in range(D) ]
-
-			#--------- Join variables --------------
-			loc = pm.math.stack(location,axis=1)
-
-		else:
-			loc = parameters["location"]
-		#------------------------------------------------------
-
-		#------------- Scale --------------------------
-		if parameters["scale"] is None:
-			scale = [ pm.Gamma("scl_{0}".format(i),
-						alpha=2.0,
-						beta=2.0/hyper_beta[0],
-						shape=shape) for i in range(D) ]
-			#--------- Join variables --------------
-			scl = pm.math.stack(scale,axis=1)
-
-		else:
-			scl = parameters["scale"]
-		#--------------------------------------------------
-
-		if prior in ["Gaussian","Mixture"]:
-			#----------------------- Correlation -----------------------------------------
-			if parameters["corr"] :
-				pm.LKJCorr('chol_corr', eta=hyper_gamma, n=D)
-				C = tt.fill_diagonal(self.chol_corr[np.zeros((D, D),dtype=np.int64)], 1.)
+			
+			if prior is "GUM":
+				n_gauss = shape -1
 			else:
-				C = np.eye(D)
-			#-----------------------------------------------------------------------------
+				n_gauss = shape
 
-			#-------------------- Covariance -------------------------
-			cov = theano.shared(np.zeros((shape,D,D)))
+			loc  = theano.shared(np.zeros((n_gauss,D)))
+			chol = theano.shared(np.zeros((n_gauss,D,D)))
+			#----------------------------------------------
 
-			for i in range(shape):
-				diag = tt.nlinalg.diag(scl[i])
-				covi = tt.nlinalg.matrix_dot(diag, C, diag)
-				cov  = tt.set_subtensor(cov[i],covi)
+			#----------- Locations ------------------------------------------
+			if parameters["location"] is None:
+				if prior is "CGMM":
+					#----------------- Concentric prior --------------------
+					location = [ pm.Normal("loc_{0}".format(j),
+								mu=hyper_alpha[j][0],
+								sigma=hyper_alpha[j][1]) for j in range(D) ]
 
-			# print_ = tt.printing.Print('Sigma')(cov[0])
-			#---------------------------------------------------------
-		#========================================================================
+					loci = pm.math.stack(location,axis=1)
+
+					for i in range(n_gauss):
+						loc  = tt.set_subtensor(loc[i],loci)
+					#---------------------------------------------------------
+
+				else:
+					#----------- Non-concentric prior ----------------------------
+					for i in range(n_gauss):
+						location = [ pm.Normal("loc_{0}_{1}".format(i,j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1]) for j in range(D) ]
+						
+						loci = pm.math.stack(location,axis=1)
+
+						loc  = tt.set_subtensor(loc[i],loci)
+					#---------------------------------------------------------
+					
+					if prior is "GUM":
+						#---------- Gaussian+Uniform ------------------------------
+						location_unif = [ pm.Normal("loc_unif_{0}".format(i),
+									mu=hyper_alpha[i][0],
+									sigma=hyper_alpha[i][1]) for i in range(D) ]
+
+						loc_unif = pm.math.stack(location_unif,axis=1)
+						#----------------------------------------------------------
+				#-------------------------------------------------------------------
+			else:
+				for i in range(n_gauss):
+					loc  = tt.set_subtensor(loc[i],np.array(parameters["location"][i]))
+
+				if prior is "GUM":
+					loc_unif = pm.math.stack(np.array(parameters["location"][-1]),axis=1)
+
+			#---------- Covariance matrices -----------------------------------
+			if parameters["scale"] is None:
+				for i in range(n_gauss):
+					choli, corri, stdsi = pm.LKJCholeskyCov("scl_{0}".format(i), 
+										n=D, eta=hyper_eta, 
+										sd_dist=pm.Gamma.dist(
+										alpha=2.0,beta=2.0/hyper_beta),
+										compute_corr=True)
+				
+					chol = tt.set_subtensor(chol[i],choli)
+
+				if prior == "GUM":
+					scl_unif = pm.Gamma("scl_unif",alpha=2.0,beta=2.0/hyper_beta,shape=D)
+			else:
+				sys.exit("Not yet implemented.")
+			#--------------------------------------------------------------------
+		#---------------------------------------------------------------------------------
+
+		#-------------- Non-mixture prior families ----------------------------------
+		else:
+			#--------- Location ----------------------------------
+			if parameters["location"] is None:
+				location = [ pm.Normal("loc_{0}".format(i),
+							mu=hyper_alpha[i][0],
+							sigma=hyper_alpha[i][1]) for i in range(D) ]
+
+				#--------- Join variables --------------
+				loc = pm.math.stack(location,axis=1)
+
+			else:
+				loc = parameters["location"]
+			#------------------------------------------------------
+
+			#---------- Covariance matrix ------------------------------------
+			if parameters["scale"] is None:
+				chol, corr, stds = pm.LKJCholeskyCov("scl", n=D, eta=hyper_eta, 
+						sd_dist=pm.Gamma.dist(alpha=2.0,beta=2.0/hyper_beta),
+						compute_corr=True)
+			else:
+				sys.exit("Not yet implemented.")
+			#--------------------------------------------------------------
+		#----------------------------------------------------------------------------
+		#==============================================================================
 
 		#===================== True values ============================================		
 		if prior == "Gaussian":
 			if parametrization == "central":
-				pm.MvNormal("source",mu=loc,cov=cov[0],shape=(N,D))
+				pm.MvNormal("source",mu=loc,chol=chol,shape=(N,D))
 			else:
 				pm.Normal("offset",mu=0,sigma=1,shape=(N,D))
-				pm.Deterministic("source",loc + scl*self.offset)
+				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
 		elif prior == "King":
 			if parameters["rt"] is None:
-				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma[0])
+				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma)
 				pm.Deterministic("rt",1.0+self.x)
 			else:
 				self.rt = parameters["rt"]
@@ -276,11 +323,11 @@ class ModelND(Model):
 				MvKing("source",location=loc,scale=scl,rt=self.rt,shape=(N,D))
 			else:
 				King("offset",location=0.0,scale=1.0,rt=self.rt,shape=(N,D))
-				pm.Deterministic("source",loc + scl*self.offset)
+				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
 		elif prior is "EFF":
 			if parameters["gamma"] is None:
-				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma[0])
+				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma)
 				pm.Deterministic("gamma",1.0+self.x)
 			else:
 				self.gamma = parameters["gamma"]
@@ -289,16 +336,15 @@ class ModelND(Model):
 				MvEFF("source",location=loc,scale=scl,gamma=self.gamma,shape=(N,D))
 			else:
 				EFF("offset",location=0.0,scale=1.0,gamma=self.gamma,shape=(N,D))
-				pm.Deterministic("source",loc + scl*self.offset)
+				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
-		elif "Mixture" in prior:
+		elif prior in ["GMM","CGMM","GUM"]:
 			pm.Dirichlet("weights",a=hyper_delta,shape=shape)
 
-			if "GMM" in prior:
-				comps = [ pm.MvNormal.dist(mu=loc[i],cov=cov[i]) for i in range(shape)]
-			elif "GUM" in prior:
-				comps = [ pm.MvNormal.dist(mu=loc[i],cov=cov[i]) for i in range(shape-1) ]
-				comps.extend(MvUniform.dist(location=loc[-1],scale=scl[-1]))
+			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_gauss)]
+
+			if prior is "GUM":
+				comps.extend(MvUniform.dist(location=loc_unif,scale=scl_unif))
 
 			#---- Sample from the mixture ----------------------------------
 			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(N,D))
@@ -306,7 +352,6 @@ class ModelND(Model):
 		else:
 			sys.exit("The specified prior is not supported")
 		#=================================================================================
-		# print_ = tt.printing.Print('source')(self.source)
 
 		#----------------------- Transformation---------------------------------------
 		transformed = Transformation(self.source)

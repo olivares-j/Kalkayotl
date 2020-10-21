@@ -46,10 +46,7 @@ class Inference:
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
 	"""
 	def __init__(self,dimension,prior,parameters,
-				hyper_alpha,
-				hyper_beta,
-				hyper_gamma,
-				hyper_delta,
+				hyper_parameters,
 				dir_out,
 				transformation,
 				parametrization,
@@ -76,10 +73,7 @@ class Inference:
 		self.prior            = prior
 		self.zero_point       = zero_point
 		self.parameters       = parameters
-		self.hyper_alpha      = hyper_alpha
-		self.hyper_beta       = hyper_beta
-		self.hyper_gamma      = hyper_gamma
-		self.hyper_delta      = hyper_delta
+		self.hyper            = hyper_parameters
 		self.dir_out          = dir_out
 		self.transformation   = transformation
 		self.indep_measures   = indep_measures
@@ -118,14 +112,6 @@ class Inference:
 		self.names_mu   = [gaia_observables[i] for i in index_mu]
 		self.names_sd   = [gaia_observables[i] for i in index_sd]
 		self.names_corr = [gaia_observables[i] for i in index_corr] 
-
-
-		if prior is "Gaussian":
-			assert hyper_delta is None, "Parameter hyper_delta is only valid for GMM prior."
-		elif prior is "EDSD":
-			assert self.D == 1, "EDSD prior is only valid for 1D."
-		elif prior is "Uniform":
-			assert self.D == 1, "Uniform prior is only valid for 1D"
 
 
 	def load_data(self,file_data,id_name='source_id',corr_func="Vasiliev+2019",*args,**kwargs):
@@ -260,37 +246,67 @@ class Inference:
 
 		print("Configuring "+self.prior+" prior")
 
+		msg_alpha = "hyper_alpha must be specified."
+		msg_beta  = "hyper_beta must be specified."
+		msg_trans = "Transformation must be either pc or mas."
+		msg_delta = "hyper_delta must be specified."
+		msg_gamma = "hyper_gamma must be specified."
+		msg_central = "Only the central parametrization is valid for this configuration."
+		msg_non_central = "Only the non-central parametrization is valid for this configuration."
+		msg_weights = "weights must be greater than 5%."
+
+		assert self.transformation in ["pc","mas"], msg_trans
+
+		if self.D in [3,6]:
+			assert self.transformation is "pc", "3D model only works in pc."
+
 		if self.parameters["location"] is None:
-			assert self.hyper_alpha is not None, "hyper_alpha must be specified."
+			assert self.hyper["alpha"] is not None, msg_alpha
 
 		if self.parameters["scale"] is None:
-			assert self.hyper_beta is not None, "hyper_beta must be specified."
+			assert self.hyper["beta"] is not None, msg_beta
 
-		assert self.transformation in ["pc","mas"],"Transformation must be either pc or mas"
+		if self.prior is "EDSD":
+			assert self.D == 1, "EDSD prior is only valid for 1D version."
 
-		if self.prior is "GMM":
+		if self.prior is "Uniform":
+			assert self.D == 1, "Uniform prior is only valid for 1D version."
+
+		if self.prior in ["GMM","CGMM","GUM"]:
 			if self.parameters["weights"] is None:
-				assert self.hyper_delta is not None, "hyper_delta must be specified."
+				assert self.hyper["delta"] is not None, msg_delta
 			else:
-				assert np.min(self.parameters["weights"])> 0.05, "weights must be greater than 5%"
+				assert np.min(self.parameters["weights"])> 0.05, msg_weights
+
+			assert self.parametrization == "central", msg_central
+
+			if self.prior in ["CGMM","GUM"]:
+				assert self.D in [3,6], "This prior is not valid for 1D version."
 
 		if self.prior is "King":
 			if self.parameters["rt"] is None:
-				assert self.hyper_gamma is not None, "hyper_gamma must be specified."
+				assert self.hyper["gamma"] is not None, msg_gamma
+
+			if self.D in [3,6]:
+				assert self.parametrization != "central", msg_non_central
+
 
 		if self.prior is "EFF":
 			if self.parameters["gamma"] is None:
-				assert self.hyper_gamma is not None, "hyper_gamma must be specified."
+				assert self.hyper["gamma"] is not None, msg_gamma
+
+			if self.D in [3,6]:
+				assert self.parametrization != "central", msg_non_central
 
 
 		if self.D == 1:
 			self.Model = Model1D(mu_data=self.mu_data,tau_data=self.tau_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
-								  hyper_alpha=self.hyper_alpha,
-								  hyper_beta=self.hyper_beta,
-								  hyper_gamma=self.hyper_gamma,
-								  hyper_delta=self.hyper_delta,
+								  hyper_alpha=self.hyper["alpha"],
+								  hyper_beta=self.hyper["beta"],
+								  hyper_gamma=self.hyper["gamma"],
+								  hyper_delta=self.hyper["delta"],
 								  transformation=self.transformation,
 								  parametrization=self.parametrization)
 
@@ -298,10 +314,11 @@ class Inference:
 			self.Model = ModelND(dimension=self.D,mu_data=self.mu_data,tau_data=self.tau_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
-								  hyper_alpha=self.hyper_alpha,
-								  hyper_beta=self.hyper_beta,
-								  hyper_gamma=self.hyper_gamma,
-								  hyper_delta=self.hyper_delta,
+								  hyper_alpha=self.hyper["alpha"],
+								  hyper_beta=self.hyper["beta"],
+								  hyper_gamma=self.hyper["gamma"],
+								  hyper_delta=self.hyper["delta"],
+								  hyper_eta=self.hyper["eta"],
 								  transformation=self.transformation,
 								  parametrization=self.parametrization)
 		else:
@@ -311,8 +328,9 @@ class Inference:
 
 
 		
-	def run(self,sample_iters,burning_iters,
-		init=None,
+	def run(self,sample_iters,tuning_iters,
+		init='advi+adapt_diag',
+		n_init=500000,
 		chains=None,cores=None,
 		step=None,
 		file_chains=None,
@@ -321,7 +339,7 @@ class Inference:
 		Performs the MCMC run.
 		Arguments:
 		sample_iters (integer):    Number of MCMC iterations.
-		burning_iters (integer):    Number of burning iterations.
+		tuning_iters (integer):    Number of burning iterations.
 		"""
 
 		print("Computing posterior")
@@ -329,20 +347,10 @@ class Inference:
 		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
 
 		with self.Model:
-			#---------- Only for GMM --------------------------------------------------
-			if self.prior is "GMM" and self.parametrization == "non-central":
-					step = pm.ElemwiseCategorical(vars=[model.component], values=[0, 1])
-					trace = pm.sample(draws=sample_iters, 
-									tune=burning_iters, 
-									chains=chains, cores=cores,
-									discard_tuned_samples=True,
-									step=[step])
-
-			#------- Other prior families ----------------------
-			else:
-				trace = pm.sample(draws=sample_iters, 
-							tune=burning_iters,
+			trace = pm.sample(draws=sample_iters, 
+							tune=tuning_iters,
 							init=init,
+							n_init=n_init,
 							chains=chains, cores=cores,
 							discard_tuned_samples=True,
 							*args,**kwargs)
@@ -354,7 +362,7 @@ class Inference:
 			#-------------------------------------
 
 
-	def load_trace(self,sample_iters,file_chains=None):
+	def load_trace(self,file_chains=None):
 		'''
 		Loads a previously saved sampling of the model
 		'''
@@ -365,24 +373,38 @@ class Inference:
 		#---------Load Trace --------------------
 		self.trace = az.from_netcdf(file_chains).posterior
 
-		#-------- Discard burn -----
-		# self.trace = all_trace[-sample_iters:]
-
 		#------- Variable names -----------------------------------------------------------
-		source_names = list(filter(lambda x: "source" in x, self.trace.data_vars))
-		global_names = list(filter(lambda x: ( ("loc" in x) 
+		source_variables = list(filter(lambda x: "source" in x, self.trace.data_vars))
+		cluster_variables = list(filter(lambda x: ( ("loc" in x) 
 											or ("scl" in x) 
 											or ("weights" in x)
-											or ("corr" in x)
 											or ("beta" in x)
 											or ("gamma" in x)
-											or ("rt" in x)
-														  ),self.trace.data_vars))
+											or ("rt" in x)),self.trace.data_vars))
+	
+		plots_variables = cluster_variables.copy()
+		stats_variables = cluster_variables.copy()
 
-		self.global_names = global_names
-		self.source_names = source_names
-		self.variables    = self.trace.data_vars
-		#-------------------------------------------------------------------------------------
+		#----------- Remove undesired variables -------------
+		tmp_plots = cluster_variables.copy()
+		tmp_stats = cluster_variables.copy()
+		
+		if self.D in [3,6]:
+			for var in tmp_plots:
+				if "scl" in var and "stds" not in var:
+					plots_variables.remove(var)
+
+			for var in tmp_stats:
+				if "scl" in var:
+					if not ("stds" in var or "corr" in var):
+						stats_variables.remove(var)
+		#----------------------------------------------------
+
+		self.source_variables  = source_variables
+		self.cluster_variables = cluster_variables
+		self.plots_variables   = plots_variables
+		self.stats_variables   = stats_variables
+		self.variables         = self.trace.data_vars
 
 	def convergence(self):
 		"""
@@ -430,7 +452,7 @@ class Inference:
 				idx = np.where(id_in_IDs)[0]
 				coords = {str(self.D)+"D_source_dim_0" : idx}
 				plt.figure(0)
-				axes = az.plot_trace(self.trace,var_names=self.source_names,
+				axes = az.plot_trace(self.trace,var_names=self.source_variables,
 						coords=coords,
 						figsize=figsize,
 						lines=lines, 
@@ -458,12 +480,13 @@ class Inference:
 				pdf.savefig(bbox_inches='tight')
 				plt.close(0)
 
-		if len(self.global_names) > 0:
+		if len(self.cluster_variables) > 0:
 			plt.figure(1)
-			axes = az.plot_trace(self.trace,var_names=self.global_names,
+			axes = az.plot_trace(self.trace,
+					var_names=self.plots_variables,
 					figsize=figsize,
 					lines=lines, 
-					combined=combined, 
+					combined=combined,
 					plot_kwargs=plot_kwargs, 
 					hist_kwargs=hist_kwargs, 
 					trace_kwargs=trace_kwargs)
@@ -501,19 +524,21 @@ class Inference:
 		def my_mode(sample):
 			mins,maxs = np.min(sample),np.max(sample)
 			x         = np.linspace(mins,maxs,num=1000)
-			gkde      = st.gaussian_kde(sample.flatten())
-			ctr       = x[np.argmax(gkde(x))]
+			try:
+				gkde      = st.gaussian_kde(sample.flatten())
+				ctr       = x[np.argmax(gkde(x))]
+			except:
+				ctr = np.nan 
 			return ctr
 
-		stat_funcs = {"mean":lambda x:np.mean(x),
-					  "median":lambda x:np.median(x),
+		stat_funcs = {"median":lambda x:np.median(x),
 					  "mode":lambda x:my_mode(x)}
 		#---------------------------------------------------------------------
 
 		#-------------- Source statistics ----------------------------------------------------
 		source_csv = self.dir_out +"/Sources_statistics.csv"
 		df_source  = az.summary(self.trace,
-						var_names=self.source_names,
+						var_names=self.source_variables,
 						stat_funcs=stat_funcs,
 						hdi_prob=hdi_prob,
 						extend=True)
@@ -526,32 +551,32 @@ class Inference:
 		df_source.set_index(ID,inplace=True)
 		df_source.insert(loc=0,column="parameter",value=idx)
 
-		# ------ Parameters into columns ------------------------
-		suffixes  = ["_X","_Y","_Z"]
-		dfs = []
-		for i in range(self.D):
-			idx = np.where(df_source["parameter"] == i)[0]
-			tmp = df_source.drop(columns="parameter").add_suffix(suffixes[i])
-			dfs.append(tmp.iloc[idx])
+		if self.D == 3 :
+			# ------ Parameters into columns ------------------------
+			suffixes  = ["_X","_Y","_Z"]
+			dfs = []
+			for i in range(self.D):
+				idx = np.where(df_source["parameter"] == i)[0]
+				tmp = df_source.drop(columns="parameter").add_suffix(suffixes[i])
+				dfs.append(tmp.iloc[idx])
 
-		#-------- Join on index --------------------
-		df_source = dfs[0]
-		for i,suffix in enumerate(suffixes[1:]):
-			df_source = df_source.join(dfs[i+1],how="inner",lsuffix="",rsuffix=suffix)
-
-		#---------------------------------------------------------------------
+			#-------- Join on index --------------------
+			df_source = dfs[0]
+			for i,suffix in enumerate(suffixes[1:]):
+				df_source = df_source.join(dfs[i+1],
+					how="inner",lsuffix="",rsuffix=suffix)
+			#---------------------------------------------------------------------
 
 		#---------- Save source data frame ----------------------
 		df_source.to_csv(path_or_buf=source_csv,index_label=self.id_name)
 
 		#-------------- Global statistics ------------------------
-		if len(self.global_names) > 0:
+		if len(self.cluster_variables) > 0:
 			global_csv = self.dir_out +"/Cluster_statistics.csv"
-			df_global = pm.stats.summary(self.trace,var_names=self.global_names,
+			df_global = az.summary(self.trace,var_names=self.stats_variables,
 							stat_funcs=stat_funcs,
 							hdi_prob=hdi_prob,
 							extend=True)
-			
 			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
 
 	def save_samples(self,merge=True):
@@ -565,14 +590,14 @@ class Inference:
 		#------ Open h5 file -------------------
 		file_h5 = self.dir_out + "/Samples.h5"
 
-		sources_trace = self.trace[self.source_names].to_array().T
+		sources_trace = self.trace[self.source_variables].to_array().T
 
 		with h5py.File(file_h5,'w') as hf:
 			grp_glb = hf.create_group("Cluster")
 			grp_src = hf.create_group("Sources")
 
 			#------ Loop over global parameters ---
-			for name in self.global_names:
+			for name in self.cluster_variables:
 				label = name.replace(self.Model.name+"_","")
 				data = np.array(self.trace[name]).T
 				if merge:
