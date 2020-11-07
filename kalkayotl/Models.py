@@ -230,7 +230,7 @@ class Model3D(Model):
 
 					loci = pm.math.stack(location,axis=1)
 
-					for i in range(shape):
+					for i in range(n_gauss):
 						loc  = tt.set_subtensor(loc[i],loci)
 					#---------------------------------------------------------
 
@@ -325,7 +325,7 @@ class Model3D(Model):
 				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
 		elif prior in ["GMM","CGMM"]:
-			pm.Dirichlet("weights",a=hyper_delta,shape=shape)
+			pm.Dirichlet("weights",a=hyper_delta)
 
 			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_gauss)]
 
