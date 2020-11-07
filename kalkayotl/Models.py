@@ -1,3 +1,21 @@
+'''
+Copyright 2020 Javier Olivares Romero
+
+This file is part of Kalkayotl.
+
+	Kalkayotl is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	Kalkayotl is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with Kalkayotl.  If not, see <http://www.gnu.org/licenses/>.
+'''
 import sys
 import numpy as np
 import pymc3 as pm
@@ -6,7 +24,7 @@ import theano
 from theano import tensor as tt, printing
 
 from kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
-from kalkayotl.Priors import EDSD,EFF,King,MvUniform
+from kalkayotl.Priors import EDSD,EFF,King,MvEFF,MvKing
 
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -151,9 +169,189 @@ class Model1D(Model):
 ####################################################################################################
 
 ############################ ND Model ###########################################################
-class ModelND(Model):
+class Model3D(Model):
 	'''
 	Model to infer the N-dimensional parameter vector of a cluster
+	'''
+	def __init__(self,dimension,mu_data,tau_data,
+		prior="Gaussian",
+		parameters={"location":None,"scale":None},
+		hyper_alpha=None,
+		hyper_beta=None,
+		hyper_gamma=None,
+		hyper_delta=None,
+		hyper_eta=None,
+		transformation=None,
+		reference_system="ICRS",
+		parametrization="non-central",
+		name='', model=None):
+
+		assert isinstance(dimension,int), "dimension must be integer!"
+		assert dimension is 3,"Not a valid dimension!"
+
+		super().__init__("3D", model)
+
+		#------------------- Data ------------------------------------------------------
+		N = int(len(mu_data)/3)
+		if N == 0:
+			sys.exit("Data has length zero! You must provide at least one data point.")
+		#-------------------------------------------------------------------------------
+
+		print("Using {0} parametrization".format(parametrization))
+
+		#============= Transformations ====================================
+		assert transformation is "pc","3D model only works with 'pc' transformation"
+
+		if reference_system is "ICRS":
+				Transformation = cartesianToSpherical
+		elif reference_system is "Galactic":
+				Transformation = GalacticToSpherical
+		else:
+			sys.exit("Reference system not accepted")
+		#==================================================================
+
+		#================ Hyper-parameters =====================================
+		#----------------- Mixture prior families ----------------------------
+		if prior in ["GMM","CGMM"]:
+			#------------- Shapes -------------------------
+			n_gauss = len(hyper_delta)
+
+			loc  = theano.shared(np.zeros((n_gauss,3)))
+			chol = theano.shared(np.zeros((n_gauss,3,3)))
+			#----------------------------------------------
+
+			#----------- Locations ------------------------------------------
+			if parameters["location"] is None:
+				if prior in ["CGMM"]:
+					#----------------- Concentric prior --------------------
+					location = [ pm.Normal("loc_{0}".format(j),
+								mu=hyper_alpha[j][0],
+								sigma=hyper_alpha[j][1]) for j in range(3) ]
+
+					loci = pm.math.stack(location,axis=1)
+
+					for i in range(shape):
+						loc  = tt.set_subtensor(loc[i],loci)
+					#---------------------------------------------------------
+
+				else:
+					#----------- Non-concentric prior ----------------------------
+					location = [ pm.Normal("loc_{0}".format(j),
+								mu=hyper_alpha[j][0],
+								sigma=hyper_alpha[j][1],
+								shape=n_gauss) for j in range(3) ]
+					
+					loc = pm.math.stack(location,axis=1)
+					#---------------------------------------------------------
+				#-------------------------------------------------------------------
+			else:
+				for i in range(n_gauss):
+					loc  = tt.set_subtensor(loc[i],np.array(parameters["location"][i]))
+
+			#---------- Covariance matrices -----------------------------------
+			if parameters["scale"] is None:
+				for i in range(n_gauss):
+					choli, corri, stdsi = pm.LKJCholeskyCov("scl_{0}".format(i), 
+										n=3, eta=hyper_eta, 
+										sd_dist=pm.Gamma.dist(
+										alpha=2.0,beta=1.0/hyper_beta),
+										compute_corr=True)
+				
+					chol = tt.set_subtensor(chol[i],choli)
+
+			else:
+				sys.exit("Not yet implemented.")
+			#--------------------------------------------------------------------
+		#---------------------------------------------------------------------------------
+
+		#-------------- Non-mixture prior families ----------------------------------
+		else:
+			#--------- Location ----------------------------------
+			if parameters["location"] is None:
+				location = [ pm.Normal("loc_{0}".format(i),
+							mu=hyper_alpha[i][0],
+							sigma=hyper_alpha[i][1]) for i in range(3) ]
+
+				#--------- Join variables --------------
+				loc = pm.math.stack(location,axis=1)
+
+			else:
+				loc = parameters["location"]
+			#------------------------------------------------------
+
+			#---------- Covariance matrix ------------------------------------
+			if parameters["scale"] is None:
+				chol, corr, stds = pm.LKJCholeskyCov("scl", n=3, eta=hyper_eta, 
+						sd_dist=pm.Gamma.dist(alpha=2.0,beta=1.0/hyper_beta),
+						compute_corr=True)
+			else:
+				sys.exit("Not yet implemented.")
+			#--------------------------------------------------------------
+		#----------------------------------------------------------------------------
+		#==============================================================================
+
+		#===================== True values ============================================		
+		if prior == "Gaussian":
+			if parametrization == "central":
+				pm.MvNormal("source",mu=loc,chol=chol,shape=(N,3))
+			else:
+				pm.Normal("offset",mu=0,sigma=1,shape=(N,3))
+				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
+
+		elif prior == "King":
+			if parameters["rt"] is None:
+				pm.Gamma("x",alpha=2.0,beta=1.0/hyper_gamma)
+				pm.Deterministic("rt",1.001+self.x)
+			else:
+				self.rt = parameters["rt"]
+
+			if parametrization == "central":
+				MvKing("source",location=loc,chol=chol,rt=self.rt,shape=(N,3))
+			else:
+				MvKing("offset",location=np.zeros(3),chol=np.eye(3),rt=self.rt,shape=(N,3))
+				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
+
+		elif prior is "EFF":
+			if parameters["gamma"] is None:
+				pm.Gamma("x",alpha=2.0,beta=1.0/hyper_gamma)
+				pm.Deterministic("gamma",3.001+self.x )
+			else:
+				self.gamma = parameters["gamma"]
+
+			if parametrization == "central":
+				MvEFF("source",location=loc,chol=chol,gamma=self.gamma,shape=(N,3))
+			else:
+				MvEFF("offset",location=np.zeros(3),chol=np.eye(3),gamma=self.gamma,shape=(N,3))
+				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
+
+		elif prior in ["GMM","CGMM"]:
+			pm.Dirichlet("weights",a=hyper_delta,shape=shape)
+
+			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_gauss)]
+
+			#---- Sample from the mixture ----------------------------------
+			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(N,3))
+		
+		else:
+			sys.exit("The specified prior is not supported")
+		#=================================================================================
+
+		#----------------------- Transformation---------------------------------------
+		transformed = Transformation(self.source)
+		#-----------------------------------------------------------------------------
+
+		#------------ Flatten --------------------------------------------------------
+		true = pm.math.flatten(transformed)
+		#----------------------------------------------------------------------------
+
+		#----------------------- Likelihood ----------------------------------------
+		pm.MvNormal('obs', mu=true, tau=tau_data,observed=mu_data)
+		#------------------------------------------------------------------------------
+
+############################ 6D Model ###########################################################
+class Model6D(Model):
+	'''
+	Model to infer the 6-dimensional parameter vector of a cluster
 	'''
 	def __init__(self,dimension,mu_data,tau_data,
 		prior="Gaussian",
@@ -168,21 +366,19 @@ class ModelND(Model):
 		name='', model=None):
 
 		assert isinstance(dimension,int), "dimension must be integer!"
-		assert dimension in [3,6],"Not a valid dimension!"
-
-		D = dimension
+		assert dimension is 6,"Not a valid dimension!"
 
 		# 2) call super's init first, passing model and name
 		# to it name will be prefix for all variables here if
 		# no name specified for model there will be no prefix
-		super().__init__(str(D)+"D", model)
+		super().__init__("6D", model)
 		# now you are in the context of instance,
 		# `modelcontext` will return self you can define
 		# variables in several ways note, that all variables
 		# will get model's name prefix
 
 		#------------------- Data ------------------------------------------------------
-		N = int(len(mu_data)/D)
+		N = int(len(mu_data)/6)
 		if N == 0:
 			sys.exit("Data has length zero! You must provide at least one data point.")
 		#-------------------------------------------------------------------------------
@@ -190,6 +386,7 @@ class ModelND(Model):
 		print("Using {0} parametrization".format(parametrization))
 
 		#============= Transformations ====================================
+
 
 		if transformation is "mas":
 			Transformation = Iden

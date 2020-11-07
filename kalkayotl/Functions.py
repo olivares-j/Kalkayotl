@@ -1,5 +1,34 @@
 import sys
 import numpy as np
+import scipy.stats as st
+
+def my_mode(sample):
+	mins,maxs = np.min(sample),np.max(sample)
+	x         = np.linspace(mins,maxs,num=1000)
+	try:
+		gkde      = st.gaussian_kde(sample.flatten())
+		ctr       = x[np.argmax(gkde(x))]
+	except:
+		ctr = np.nan 
+	return ctr
+
+def get_principal(stds,corr,idx):
+	sd_x   = stds[idx[0]]
+	sd_y   = stds[idx[1]]
+	rho_xy = corr[idx[0],idx[1]]
+
+
+	# Author: Jake VanderPlas
+	# License: BSD
+	#----------------------------------------
+	level = 1.0 
+	sigma_xy2 = rho_xy * sd_x * sd_y
+
+	alpha = 0.5 * np.arctan2(2 * sigma_xy2,(sd_x ** 2 - sd_y ** 2))
+	tmp1  = 0.5 * (sd_x ** 2 + sd_y ** 2)
+	tmp2  = np.sqrt(0.25 * (sd_x ** 2 - sd_y ** 2) ** 2 + sigma_xy2 ** 2)
+
+	return level*np.sqrt(tmp1 + tmp2), level*np.sqrt(np.abs(tmp1 - tmp2)), alpha* 180. / np.pi
 
 
 def AngularSeparation(a):

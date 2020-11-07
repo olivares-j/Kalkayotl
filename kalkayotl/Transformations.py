@@ -317,7 +317,7 @@ def np_normalTriad(phi, theta):
   return p, q, r
 
 
-def astrometryToPhaseSpace(X):
+def astrometryToPhaseSpace(X,reference_system="ICRS"):
 	"""
 	From the input astrometric parameters calculate the phase space coordinates. The output phase space
 	coordinates represent barycentric (i.e. centred on the Sun) positions and velocities.

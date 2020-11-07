@@ -9,11 +9,12 @@ import theano.tensor as tt
 from pymc3.distributions.dist_math import bound
 from pymc3.distributions.continuous import PositiveContinuous,Continuous,assert_negative_support
 from pymc3.distributions.distribution import draw_values, generate_samples
-from pymc3.distributions.continuous import Uniform
+from pymc3.distributions.multivariate import _QuadFormBase
+from pymc3.theanof import floatX
 
-from .distributions import edsd,eff,king
+from .distributions import edsd,eff,king,mveff,mvking
 
-##################################### EDSD #######################################################
+#====================== 1D ===============================================================
 class EDSD(PositiveContinuous):
 	R"""
 	Exponentially decreasing space density log-likelihood.
@@ -105,9 +106,7 @@ class EDSD(PositiveContinuous):
 		scale  = self.scale
 		result = 1.0 - tt.exp(-value/scale)*(value**2 + 2. * value * scale + 2. * scale**2)/(2.*scale**2)
 		return result
-################################################################################################################
 
-##################################### EFF #######################################################
 class EFF(Continuous):
 	R"""
 	Elson, Fall and Freeman log-likelihood.
@@ -183,63 +182,7 @@ class EFF(Continuous):
 		log_d  = -0.5*gamma*tt.log(1.+ x**2) - tt.log(cte)
 		return bound(log_d,gamma > 1.)
 
-# class MvEFF(_QuadFormBase):
-# 	R"""
-# 	Multivariate Elson, Fall, and Freeman log-likelihood.
-# 	.. math::
-# 	   f(x \mid \pi, T) =
-# 	========  ==========================
-# 	Support   :math:`x \in \mathbb{R}^k`
-# 	Mean      :math:`\mu`
-# 	Variance  :math:`T^{-1}`
-# 	========  ==========================
-# 	Parameters
-# 	----------
-# 	mu: array
-# 		Vector of means.
-# 	cov: array
-# 		Covariance matrix. Exactly one of cov, tau, or chol is needed.
-# 	tau: array
-# 		Precision matrix. Exactly one of cov, tau, or chol is needed.
-# 	chol: array
-# 		Cholesky decomposition of covariance matrix. Exactly one of cov,
-# 		tau, or chol is needed.
-# 	lower: bool, default=True
-# 		Whether chol is the lower tridiagonal cholesky factor.
-# 	"""
-# 	def __init__(self, location, scale, gamma, *args, **kwargs):
-# 		super().__init__(mu=location, cov=scale, *args, **kwargs)
 
-# 		self.gamma    = tt.as_tensor_variable(gamma)
-# 		self.location = tt.as_tensor_variable(location)
-# 		self.scale    = tt.as_tensor_variable(scale)
-
-# 		self.mean = self.location
-
-
-
-# 	def random(self, point=None, size=None):
-# 		"""
-# 		Draw random values from HalfNormal distribution.
-# 		Parameters
-# 		----------
-# 		point : dict, optional
-# 			Dict of variable values on which random values are to be
-# 			conditioned (uses default point if not specified).
-# 		size : int, optional
-# 			Desired size of random sample (returns one sample if not
-# 			specified).
-# 		Returns
-# 		-------
-# 		array
-# 		"""
-# 		location,scale,gamma = draw_values([self.location,self.scale,self.gamma],point=point,size=size)
-# 		return generate_samples(mv_eff.rvs,loc=location,scale=scale,gamma=gamma,
-# 								dist_shape=self.shape,
-# 								size=size)
-################################################################################################################
-
-################################# KING ################################################################
 class King(Continuous):
 	R"""
 	King 1962 log-likelihood.
@@ -317,7 +260,7 @@ class King(Continuous):
 		v = 1.0/tt.sqrt(1.+ r**2)
 		u = 1.0/tt.sqrt(1.+self.rt**2)
 
-		cte = 2*self.scale*(self.rt/(1+self.rt**2) + tt.arctan(self.rt) - 2.*tt.arcsinh(self.rt)/np.sqrt(1.+self.rt**2))
+		cte = 2*self.scale*(self.rt/(1+self.rt**2) + tt.arctan(self.rt) - 2.*tt.arcsinh(self.rt)/tt.sqrt(1.+self.rt**2))
 
 		log_d = 2.*tt.log(v-u) - tt.log(cte)
 
@@ -325,31 +268,45 @@ class King(Continuous):
 		# return bound(log_d,tt.abs_(r) < self.rt)
 
 
-################################# MvUniform ################################################################
-class MvUniform(Continuous):
+#=============================== 3D ======================================================
+
+class MvEFF(_QuadFormBase):
 	R"""
-	   
-	========  ==========================================
-	Support   :math:`x \in [loc-scl,loc+scl]`
-	========  ==========================================
+	Multivariate Elson, Fall, and Freeman log-likelihood.
+	.. math::
+	   f(x \mid \pi, T) =
+	========  ==========================
+	Support   :math:`x \in \mathbb{R}^k`
+	Mean      :math:`\mu`
+	Variance  :math:`T^{-1}`
+	========  ==========================
 	Parameters
 	----------
+	mu: array
+		Vector of means.
+	cov: array
+		Covariance matrix. Exactly one of cov, tau, or chol is needed.
+	tau: array
+		Precision matrix. Exactly one of cov, tau, or chol is needed.
+	chol: array
+		Cholesky decomposition of covariance matrix. Exactly one of cov,
+		tau, or chol is needed.
+	lower: bool, default=True
+		Whether chol is the lower tridiagonal cholesky factor.
 	"""
+	def __init__(self, location, chol, gamma, *args, **kwargs):
+		super().__init__(mu=location, chol=chol, *args, **kwargs)
 
-	def __init__(self,location=None,scale=None, *args, **kwargs):
-		self.location   = location  = tt.as_tensor_variable(location)
-		self.scale      = scale     = tt.as_tensor_variable(scale)
-
-		assert_negative_support(scale, 'scale', 'MvUniform')
+		self.gamma    = tt.as_tensor_variable(gamma)
+		self.location = tt.as_tensor_variable(location)
+		self.chol     = tt.as_tensor_variable(chol)
 
 		self.mean = self.location
-
-		super().__init__( *args, **kwargs)
 
 
 	def random(self, point=None, size=None):
 		"""
-		Draw random values from MvUniform distribution.
+		Draw random values from HalfNormal distribution.
 		Parameters
 		----------
 		point : dict, optional
@@ -362,15 +319,25 @@ class MvUniform(Continuous):
 		-------
 		array
 		"""
-		location,scale = draw_values([self.location,self.scale],point=point,size=size)
 
-		sample   = Uniform.dist(lower=-1,upper=1).random(size=self.shape)
-		return self.location + self.scale*sample
+		location,chol,gamma = draw_values([self.location,self.chol,self.gamma],point=point,size=size)
 
+		if location.shape[-1] != chol.shape[-1]:
+				raise ValueError("Shapes for location and scale don't match")
+
+		scale = np.dot(chol,chol.T)
+
+		try:
+			dist = mveff(loc=location, scale=scale, gamma=gamma)
+		except ValueError:
+			size += (location.shape[-1],)
+			return np.nan * np.zeros(size)
+
+		return dist.rvs(size)
 
 	def logp(self, value):
 		"""
-		Calculate log-probability of the MvUniform distribution at specified value.
+		Calculate log-probability of EFF distribution at specified value.
 		Parameters
 		----------
 		value : numeric
@@ -380,68 +347,192 @@ class MvUniform(Continuous):
 		-------
 		TensorVariable
 		"""
-		r = (value-self.location)/self.scale
+		quaddist, logdet, ok = self._quaddist(value)
 
-		cte = tt.log(tt.prod(1./(2.*self.scale)))
+		a = 1.5*tt.log(np.pi)
+		b = tt.log(tt.gamma(0.5*(self.gamma-3.0)))
+		c = tt.log(tt.gamma(0.5*self.gamma))
+		log_cte = a + b -c
+		log_d = - 0.5*self.gamma*tt.log1p(quaddist) - log_cte - 3.*logdet
+		
+		return bound(log_d,ok,self.gamma > 3.001)
 
-		cnd = tt.all(tt.abs_(r) <= 1,axis=1)
+class MvKing(_QuadFormBase):
+	R"""
+	Multivariate King log-likelihood.
+	.. math::
+	   f(x \mid \pi, T) =
+	========  ==========================
+	Support   :math:`x \in \mathbb{R}^k`
+	Mean      :math:`\mu`
+	Variance  :math:`T^{-1}`
+	========  ==========================
+	Parameters
+	----------
+	mu: array
+		Vector of means.
+	cov: array
+		Covariance matrix. Exactly one of cov, tau, or chol is needed.
+	tau: array
+		Precision matrix. Exactly one of cov, tau, or chol is needed.
+	chol: array
+		Cholesky decomposition of covariance matrix. Exactly one of cov,
+		tau, or chol is needed.
+	lower: bool, default=True
+		Whether chol is the lower tridiagonal cholesky factor.
+	"""
+	def __init__(self, location, chol, rt, *args, **kwargs):
+		super().__init__(mu=location, chol=chol, *args, **kwargs)
 
-		# Try to catch those cases outside the range with something like an embudo.
+		self.rt       = tt.as_tensor_variable(rt)
+		self.location = tt.as_tensor_variable(location)
+		self.chol     = tt.as_tensor_variable(chol)
 
-		# return tt.switch(cnd,cte,-1e20)
-		return bound(cte,cnd)
+		self.mean = self.location
 
+		assert_negative_support(rt,     'rt', 'King')
+
+
+	def random(self, point=None, size=None):
+		"""
+		Draw random values from HalfNormal distribution.
+		Parameters
+		----------
+		point : dict, optional
+			Dict of variable values on which random values are to be
+			conditioned (uses default point if not specified).
+		size : int, optional
+			Desired size of random sample (returns one sample if not
+			specified).
+		Returns
+		-------
+		array
+		"""
+
+		location,chol,rt = draw_values([self.location,self.chol,self.rt],point=point,size=size)
+
+		if location.shape[-1] != chol.shape[-1]:
+				raise ValueError("Shapes for location and scale don't match")
+
+		scale = np.dot(chol,chol.T)
+
+		try:
+			dist = mvking(loc=location, scale=scale, rt=rt)
+		except ValueError:
+			size += (location.shape[-1],)
+			return np.nan * np.zeros(size)
+
+		return dist.rvs(size)
+
+	def logp(self, value):
+		"""
+		Calculate log-probability of EFF distribution at specified value.
+		Parameters
+		----------
+		value : numeric
+			Value(s) for which log-probability is calculated. If the log probabilities for multiple
+			values are desired the values must be provided in a numpy array or theano tensor
+		Returns
+		-------
+		TensorVariable
+		"""
+		quaddist, logdet, ok = self._quaddist(value)
+
+		a = 1. + self.rt**2
+		b = (self.rt**3)/(3.*a)
+		c = tt.arcsinh(self.rt)/tt.sqrt(a)
+		d = tt.arctan(self.rt)
+
+		cte = 4.*np.pi*(b+c-d)
+
+		u = 1./tt.sqrt(1. + quaddist)
+		v = 1./tt.sqrt(a)
+		log_d = 2.*tt.log(u-v) - tt.log(cte) - 3.*logdet # Here we introduce the scale rc**3
+
+		# result = tt.switch(tt.sqrt(quaddist) < self.rt,log_d,-1.*tt.sqrt(quaddist)-20.) #avoids inf in advi
+
+		return bound(log_d,quaddist < self.rt**2,ok)
 
 ###################################################### TEST ################################################################################
-import sys
 import matplotlib
 matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import scipy.stats as st
 
-def test_MvUnif(n=10000,loc=[20.,10],scl=[1,3]):
-	nx = 20
-	ny = 20
+def test_MvEFF(n=10000):
+	loc = np.array([0.,0.0,0.0])
+	scl = np.array([[2.0,0.0,0.0],
+					[0.0,2.0,0.0],
+					[0.0,0.0,2.0]])
 
-	loc = np.array(loc)
-	scl = np.array(scl)
+	chol = np.linalg.cholesky(scl)
 
-	mvunif = MvUniform.dist(location=loc,scale=scl,shape=(n,2))
-	t = mvunif.random().eval()
+	mveff = MvEFF.dist(location=loc,chol=chol,gamma=5.0)
+	samples = mveff.random(size=n)
 
-	lower,upper = loc-scl , loc+scl
-	x = np.linspace(lower[0]-1,upper[0]+1, nx)
-	y = np.linspace(lower[1]-1,upper[1]+1, ny)
-	xy = np.empty((nx*ny,2))
-	c = 0
-	for i in range(nx):
-		for j in range(ny):
-			xy[c] = x[i],y[j] 
-			c += 1
-
-	z = mvunif.logp(xy).eval()
+	z = mveff.logp(samples).eval()
 	
-	pdf = PdfPages(filename="Test_MvUnif.pdf")
+	pdf = PdfPages(filename="Prior_MvEFF.pdf")
 	plt.figure(0)
-	plt.scatter(t[:,0],t[:,1],color="grey",label="Samples")
-	plt.scatter(xy[:,0],xy[:,1],c=z,label="PDF")
+	plt.scatter(samples[:,0],samples[:,1],c=z,label="Samples")
 	plt.legend()
+	plt.xlabel("X")
+	plt.ylabel("Y")
+	pdf.savefig(bbox_inches='tight')
+	plt.close(0)
 	
-	#-------------- Save fig --------------------------
+	pdf.close()
+
+def test_MvKing(n=10000,rt=20.0):
+	loc = np.array([0.,0.0,0.0])
+	scl = np.array([[1.0,0.0,0.0],
+					[0.0,1.0,0.0],
+					[0.0,0.0,1.0]])
+
+	chol = np.linalg.cholesky(scl)
+
+	mvk = MvKing.dist(location=loc,chol=chol,rt=rt)
+	# samples = mvk.random(size=n)
+
+	mveff = MvEFF.dist(location=loc,chol=2.*chol,gamma=3.0)
+	samples = mveff.random(size=n)
+	z = mvk.logp(samples)
+
+	# d,z = mvk.logp(samples)
+
+	print(np.min(z.eval()),np.max(z.eval()))
+	
+	pdf = PdfPages(filename="Prior_MvKing.pdf")
+	# plt.figure(0)
+	# plt.scatter(d.eval(),z.eval(),s=1)
+	# plt.xlabel("Distance")
+	# plt.ylabel("Log p")
+	# pdf.savefig(bbox_inches='tight')
+	# plt.close(0)
+
+	plt.figure(0)
+	plt.scatter(samples[:,0],samples[:,1],s=1)
+	plt.xlabel("X")
+	plt.ylabel("Y")
+	plt.gca().set_aspect('equal', adjustable='box')
+	pdf.savefig(bbox_inches='tight')
+	plt.close(0)
+
+	plt.figure(0)
+	plt.scatter(samples[:,0],samples[:,2],s=1)
+	plt.xlabel("X")
+	plt.ylabel("Z")
+	plt.gca().set_aspect('equal', adjustable='box')
 	pdf.savefig(bbox_inches='tight')
 	plt.close(0)
 	
 	pdf.close()
 	
 
+
 if __name__ == "__main__":
 
+	# test_MvEFF()
 
-	# test_edsd()
-
-	# test_eff()
-
-	# test_king()
-
-	test_MvUnif()
+	test_MvKing()

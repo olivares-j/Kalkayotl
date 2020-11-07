@@ -3,18 +3,18 @@ Copyright 2019 Javier Olivares Romero
 
 This file is part of Kalkayotl.
 
-    Kalkayotl is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+	Kalkayotl is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
 
-    PyAspidistra is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	Kalkayotl is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Kalkayotl.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU General Public License
+	along with Kalkayotl.  If not, see <http://www.gnu.org/licenses/>.
 '''
 from __future__ import absolute_import, unicode_literals, print_function
 import sys
@@ -27,17 +27,18 @@ import h5py
 import scipy.stats as st
 from scipy.linalg import inv as inverse
 
+#---------------- Matplotlib -------------------------------------
 import matplotlib
 matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-
-#----- For GMM experimental initializer ---------
-from pymc3.step_methods.hmc import quadpotential
+from matplotlib.patches import Ellipse
+from matplotlib import lines as mlines
+#------------------------------------------------------------------
 
 #------------ Local libraries ------------------------------------------
-from kalkayotl.Models import Model1D,ModelND
-from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM
+from kalkayotl.Models import Model1D,Model3D
+from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM,get_principal,my_mode
 from kalkayotl.Evidence import Evidence1D
 #------------------------------------------------------------------------
 
@@ -52,6 +53,8 @@ class Inference:
 				parametrization,
 				zero_point,
 				indep_measures=False,
+				reference_system=None,
+				id_name='source_id',
 				**kwargs):
 		"""
 		Arguments:
@@ -63,11 +66,11 @@ class Inference:
 		hyper_gamma (vector)  Hyper-parameters of weights (only for GMM prior)    
 		"""
 		gaia_observables = ["ra","dec","parallax","pmra","pmdec","radial_velocity",
-                    "ra_error","dec_error","parallax_error","pmra_error","pmdec_error","radial_velocity_error",
-                    "ra_dec_corr","ra_parallax_corr","ra_pmra_corr","ra_pmdec_corr",
-                	"dec_parallax_corr","dec_pmra_corr","dec_pmdec_corr",
-                	"parallax_pmra_corr","parallax_pmdec_corr",
-                	"pmra_pmdec_corr"]
+					"ra_error","dec_error","parallax_error","pmra_error","pmdec_error","radial_velocity_error",
+					"ra_dec_corr","ra_parallax_corr","ra_pmra_corr","ra_pmdec_corr",
+					"dec_parallax_corr","dec_pmra_corr","dec_pmdec_corr",
+					"parallax_pmra_corr","parallax_pmdec_corr",
+					"pmra_pmdec_corr"]
 
 		self.D                = dimension 
 		self.prior            = prior
@@ -78,6 +81,8 @@ class Inference:
 		self.transformation   = transformation
 		self.indep_measures   = indep_measures
 		self.parametrization  = parametrization
+		self.reference_system = reference_system
+		self.file_ids         = self.dir_out+"/Identifiers.csv"
 
 		self.idx_pma    = 3
 		self.idx_pmd    = 4
@@ -111,10 +116,13 @@ class Inference:
 		self.names_obs  = [gaia_observables[i] for i in index_obs]
 		self.names_mu   = [gaia_observables[i] for i in index_mu]
 		self.names_sd   = [gaia_observables[i] for i in index_sd]
-		self.names_corr = [gaia_observables[i] for i in index_corr] 
+		self.names_corr = [gaia_observables[i] for i in index_corr]
+
+		self.id_name = id_name
+		self.list_observables = sum([[id_name],self.names_obs],[]) 
 
 
-	def load_data(self,file_data,id_name='source_id',corr_func="Vasiliev+2019",*args,**kwargs):
+	def load_data(self,file_data,corr_func="Vasiliev+2019",*args,**kwargs):
 		"""
 		This function reads the data.
 
@@ -126,20 +134,18 @@ class Inference:
 		Other arguments are passed to pandas.read_csv function
 
 		"""
-		self.id_name = id_name
-		list_observables = sum([[id_name],self.names_obs],[])
 
 		#------- reads the data ----------------------------------------------
-		data  = pn.read_csv(file_data,usecols=list_observables,*args,**kwargs) 
+		data  = pn.read_csv(file_data,usecols=self.list_observables,*args,**kwargs) 
 		#---------- drop na values and reorder ------------
-		data  = data.dropna(thresh=len(list_observables))
-		data  = data.reindex(columns=list_observables)
+		data  = data.dropna(thresh=len(self.list_observables))
+		data  = data.reindex(columns=self.list_observables)
 
 		#------- index as string ------
-		data[list_observables[0]] = data[list_observables[0]].astype('str')
+		data[self.id_name] = data[self.id_name].astype('str')
 
 		#----- put ID as row name-----
-		data.set_index(list_observables[0],inplace=True)
+		data.set_index(self.id_name,inplace=True)
 
 		#----- Track ID -------------
 		# In case of missing values in parallax
@@ -182,8 +188,8 @@ class Inference:
 		#=========================================================================
 
 		#----- Save identifiers ------
-		df_IDs = pn.DataFrame(IDs,columns=["ID"])
-		df_IDs.to_csv(path_or_buf=self.dir_out+"/Identifiers.csv",index_label="Parameter")
+		df_IDs = pn.DataFrame(IDs,columns=[self.id_name])
+		df_IDs.to_csv(path_or_buf=self.file_ids,index=False)
 		self.ID = IDs
 
 
@@ -287,16 +293,10 @@ class Inference:
 			if self.parameters["rt"] is None:
 				assert self.hyper["gamma"] is not None, msg_gamma
 
-			if self.D in [3,6]:
-				assert self.parametrization != "central", msg_non_central
-
 
 		if self.prior is "EFF":
 			if self.parameters["gamma"] is None:
 				assert self.hyper["gamma"] is not None, msg_gamma
-
-			if self.D in [3,6]:
-				assert self.parametrization != "central", msg_non_central
 
 
 		if self.D == 1:
@@ -310,8 +310,8 @@ class Inference:
 								  transformation=self.transformation,
 								  parametrization=self.parametrization)
 
-		elif self.D in [3,6]:
-			self.Model = ModelND(dimension=self.D,mu_data=self.mu_data,tau_data=self.tau_data,
+		elif self.D is 3:
+			self.Model = Model3D(dimension=self.D,mu_data=self.mu_data,tau_data=self.tau_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
 								  hyper_alpha=self.hyper["alpha"],
@@ -320,6 +320,7 @@ class Inference:
 								  hyper_delta=self.hyper["delta"],
 								  hyper_eta=self.hyper["eta"],
 								  transformation=self.transformation,
+								  reference_system=self.reference_system,
 								  parametrization=self.parametrization)
 		else:
 			sys.exit("Dimension not valid!")
@@ -329,11 +330,18 @@ class Inference:
 
 		
 	def run(self,sample_iters,tuning_iters,
-		init='advi+adapt_diag',
-		n_init=500000,
 		chains=None,cores=None,
 		step=None,
 		file_chains=None,
+		optimize=True,
+		opt_args={
+				"trials":2,
+				"iterations":1000000,
+				"tolerance":1e-2,
+				"tolerance_type":"relative",
+				"plot":True
+				},
+		prior_predictive=True,
 		*args,**kwargs):
 		"""
 		Performs the MCMC run.
@@ -342,23 +350,89 @@ class Inference:
 		tuning_iters (integer):    Number of burning iterations.
 		"""
 
-		print("Computing posterior")
-
 		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
 
-		with self.Model:
-			trace = pm.sample(draws=sample_iters, 
-							tune=tuning_iters,
-							init=init,
-							n_init=n_init,
-							chains=chains, cores=cores,
-							discard_tuned_samples=True,
-							*args,**kwargs)
+		#-------------- ADVI+ADAPT_DIAG ----------------------------------------------------------
+		if optimize:
+			print("Using advi+adapt_diag to optimize the initial solution ...")
+			trials = []
+			min_trials = []
 
+			for i in range(opt_args["trials"]):
+				print("Trial {0}".format(i+1))
+				approx = pm.fit(
+					random_seed=None,
+					n=opt_args["iterations"],
+					method="advi",
+					model=self.Model,
+					callbacks=[pm.callbacks.CheckParametersConvergence(
+								tolerance=opt_args["tolerance"], 
+								diff=opt_args["tolerance_type"])],
+					progressbar=True,
+					obj_optimizer=pm.adagrad_window)
+				trials.append(approx)
+				min_trials.append(np.min(approx.hist))
+
+			#-------- Best one -----------------
+			best = trials[np.argmin(min_trials)]
+			#-----------------------------------
+			
+			#------------- Plot trials ----------------------------------
+			if opt_args["plot"]:
+				plt.figure()
+				for i,app in enumerate(trials):
+					plt.plot(app.hist,label="Trial {0}".format(i+1))
+				plt.plot(best.hist,label="Best one")
+				plt.legend()
+				plt.xlabel("Iterations")
+				plt.ylabel("Average Loss")
+				plt.savefig(self.dir_out+"/Initializations.png")
+				plt.close()
+			#-----------------------------------------------------------
+
+			#----------- Mean field approximation ------------------------------------
+			start = best.sample(draws=chains)
+			start = list(start)
+			stds = best.bij.rmap(best.std.eval())
+			cov = self.Model.dict_to_array(stds) ** 2
+			mean = best.bij.rmap(best.mean.get_value())
+			mean = self.Model.dict_to_array(mean)
+			weight = 50
+			potential = pm.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
+												self.Model.ndim, mean, cov, weight)
+			step = pm.NUTS(potential=potential, model=self.Model, **kwargs)
+			#------------------------------------------------------------------------
+		else:
+			start = None
+			step = None
+
+		print("Sampling the model ...")
+
+		with self.Model:
+			#-------- Prior predictive -----------------------------
+			if prior_predictive:
+				prior = pm.sample_prior_predictive(samples=sample_iters) #Fails for MvNorm
+			else:
+				prior = None
+			#--------------------------------------------------------
+
+			#---------- Posterior -----------------------
+			trace = pm.sample(draws=sample_iters,
+							start=start,
+							step=step,
+							tune=tuning_iters,
+							chains=chains, cores=cores,
+							discard_tuned_samples=True)
+
+			posterior_predictive = pm.sample_posterior_predictive(trace)
+			#------------------------------------------------------------
 
 			#--------- Save with arviz ------------
-			chains = az.from_pymc3(trace)
-			az.to_netcdf(chains,file_chains)
+			pm_data = az.from_pymc3(
+						trace=trace,
+						prior=prior,
+						posterior_predictive=posterior_predictive)
+			az.to_netcdf(pm_data,file_chains)
 			#-------------------------------------
 
 
@@ -369,26 +443,42 @@ class Inference:
 
 		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
 
-		print("Loading existing chains ... ")
+		print("Loading existing samples ... ")
 		#---------Load Trace --------------------
-		self.trace = az.from_netcdf(file_chains).posterior
+		
+		# 
+		try:
+			self.ds_posterior = az.from_netcdf(file_chains).posterior
+		except ValueError:
+			sys.exit("There is no posterior group in {0}".format(file_chains))
+
+		try:
+			self.ds_prior = az.from_netcdf(file_chains).prior
+		except:
+			self.ds_prior = None
 
 		#------- Variable names -----------------------------------------------------------
-		source_variables = list(filter(lambda x: "source" in x, self.trace.data_vars))
+		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
 		cluster_variables = list(filter(lambda x: ( ("loc" in x) 
 											or ("scl" in x) 
 											or ("weights" in x)
 											or ("beta" in x)
 											or ("gamma" in x)
-											or ("rt" in x)),self.trace.data_vars))
+											or ("rt" in x)),self.ds_posterior.data_vars))
 	
 		plots_variables = cluster_variables.copy()
 		stats_variables = cluster_variables.copy()
+		cluster_loc_var = cluster_variables.copy()
+		cluster_std_var = cluster_variables.copy()
+		cluster_cor_var = cluster_variables.copy()
 
-		#----------- Remove undesired variables -------------
+		#----------- Case specific variables -------------
 		tmp_plots = cluster_variables.copy()
 		tmp_stats = cluster_variables.copy()
-		
+		tmp_loc   = cluster_variables.copy()
+		tmp_stds  = cluster_variables.copy()
+		tmp_corr  = cluster_variables.copy()
+
 		if self.D in [3,6]:
 			for var in tmp_plots:
 				if "scl" in var and "stds" not in var:
@@ -396,30 +486,44 @@ class Inference:
 
 			for var in tmp_stats:
 				if "scl" in var:
-					if not ("stds" in var or "corr" in var):
+					if not ("stds" in var or "corr" in var or "unif" in var):
 						stats_variables.remove(var)
+
+			for var in tmp_loc:
+				if "loc" not in var:
+					cluster_loc_var.remove(var)
+
+			for var in tmp_stds:
+				if "stds" not in var:
+					cluster_std_var.remove(var)
+
+			for var in tmp_corr:
+				if "corr" not in var:
+					cluster_cor_var.remove(var)
 		#----------------------------------------------------
 
 		self.source_variables  = source_variables
 		self.cluster_variables = cluster_variables
 		self.plots_variables   = plots_variables
 		self.stats_variables   = stats_variables
-		self.variables         = self.trace.data_vars
+		self.loc_variables     = cluster_loc_var
+		self.std_variables     = cluster_std_var
+		self.cor_variables     = cluster_cor_var
 
 	def convergence(self):
 		"""
 		Analyse the chains.		
 		"""
 		print("Computing convergence statistics ...")
-		rhat  = pm.stats.rhat(self.trace)
-		ess   = pm.stats.ess(self.trace)
+		rhat  = pm.stats.rhat(self.ds_posterior)
+		ess   = pm.stats.ess(self.ds_posterior)
 
 		print("Gelman-Rubin statistics:")
-		for var in self.trace.data_vars:
+		for var in self.ds_posterior.data_vars:
 			print("{0} : {1:2.4f}".format(var,np.mean(rhat[var].values)))
 
 		print("Effective sample size:")
-		for var in self.trace.data_vars:
+		for var in self.ds_posterior.data_vars:
 			print("{0} : {1:2.4f}".format(var,np.mean(ess[var].values)))
 
 	def plot_chains(self,
@@ -452,7 +556,8 @@ class Inference:
 				idx = np.where(id_in_IDs)[0]
 				coords = {str(self.D)+"D_source_dim_0" : idx}
 				plt.figure(0)
-				axes = az.plot_trace(self.trace,var_names=self.source_variables,
+				axes = az.plot_trace(self.ds_posterior,
+						var_names=self.source_variables,
 						coords=coords,
 						figsize=figsize,
 						lines=lines, 
@@ -482,7 +587,7 @@ class Inference:
 
 		if len(self.cluster_variables) > 0:
 			plt.figure(1)
-			axes = az.plot_trace(self.trace,
+			axes = az.plot_trace(self.ds_posterior,
 					var_names=self.plots_variables,
 					figsize=figsize,
 					lines=lines, 
@@ -511,41 +616,220 @@ class Inference:
 		
 		pdf.close()
 
+	def _extract(self,group="posterior",n_samples=100):
+		if group == "posterior":
+			data = self.ds_posterior.data_vars
+		elif group == "prior":
+			data = self.ds_prior.data_vars
+		else:
+			sys.exit("Group not recognized")
+		#------------ Extract variables -----------------------------------
+		locs = np.array([data[var].values for var in self.loc_variables])
+		stds = np.array([data[var].values for var in self.std_variables])
+		cors = np.array([data[var].values for var in self.cor_variables])
+		#------------------------------------------------------------------
+
+		#--------- Reorder indices ----------------------
+		if self.prior in ["GMM"]:
+			locs = np.swapaxes(locs,0,3)
+		else:
+			locs = np.moveaxis(locs,0,-1)[np.newaxis,:]
+		#-------------------------------------------------
+
+		#------- Take sample ---------------
+		idx = np.random.choice(np.arange(locs.shape[2]),
+								replace=False,
+								size=n_samples)
+		locs = locs[:,:,idx]
+		stds = stds[:,:,idx]
+		cors = cors[:,:,idx]
+		#------------------------------------
+
+		#-------- Reshape variables --------
+		locs = locs.reshape((-1,3))
+		stds = stds.reshape((-1,3))
+		cors = cors.reshape((-1,3,3))
+		#------------------------------------
+
+		return locs,stds,cors
+
+	def plot_model(self,
+		file_plots=None,
+		figsize=None,
+		posterior_kwargs={"label":"Posterior",
+							"color":"orange",
+							"linewidth":1,
+							"alpha":0.1},
+
+		prior_kwargs={"label":"Prior",
+							"color":"green",
+							"linewidth":0.5,
+							"alpha":0.1},
+
+		data_kwargs={"label":"Data",
+						"marker":"o",
+						"color":"black",
+						"size":2,
+						"error_color":"grey",
+						"error_lw":0.5},
+		n_samples=100,
+		labels=["X [pc]","Y [pc]","Z [pc]"],
+		fontsize_title=16):
+		"""
+		This function plots the model.
+		"""
+		assert self.D == 3, "Only valid for 3D model ... so far"
+
+		msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
+
+		assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
+
+		print("Plotting model ...")
+
+		file_plots = self.dir_out+"/Model.pdf" if (file_plots is None) else file_plots
+
+		pdf = PdfPages(filename=file_plots)
+		
+		#------- Sources --------------------------------------------------
+		df_source  = az.summary(self.ds_posterior,var_names=self.source_variables)
+
+		#------------- Replace parameter id by index --------------------
+		n_sources = int(df_source.shape[0]/3)
+		ID  = np.repeat(np.arange(n_sources),self.D,axis=0).astype('str')
+		idx = np.tile(np.arange(self.D),n_sources)
+
+		df_source.set_index(ID,inplace=True)
+		df_source.insert(loc=0,column="parameter",value=idx)
+
+		# ------ Parameters into columns ------------------------
+		suffixes  = ["_X","_Y","_Z"]
+		dfs = []
+		for i in range(self.D):
+			idx = np.where(df_source["parameter"] == i)[0]
+			tmp = df_source.drop(columns="parameter").add_suffix(suffixes[i])
+			dfs.append(tmp.iloc[idx])
+
+		#-------- Join on index --------------------
+		df_source = dfs[0]
+		for i,suffix in enumerate(suffixes[1:]):
+			df_source = df_source.join(dfs[i+1],
+				how="inner",lsuffix="",rsuffix=suffix)
+
+		srcs_loc = df_source[["mean_X","mean_Y","mean_Z"]].to_numpy()
+		srcs_std = df_source[["sd_X","sd_Y","sd_Z"]].to_numpy()
+		#-------------------------------------------------------------------
+
+		#---------- Extract prior and posterior -----------------
+		pos_locs,pos_stds,pos_corrs = self._extract(group="posterior",n_samples=n_samples)
+		if self.ds_prior is not None:
+			pri_locs,pri_stds,pri_corrs = self._extract(group="prior",n_samples=n_samples)
+
+		fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
+		for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[0,1],[2,1],[0,2]]):
+			#--------- Sources --------------------------
+			ax.errorbar(x=srcs_loc[:,idx[0]],
+						y=srcs_loc[:,idx[1]],
+						xerr=srcs_std[:,idx[0]],
+						yerr=srcs_std[:,idx[1]],
+						fmt='none',
+						ecolor=data_kwargs["error_color"],
+						elinewidth=data_kwargs["error_lw"],
+						zorder=1)
+			ax.scatter(x=srcs_loc[:,idx[0]],
+						y=srcs_loc[:,idx[1]],
+						marker=data_kwargs["marker"],
+						color=data_kwargs["color"],
+						s=data_kwargs["size"],
+						zorder=1)
+
+			#-------- Posterior ----------------------------------------------------------
+			for mu,std,corr in zip(pos_locs,pos_stds,pos_corrs):
+					width, height, angle = get_principal(std,corr,idx)
+					ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
+									clip_box=ax.bbox,
+									edgecolor=posterior_kwargs["color"],
+									facecolor=None,
+									fill=False,
+									linewidth=posterior_kwargs["linewidth"],
+									alpha=posterior_kwargs["alpha"],
+									zorder=2)
+					ax.add_artist(ell)
+			#-----------------------------------------------------------------------------
+
+			#-------- Prior ----------------------------------------------------------
+			if self.ds_prior is not None:
+				for mu,std,corr in zip(pri_locs,pri_stds,pri_corrs):
+						width, height, angle = get_principal(std,corr,idx)
+						ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
+										clip_box=ax.bbox,
+										edgecolor=prior_kwargs["color"],
+										facecolor=None,
+										fill=False,
+										linewidth=prior_kwargs["linewidth"],
+										alpha=prior_kwargs["alpha"],
+										zorder=0)
+						ax.add_artist(ell)
+			#-----------------------------------------------------------------------------
+
+			#------------- Titles -------------------------------------
+			ax.set_xlabel(labels[idx[0]])
+			ax.set_ylabel(labels[idx[1]])
+
+		axs[0,0].axes.xaxis.set_visible(False)
+		axs[0,1].axes.yaxis.set_visible(False)
+
+		#------------- Legend -----------------------------------------------------------
+		prior_line = mlines.Line2D([], [], color=prior_kwargs["color"], 
+								marker=None, label=prior_kwargs["label"])
+		posterior_line = mlines.Line2D([], [], color=posterior_kwargs["color"], 
+								marker=None, label=posterior_kwargs["label"])
+		data_mrkr =  mlines.Line2D([], [], marker=data_kwargs["marker"], color="w", 
+						  markerfacecolor=data_kwargs["color"], 
+						  markersize=5,
+						  label=data_kwargs["label"])
+		if self.ds_prior is not None:
+			handles = [prior_line,posterior_line,data_mrkr]
+		else:
+			handles = [posterior_line,data_mrkr]
+		axs[1,1].legend(handles=handles,loc='center')
+		axs[1,1].axis("off")
+		#-------------------------------------------------------------------------------
+
+		plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
+		pdf.savefig(bbox_inches='tight')
+		plt.close()
+		#---------------------------------------------------------------------------------------------
+		pdf.close()
+
+
 	def save_statistics(self,hdi_prob=0.95):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
 		
 		'''
-		print("Saving statistics ...")
+		print("Computing statistics ...")
 
-		#----------------------- Functions ----------------------------------
-
-		def my_mode(sample):
-			mins,maxs = np.min(sample),np.max(sample)
-			x         = np.linspace(mins,maxs,num=1000)
-			try:
-				gkde      = st.gaussian_kde(sample.flatten())
-				ctr       = x[np.argmax(gkde(x))]
-			except:
-				ctr = np.nan 
-			return ctr
-
+		#----------------------- Functions ---------------------------------
 		stat_funcs = {"median":lambda x:np.median(x),
 					  "mode":lambda x:my_mode(x)}
 		#---------------------------------------------------------------------
 
+		#------- Get IDs -----------------------
+		IDs = pn.read_csv(self.file_ids)[self.id_name].values
+		#---------------------------------------
+
 		#-------------- Source statistics ----------------------------------------------------
 		source_csv = self.dir_out +"/Sources_statistics.csv"
-		df_source  = az.summary(self.trace,
+		df_source  = az.summary(self.ds_posterior,
 						var_names=self.source_variables,
 						stat_funcs=stat_funcs,
 						hdi_prob=hdi_prob,
 						extend=True)
 
 		#------------- Replace parameter id by source ID--------------------
-		n_sources = len(self.ID)
-		ID  = np.repeat(self.ID,self.D,axis=0)
+		n_sources = len(IDs)
+		ID  = np.repeat(IDs,self.D,axis=0)
 		idx = np.tile(np.arange(self.D),n_sources)
 
 		df_source.set_index(ID,inplace=True)
@@ -573,10 +857,11 @@ class Inference:
 		#-------------- Global statistics ------------------------
 		if len(self.cluster_variables) > 0:
 			global_csv = self.dir_out +"/Cluster_statistics.csv"
-			df_global = az.summary(self.trace,var_names=self.stats_variables,
+			df_global = az.summary(self.ds_posterior,var_names=self.stats_variables,
 							stat_funcs=stat_funcs,
 							hdi_prob=hdi_prob,
 							extend=True)
+
 			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
 
 	def save_samples(self,merge=True):
@@ -587,10 +872,14 @@ class Inference:
 		'''
 		print("Saving samples ...")
 
+		#------- Get IDs -----------------------
+		IDs = pn.read_csv(self.file_ids)[self.id_name].values.astype('str')
+		#---------------------------------------
+
 		#------ Open h5 file -------------------
 		file_h5 = self.dir_out + "/Samples.h5"
 
-		sources_trace = self.trace[self.source_variables].to_array().T
+		sources_trace = self.ds_posterior[self.source_variables].to_array().T
 
 		with h5py.File(file_h5,'w') as hf:
 			grp_glb = hf.create_group("Cluster")
@@ -598,14 +887,13 @@ class Inference:
 
 			#------ Loop over global parameters ---
 			for name in self.cluster_variables:
-				label = name.replace(self.Model.name+"_","")
-				data = np.array(self.trace[name]).T
+				data = np.array(self.ds_posterior[name]).T
 				if merge:
 					data = data.reshape((data.shape[0],-1))
-				grp_glb.create_dataset(label, data=data)
+				grp_glb.create_dataset(name, data=data)
 
 			#------ Loop over source parameters ---
-			for i,name in enumerate(self.ID):
+			for i,name in enumerate(IDs):
 				data = sources_trace[{str(self.D)+"D_source_dim_0" : i}].values
 				if merge:
 					data = data.reshape((data.shape[0],-1))
