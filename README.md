@@ -109,3 +109,24 @@ The most common errors that you may face while running Kalkayotl are:
 Finally, if you have comments, improvements, or suggestions, please let me know. .... and do not forget to cite the [paper](
 http://arxiv.org/abs/2010.00272) if you use the code ;).
 
+### Citation
+```
+@ARTICLE{2020A&A...644A...7O,
+       author = {{Olivares}, J. and {Sarro}, L.~M. and {Bouy}, H. and {Miret-Roig}, N. and {Casamiquela}, L. and {Galli}, P.~A.~B. and {Berihuete}, A. and {Tarricq}, Y.},
+        title = "{Kalkayotl: A cluster distance inference code}",
+      journal = {\aap},
+     keywords = {methods: statistical, parallaxes, open clusters and associations: general, stars: distances, virtual observatory tools, Astrophysics - Instrumentation and Methods for Astrophysics, Astrophysics - Astrophysics of Galaxies, Astrophysics - Solar and Stellar Astrophysics},
+         year = 2020,
+        month = dec,
+       volume = {644},
+          eid = {A7},
+        pages = {A7},
+          doi = {10.1051/0004-6361/202037846},
+archivePrefix = {arXiv},
+       eprint = {2010.00272},
+ primaryClass = {astro-ph.IM},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2020A&A...644A...7O},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+```
+
