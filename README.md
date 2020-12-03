@@ -1,5 +1,6 @@
 # Kalkayotl
 <a href="https://ascl.net/2011.003"><img src="https://img.shields.io/badge/ascl-2011.003-blue.svg?colorB=262255" alt="ascl:2011.003" /></a>
+
 Kalkayotl is a Bayesian inference code designed to obtain samples of the joint posterior distribution of cluster parameters (so far only location and scale) and distances to the cluster stars.
 
 **Note that there is not yet a manual of the code since the 3D and 6D versions are currently under development. In the meantime, please read carefully the example.py file and its comments as well as the Tutorial.ipynb file. These files explain the use of the code in its current first release. Specific details of the prior families and the undertaken assumptions are given in the associated [paper](
