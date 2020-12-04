@@ -229,7 +229,7 @@ for prior in list_of_prior:
 					parametrization=parametrization)
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	p1d.load_data(file_data)
+	p1d.load_data(file_data,corr_func="Lindegren+2020")
 
 	#------ Prepares the model -------------------
 	p1d.setup()

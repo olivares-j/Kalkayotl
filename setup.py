@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='Kalkayotl',
-    version='1.0',
+    version='1.1',
     author='Javier Olivares',
     author_email='javier.olivares-romero@u-bordeaux.fr',
     packages=['kalkayotl'],

@@ -4,7 +4,11 @@
 Kalkayotl is a Bayesian inference code designed to obtain samples of the joint posterior distribution of cluster parameters (so far only location and scale) and distances to the cluster stars.
 
 **Note that there is not yet a manual of the code since the 3D and 6D versions are currently under development. In the meantime, please read carefully the example.py file and its comments as well as the Tutorial.ipynb file. These files explain the use of the code in its current first release. Specific details of the prior families and the undertaken assumptions are given in the associated [paper](
-http://arxiv.org/abs/2010.00272).**
+https://www.aanda.org/articles/aa/pdf/2020/12/aa37846-20.pdf).**
+
+## Updates
+
+- The parallax spatial correlation of Lindegren et al. 2020 (Gaia eDR3) is now included as the default one in version 1.1.
 
 
 
@@ -56,7 +60,7 @@ conda install -c conda-forge jupyterlab
 Once you have successfully installed PyMC3 move to the Kalkayotl directory (the one you forked, cloned, or downloaded in step 1) and type:
 
 ```
-pip install dist/Kalkayotl-1.0.tar.gz
+pip install dist/Kalkayotl-1.1.tar.gz
 ```
 
 Test the installation by running

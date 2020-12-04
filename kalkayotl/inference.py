@@ -131,7 +131,7 @@ class Inference:
 			assert hyper_delta is None, "Parameter hyper_delta is only valid for GMM prior."
 
 
-	def load_data(self,file_data,id_name='source_id',radec_inflation=10.0,id_length=10,corr_func="Vasiliev+2019",*args,**kwargs):
+	def load_data(self,file_data,id_name='source_id',radec_inflation=10.0,id_length=10,corr_func="Lindegren+2020",*args,**kwargs):
 		"""
 		This function reads the data.
 
