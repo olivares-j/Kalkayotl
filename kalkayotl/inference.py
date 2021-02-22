@@ -424,7 +424,8 @@ class Inference:
 							tune=tuning_iters,
 							chains=chains, cores=cores,
 							progressbar=progressbar,
-							discard_tuned_samples=True)
+							discard_tuned_samples=True,
+							return_inferencedata=False)
 
 			posterior_predictive = pm.sample_posterior_predictive(trace)
 			#------------------------------------------------------------
@@ -517,8 +518,8 @@ class Inference:
 		Analyse the chains.		
 		"""
 		print("Computing convergence statistics ...")
-		rhat  = pm.stats.rhat(self.ds_posterior)
-		ess   = pm.stats.ess(self.ds_posterior)
+		rhat  = az.rhat(self.ds_posterior)
+		ess   = az.ess(self.ds_posterior)
 
 		print("Gelman-Rubin statistics:")
 		for var in self.ds_posterior.data_vars:
