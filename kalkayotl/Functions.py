@@ -67,6 +67,12 @@ def CovariancePM(a,case):
 		'''
 		result = 0.0008*np.exp(-a/20.0) + 0.004*np.sinc((a/0.5)+0.25)
 
+	elif case == "Lindegren+2020":
+		'''
+		Assumes that the covariance is given by Eq. 25 of Lindegren et al. 2020.
+		'''
+		result = 0.000292*np.exp(-a/12.0)
+
 	else:
 		sys.exit("Correlation reference not valid!")
 
@@ -92,6 +98,12 @@ def CovarianceParallax(a,case):
 		'''
 		result = 0.0003*np.exp(-a/20.0) + 0.002*np.sinc((a/0.5)+0.25)
 
+	elif case == "Lindegren+2020":
+		'''
+		Assumes that the covariance is given by Eq. 24 of Lindegren et al. 2020.
+		'''
+		result = 0.000142*np.exp(-a/16.0)
+
 	else:
 		sys.exit("Correlation reference not valid!")
 
@@ -105,21 +117,24 @@ if __name__ == "__main__":
 	import matplotlib.pyplot as plt
 	from matplotlib.backends.backend_pdf import PdfPages
 
-	file_plot = "./Spatial_correlations.pdf"
+	file_plot = "./Angular_correlations.pdf"
 
 	theta = np.linspace(0,6,1000)
 
 	X_l   = CovariancePM(theta,case="Lindegren+2018")
 	X_v   = CovariancePM(theta,case="Vasiliev+2019")
+	X_e   = CovariancePM(theta,case="Lindegren+2020")
 
 	Y_l   = CovarianceParallax(theta,case="Lindegren+2018")
 	Y_v   = CovarianceParallax(theta,case="Vasiliev+2019")
+	Y_e   = CovarianceParallax(theta,case="Lindegren+2020")
 
 	pdf = PdfPages(filename=file_plot)
 	plt.figure(0)
 	plt.suptitle("Covariance of proper motions")
 	plt.plot(theta,X_l,label="Lindegren+2018")
 	plt.plot(theta,X_v,label="Vasiliev+2019")
+	plt.plot(theta,X_e,label="Lindegren+2020")
 	plt.xlabel("Angular separation [deg]")
 	plt.ylabel("Covariance [(mas/yr)^2]")
 	plt.legend()
@@ -130,6 +145,7 @@ if __name__ == "__main__":
 	plt.suptitle("Covariance of parallax")
 	plt.plot(theta,Y_l,label="Lindegren+2018")
 	plt.plot(theta,Y_v,label="Vasiliev+2019")
+	plt.plot(theta,Y_e,label="Lindegren+2020")
 	plt.xlabel("Angular separation [deg]")
 	plt.ylabel("Covariance [mas^2]")
 	plt.legend()

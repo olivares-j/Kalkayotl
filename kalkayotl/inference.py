@@ -122,7 +122,7 @@ class Inference:
 		self.list_observables = sum([[id_name],self.names_obs],[]) 
 
 
-	def load_data(self,file_data,corr_func="Vasiliev+2019",*args,**kwargs):
+	def load_data(self,file_data,corr_func="Lindegren+2020",*args,**kwargs):
 		"""
 		This function reads the data.
 
@@ -342,6 +342,7 @@ class Inference:
 				"plot":True
 				},
 		prior_predictive=True,
+		progressbar=True,
 		*args,**kwargs):
 		"""
 		Performs the MCMC run.
@@ -422,6 +423,7 @@ class Inference:
 							step=step,
 							tune=tuning_iters,
 							chains=chains, cores=cores,
+							progressbar=progressbar,
 							discard_tuned_samples=True)
 
 			posterior_predictive = pm.sample_posterior_predictive(trace)

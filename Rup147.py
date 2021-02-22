@@ -158,20 +158,20 @@ hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":False},
 
 	# {"type":"Gaussian",
 	# 	"dimension":dimension,
@@ -237,20 +237,20 @@ list_of_prior = [
 	# 	"prior_predictive":True,
 	# 	"optimize":False},
 
-	{"type":"CGMM",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],       
-		"parameters":{"location":None,"scale":None,"weights":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension], 
-							"beta":hyper_beta, 
-							"gamma":None,
-							"delta":np.array([5,5]),
-							"eta":hyper_eta
-							},
-		"parametrization":"central",
-		"prior_predictive":True,
-		"optimize":False}
+	# {"type":"CGMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],       
+	# 	"parameters":{"location":None,"scale":None,"weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension], 
+	# 						"beta":hyper_beta, 
+	# 						"gamma":None,
+	# 						"delta":np.array([5,5]),
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":True,
+	# 	"optimize":False}
 	]
 #======================= Inference and Analysis =====================================================
 
