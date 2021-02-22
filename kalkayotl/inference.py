@@ -264,7 +264,7 @@ class Inference:
 		assert self.transformation in ["pc","mas"], msg_trans
 
 		if self.D in [3,6]:
-			assert self.transformation is "pc", "3D model only works in pc."
+			assert self.transformation == "pc", "3D model only works in pc."
 
 		if self.parameters["location"] is None:
 			assert self.hyper["alpha"] is not None, msg_alpha
@@ -272,10 +272,10 @@ class Inference:
 		if self.parameters["scale"] is None:
 			assert self.hyper["beta"] is not None, msg_beta
 
-		if self.prior is "EDSD":
+		if self.prior == "EDSD":
 			assert self.D == 1, "EDSD prior is only valid for 1D version."
 
-		if self.prior is "Uniform":
+		if self.prior == "Uniform":
 			assert self.D == 1, "Uniform prior is only valid for 1D version."
 
 		if self.prior in ["GMM","CGMM","GUM"]:
@@ -289,12 +289,12 @@ class Inference:
 			if self.prior in ["CGMM","GUM"]:
 				assert self.D in [3,6], "This prior is not valid for 1D version."
 
-		if self.prior is "King":
+		if self.prior == "King":
 			if self.parameters["rt"] is None:
 				assert self.hyper["gamma"] is not None, msg_gamma
 
 
-		if self.prior is "EFF":
+		if self.prior == "EFF":
 			if self.parameters["gamma"] is None:
 				assert self.hyper["gamma"] is not None, msg_gamma
 
@@ -310,7 +310,7 @@ class Inference:
 								  transformation=self.transformation,
 								  parametrization=self.parametrization)
 
-		elif self.D is 3:
+		elif self.D == 3:
 			self.Model = Model3D(dimension=self.D,mu_data=self.mu_data,tau_data=self.tau_data,
 								  prior=self.prior,
 								  parameters=self.parameters,
