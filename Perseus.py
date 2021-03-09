@@ -32,7 +32,7 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 #============ Directory and data =============================
 #----- Directory where chains and plots will be saved ----
-dir_out    = "/home/javier/Cumulos/Perseus/Miec/run_0/"
+dir_out    = "/home/jromero/OCs/Perseus/Kalkayotl/6GMM/"
 #--------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -40,7 +40,7 @@ os.makedirs(dir_out,exist_ok=True)
 #---------------------------------
 
 #----------- Data file --------------------
-file_data = dir_out + "members_run_0.csv"
+file_data = "/home/jromero/OCs/Perseus/Catalogues/eGDR3/members_run_5.csv"
 #-----------------------------------------
 #==================================================
 
@@ -230,7 +230,7 @@ list_of_prior = [
 							"alpha":hyper_alpha[:dimension], 
 							"beta":hyper_beta, 
 							"gamma":None,
-							"delta":np.array([5,5,5,5]),
+							"delta":np.array([5,5,5,5,5,5]),
 							"eta":hyper_eta
 							},
 		"parametrization":"central",
