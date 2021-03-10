@@ -285,13 +285,13 @@ for prior in list_of_prior:
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	p3d.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			optimize=prior["optimize"],
-			prior_predictive=prior["prior_predictive"],
-			chains=chains,
-			cores=cores)
+	# p3d.run(sample_iters=sample_iters,
+	# 		tuning_iters=tuning_iters,
+	# 		target_accept=target_accept,
+	# 		optimize=prior["optimize"],
+	# 		prior_predictive=prior["prior_predictive"],
+	# 		chains=chains,
+	# 		cores=cores)
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains

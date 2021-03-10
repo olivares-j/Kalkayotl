@@ -30,19 +30,21 @@ from kalkayotl import Inference
 from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
-#============ Directory and data =============================
+#============ Directory and data ===========================================
 #----- Directory where chains and plots will be saved ----
 dir_out    = "/home/jromero/OCs/Perseus/Kalkayotl/6GMM/"
-#--------------------------------------
+# dir_out    = "/home/javier/Cumulos/Perseus/Miec/run_5/kalkayotl/3D_4GMM/"
+#-------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
 os.makedirs(dir_out,exist_ok=True)
-#---------------------------------
+#-------------------------------------------------------
 
-#----------- Data file --------------------
+#----------- Data file -----------------------------------------------------
 file_data = "/home/jromero/OCs/Perseus/Catalogues/eGDR3/members_run_5.csv"
-#-----------------------------------------
-#==================================================
+# file_data = "/home/javier/Cumulos/Perseus/Miec/run_5/members.csv"
+#----------------------------------------------------------------------------
+#============================================================================
 
 
 #=============== Tuning knobs ============================
@@ -230,7 +232,7 @@ list_of_prior = [
 							"alpha":hyper_alpha[:dimension], 
 							"beta":hyper_beta, 
 							"gamma":None,
-							"delta":np.array([5,5,5,5,5,5]),
+							"delta":np.array([5,5,5,5]),
 							"eta":hyper_eta
 							},
 		"parametrization":"central",

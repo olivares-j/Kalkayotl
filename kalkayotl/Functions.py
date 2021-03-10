@@ -12,10 +12,10 @@ def my_mode(sample):
 		ctr = np.nan 
 	return ctr
 
-def get_principal(stds,corr,idx):
-	sd_x   = stds[idx[0]]
-	sd_y   = stds[idx[1]]
-	rho_xy = corr[idx[0],idx[1]]
+def get_principal(sigma,idx):
+	sd_x   = np.sqrt(sigma[idx[0],idx[0]])
+	sd_y   = np.sqrt(sigma[idx[1],idx[1]])
+	rho_xy = sigma[idx[0],idx[1]]/(sd_x*sd_y)
 
 
 	# Author: Jake VanderPlas

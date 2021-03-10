@@ -446,19 +446,24 @@ class Inference:
 
 		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
 
+		if not hasattr(self,"ID"):
+			#----- Load identifiers ------
+			self.ID = pn.read_csv(self.file_ids).to_numpy().flatten()
+
 		print("Loading existing samples ... ")
-		#---------Load Trace --------------------
-		
-		# 
+		#---------Load Trace ---------------------------------------------------
 		try:
 			self.ds_posterior = az.from_netcdf(file_chains).posterior
 		except ValueError:
 			sys.exit("There is no posterior group in {0}".format(file_chains))
+		#------------------------------------------------------------------------
 
+		#----------- Load prior -------------------------------------------------
 		try:
 			self.ds_prior = az.from_netcdf(file_chains).prior
 		except:
 			self.ds_prior = None
+		#-------------------------------------------------------------------------
 
 		#------- Variable names -----------------------------------------------------------
 		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
@@ -512,6 +517,10 @@ class Inference:
 		self.loc_variables     = cluster_loc_var
 		self.std_variables     = cluster_std_var
 		self.cor_variables     = cluster_cor_var
+
+		#---------- Classify sources -------------------
+		self._classify()
+		#------------------------------------------------
 
 	def convergence(self):
 		"""
@@ -619,7 +628,46 @@ class Inference:
 		
 		pdf.close()
 
-	def _extract(self,group="posterior",n_samples=100):
+	def _classify(self,chain=0,n_samples=100):
+		'''
+		Obtain the class of each source at each chain step
+		'''
+		if self.prior in ["GMM","CGMM"]:
+			#------- Extract GMM parameters ----------------------------------
+			pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
+										n_samples=n_samples,
+										chain=chain)
+			#-----------------------------------------------------------------------
+
+			#------- Swap axes -----------------
+			pos_amps = np.swapaxes(pos_amps,0,1)
+			pos_locs = np.swapaxes(pos_locs,0,1)
+			pos_covs = np.swapaxes(pos_covs,0,1)
+			#-----------------------------------
+
+			#-------- Extract sources positions ----------------------
+			data = self.ds_posterior[self.source_variables].to_array()
+			#---------------------------------------------------------
+
+			#------ Loop over sources ----------------------------------
+			log_lk = np.zeros((data.shape[3],pos_amps.shape[0],pos_amps.shape[1]))
+			for i in range(data.shape[3]):
+				dtm = np.array(data[{str(self.D)+"D_source_dim_0" : i}])
+				dtm = dtm.reshape((-1,dtm.shape[-1]))
+				for j,(dt,amps,locs,covs) in enumerate(zip(dtm,pos_amps,pos_locs,pos_covs)):
+					for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
+						log_lk[i,j,k] = st.multivariate_normal(
+											mean=loc,cov=cov).logpdf(dt)
+
+			grps = st.mode(log_lk.argmax(axis=2),axis=1)[0].flatten()
+
+		else:
+			grps = np.zeros_like(self.ID)
+
+		self.df_groups = pn.DataFrame(data={"group":grps},index=self.ID)
+
+
+	def _extract(self,group="posterior",n_samples=None,chain=None):
 		if group == "posterior":
 			data = self.ds_posterior.data_vars
 		elif group == "prior":
@@ -631,30 +679,55 @@ class Inference:
 		stds = np.array([data[var].values for var in self.std_variables])
 		cors = np.array([data[var].values for var in self.cor_variables])
 		#------------------------------------------------------------------
-
+		
 		#--------- Reorder indices ----------------------
 		if self.prior in ["GMM"]:
 			locs = np.swapaxes(locs,0,3)
+			amps = np.array(data[str(self.D)+"D_weights"].values)
+			amps = np.moveaxis(amps,2,0)
 		else:
 			locs = np.moveaxis(locs,0,-1)[np.newaxis,:]
+			amps = np.ones_like(locs)[:,:,:,0]
 		#-------------------------------------------------
 
+		#---------- One or multiple chains --------
+		if chain is None:
+			#-------- Merge chains --------------
+			ng,nc,ns,nd = locs.shape
+			amps = amps.reshape((ng,nc*ns))
+			locs = locs.reshape((ng,nc*ns,nd))
+			stds = stds.reshape((ng,nc*ns,nd))
+			cors = cors.reshape((ng,nc*ns,nd,nd))
+			#------------------------------------
+		else:
+			#--- Extract chain -------
+			amps = amps[:,chain]
+			locs = locs[:,chain]
+			stds = stds[:,chain]
+			cors = cors[:,chain]
+			#-------------------------
+		#-------------------------------------------
+
 		#------- Take sample ---------------
-		idx = np.random.choice(np.arange(locs.shape[2]),
-								replace=False,
-								size=n_samples)
-		locs = locs[:,:,idx]
-		stds = stds[:,:,idx]
-		cors = cors[:,:,idx]
+		if n_samples is not None:
+			idx = np.random.choice(np.arange(locs.shape[1]),
+									replace=False,
+									size=n_samples)
+			amps = amps[:,idx]
+			locs = locs[:,idx]
+			stds = stds[:,idx]
+			cors = cors[:,idx]
 		#------------------------------------
 
-		#-------- Reshape variables --------
-		locs = locs.reshape((-1,3))
-		stds = stds.reshape((-1,3))
-		cors = cors.reshape((-1,3,3))
-		#------------------------------------
+		#------- Construct covariances ---------------
+		covs = np.zeros_like(cors)
+		for i,(std,cor) in enumerate(zip(stds,cors)):
+			for j,(st,co) in enumerate(zip(std,cor)):
+				covs[i,j] = np.diag(st).dot(
+							co.dot(np.diag(st)))
+		#----------------------------------------------
 
-		return locs,stds,cors
+		return amps,locs,covs
 
 	def plot_model(self,
 		file_plots=None,
@@ -674,7 +747,8 @@ class Inference:
 						"color":"black",
 						"size":2,
 						"error_color":"grey",
-						"error_lw":0.5},
+						"error_lw":0.5,
+						"cmap":"tab10"},
 		n_samples=100,
 		labels=["X [pc]","Y [pc]","Z [pc]"],
 		fontsize_title=16):
@@ -688,6 +762,8 @@ class Inference:
 		assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
 
 		print("Plotting model ...")
+
+		cmap = matplotlib.cm.get_cmap(data_kwargs["cmap"])
 
 		file_plots = self.dir_out+"/Model.pdf" if (file_plots is None) else file_plots
 
@@ -703,14 +779,16 @@ class Inference:
 
 		df_source.set_index(ID,inplace=True)
 		df_source.insert(loc=0,column="parameter",value=idx)
+		#----------------------------------------------------------------
 
-		# ------ Parameters into columns ------------------------
+		# ------ Parameters into columns -------------------------------------
 		suffixes  = ["_X","_Y","_Z"]
 		dfs = []
 		for i in range(self.D):
 			idx = np.where(df_source["parameter"] == i)[0]
 			tmp = df_source.drop(columns="parameter").add_suffix(suffixes[i])
 			dfs.append(tmp.iloc[idx])
+		#---------------------------------------------------------------------
 
 		#-------- Join on index --------------------
 		df_source = dfs[0]
@@ -720,12 +798,13 @@ class Inference:
 
 		srcs_loc = df_source[["mean_X","mean_Y","mean_Z"]].to_numpy()
 		srcs_std = df_source[["sd_X","sd_Y","sd_Z"]].to_numpy()
+		srcs_grp = self.df_groups["group"].to_numpy()
 		#-------------------------------------------------------------------
 
 		#---------- Extract prior and posterior -----------------
-		pos_locs,pos_stds,pos_corrs = self._extract(group="posterior",n_samples=n_samples)
+		_,pos_locs,pos_covs = self._extract(group="posterior",n_samples=n_samples)
 		if self.ds_prior is not None:
-			pri_locs,pri_stds,pri_corrs = self._extract(group="prior",n_samples=n_samples)
+			_,pri_locs,pri_covs = self._extract(group="prior",n_samples=n_samples)
 
 		fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
 		for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[0,1],[2,1],[0,2]]):
@@ -740,38 +819,40 @@ class Inference:
 						zorder=1)
 			ax.scatter(x=srcs_loc[:,idx[0]],
 						y=srcs_loc[:,idx[1]],
+						c=cmap(srcs_grp),
 						marker=data_kwargs["marker"],
-						color=data_kwargs["color"],
 						s=data_kwargs["size"],
 						zorder=1)
 
 			#-------- Posterior ----------------------------------------------------------
-			for mu,std,corr in zip(pos_locs,pos_stds,pos_corrs):
-					width, height, angle = get_principal(std,corr,idx)
-					ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
-									clip_box=ax.bbox,
-									edgecolor=posterior_kwargs["color"],
-									facecolor=None,
-									fill=False,
-									linewidth=posterior_kwargs["linewidth"],
-									alpha=posterior_kwargs["alpha"],
-									zorder=2)
-					ax.add_artist(ell)
+			for mus,covs in zip(pos_locs,pos_covs):
+				for mu,cov in zip(mus,covs):
+						width, height, angle = get_principal(cov,idx)
+						ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
+										clip_box=ax.bbox,
+										edgecolor=posterior_kwargs["color"],
+										facecolor=None,
+										fill=False,
+										linewidth=posterior_kwargs["linewidth"],
+										alpha=posterior_kwargs["alpha"],
+										zorder=2)
+						ax.add_artist(ell)
 			#-----------------------------------------------------------------------------
 
 			#-------- Prior ----------------------------------------------------------
 			if self.ds_prior is not None:
-				for mu,std,corr in zip(pri_locs,pri_stds,pri_corrs):
-						width, height, angle = get_principal(std,corr,idx)
-						ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
-										clip_box=ax.bbox,
-										edgecolor=prior_kwargs["color"],
-										facecolor=None,
-										fill=False,
-										linewidth=prior_kwargs["linewidth"],
-										alpha=prior_kwargs["alpha"],
-										zorder=0)
-						ax.add_artist(ell)
+				for mus,covs in zip(pri_locs,pri_covs):
+					for mu,cov in zip(mus,covs):
+							width, height, angle = get_principal(cov,idx)
+							ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
+											clip_box=ax.bbox,
+											edgecolor=prior_kwargs["color"],
+											facecolor=None,
+											fill=False,
+											linewidth=prior_kwargs["linewidth"],
+											alpha=prior_kwargs["alpha"],
+											zorder=0)
+							ax.add_artist(ell)
 			#-----------------------------------------------------------------------------
 
 			#------------- Titles -------------------------------------
@@ -837,6 +918,7 @@ class Inference:
 
 		df_source.set_index(ID,inplace=True)
 		df_source.insert(loc=0,column="parameter",value=idx)
+		#---------------------------------------------------------------
 
 		if self.D == 3 :
 			# ------ Parameters into columns ------------------------
@@ -853,6 +935,24 @@ class Inference:
 				df_source = df_source.join(dfs[i+1],
 					how="inner",lsuffix="",rsuffix=suffix)
 			#---------------------------------------------------------------------
+
+		#---------- Add group -----------------------------------
+		df_source = df_source.join(self.df_groups)
+		#----------------------------------------------
+
+		#------ Add distance ---------------------------------------------------------
+		def distance(x,y,z):
+			return np.sqrt(x**2 + y**2 + z**2)
+
+		df_source["mode_distance"] = df_source[["mode_X","mode_Y","mode_Z"]].apply(
+			lambda x: distance(*x),axis=1)
+
+		df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
+			lambda x: distance(*x),axis=1)
+
+		df_source["median_distance"] = df_source[["median_X","median_Y","median_Z"]].apply(
+			lambda x: distance(*x),axis=1)
+		#----------------------------------------------------------------------------
 
 		#---------- Save source data frame ----------------------
 		df_source.to_csv(path_or_buf=source_csv,index_label=self.id_name)
