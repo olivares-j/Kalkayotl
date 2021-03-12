@@ -41,8 +41,8 @@ os.makedirs(dir_out,exist_ok=True)
 #-------------------------------------------------------
 
 #----------- Data file -----------------------------------------------------
-# file_data = "/home/jromero/OCs/Perseus/Catalogues/eGDR3/members_run_5.csv"
-file_data = "/home/javier/Cumulos/Perseus/Miec/run_5/members.csv"
+file_data = "/home/jromero/OCs/Perseus/Catalogues/eGDR3/members_run_5.csv"
+# file_data = "/home/javier/Cumulos/Perseus/Miec/run_5/members.csv"
 #----------------------------------------------------------------------------
 #============================================================================
 
