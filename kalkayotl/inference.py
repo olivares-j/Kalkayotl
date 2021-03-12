@@ -633,6 +633,7 @@ class Inference:
 		Obtain the class of each source at each chain step
 		'''
 		if self.prior in ["GMM","CGMM"]:
+			print("Classifying sources ...")
 			#------- Extract GMM parameters ----------------------------------
 			pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
 										n_samples=n_samples,
@@ -886,7 +887,7 @@ class Inference:
 		pdf.close()
 
 
-	def save_statistics(self,hdi_prob=0.95):
+	def save_statistics(self,hdi_prob=0.95,chain_gmm=[0]):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -897,23 +898,31 @@ class Inference:
 		#----------------------- Functions ---------------------------------
 		stat_funcs = {"median":lambda x:np.median(x),
 					  "mode":lambda x:my_mode(x)}
+		def distance(x,y,z):
+			return np.sqrt(x**2 + y**2 + z**2)
 		#---------------------------------------------------------------------
-
-		#------- Get IDs -----------------------
-		IDs = pn.read_csv(self.file_ids)[self.id_name].values
-		#---------------------------------------
+		
+		#--------- Coordinates -------------------------
+		# In MM use only one chain
+		if self.prior in ["GMM","CGMM"]:
+			print("WARNING: In mixture models only one "\
+				+"chain is used to compute statistics.\n"\
+				+"Set chain_gmm=[0,1,..,n_chains] to override.")
+			data = az.utils.get_coords(self.ds_posterior,{"chain":chain_gmm})
+		else:
+			data = self.ds_posterior
+		#------------------------------------------------------------
 
 		#-------------- Source statistics ----------------------------------------------------
 		source_csv = self.dir_out +"/Sources_statistics.csv"
-		df_source  = az.summary(self.ds_posterior,
-						var_names=self.source_variables,
+		df_source  = az.summary(data,var_names=self.source_variables,
 						stat_funcs=stat_funcs,
 						hdi_prob=hdi_prob,
 						extend=True)
 
 		#------------- Replace parameter id by source ID--------------------
-		n_sources = len(IDs)
-		ID  = np.repeat(IDs,self.D,axis=0)
+		n_sources = len(self.ID)
+		ID  = np.repeat(self.ID,self.D,axis=0)
 		idx = np.tile(np.arange(self.D),n_sources)
 
 		df_source.set_index(ID,inplace=True)
@@ -941,9 +950,6 @@ class Inference:
 		#----------------------------------------------
 
 		#------ Add distance ---------------------------------------------------------
-		def distance(x,y,z):
-			return np.sqrt(x**2 + y**2 + z**2)
-
 		df_source["mode_distance"] = df_source[["mode_X","mode_Y","mode_Z"]].apply(
 			lambda x: distance(*x),axis=1)
 
@@ -960,7 +966,7 @@ class Inference:
 		#-------------- Global statistics ------------------------
 		if len(self.cluster_variables) > 0:
 			global_csv = self.dir_out +"/Cluster_statistics.csv"
-			df_global = az.summary(self.ds_posterior,var_names=self.stats_variables,
+			df_global = az.summary(data,var_names=self.stats_variables,
 							stat_funcs=stat_funcs,
 							hdi_prob=hdi_prob,
 							extend=True)
