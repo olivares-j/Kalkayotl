@@ -32,7 +32,7 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 #============ Directory and data ===========================================
 #----- Directory where chains and plots will be saved ----
-dir_out    = "/home/jromero/OCs/Perseus/Kalkayotl/5GMM/"
+dir_out    = "/home/jromero/OCs/Perseus/Kalkayotl/4GMM/"
 # dir_out    = "/home/javier/Cumulos/Perseus/Miec/run_5/kalkayotl/3D_5GMM/"
 #-------------------------------------------------------------------------
 
@@ -237,7 +237,7 @@ list_of_prior = [
 							},
 		"parametrization":"central",
 		"prior_predictive":False,
-		"optimize":True},
+		"optimize":False},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
