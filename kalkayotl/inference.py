@@ -37,7 +37,7 @@ from matplotlib import lines as mlines
 #------------------------------------------------------------------
 
 #------------ Local libraries ------------------------------------------
-from kalkayotl.Models import Model1D,Model3D
+from kalkayotl.Models import Model1D,Model3D,Model6D
 from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM,get_principal,my_mode
 from kalkayotl.Evidence import Evidence1D
 #------------------------------------------------------------------------
@@ -94,6 +94,7 @@ class Inference:
 			index_sd    = [8]
 			index_corr  = []
 			self.idx_plx = 0
+			index_nan   = index_obs.copy()
 			
 
 		elif self.D == 3:
@@ -101,14 +102,20 @@ class Inference:
 			index_mu   = [0,1,2]
 			index_sd   = [6,7,8]
 			index_corr = [12,13,16]
+			index_nan  = index_obs.copy()
 
 
 		elif self.D == 6:
-			index_obs  = range(22)
+			index_obs  = list(range(22))
 			index_mu   = [0,1,2,3,4,5]
 			index_sd   = [6,7,8,9,10,11]
 			index_corr = [12,13,14,15,16,17,18,19,20,21]
 			idx_plx    = 2
+			#---- Allow missing in radial_velocity ----
+			index_nan  = index_obs.copy()
+			index_nan.remove(5)
+			index_nan.remove(11)
+			#-----------------------------------------
 
 		else:
 			sys.exit("Dimension not valid!")
@@ -117,6 +124,7 @@ class Inference:
 		self.names_mu   = [gaia_observables[i] for i in index_mu]
 		self.names_sd   = [gaia_observables[i] for i in index_sd]
 		self.names_corr = [gaia_observables[i] for i in index_corr]
+		self.names_nan  = [gaia_observables[i] for i in index_nan]
 
 		self.id_name = id_name
 		self.list_observables = sum([[id_name],self.names_obs],[]) 
@@ -129,36 +137,40 @@ class Inference:
 		Arguments:
 		file_data (string): The path to a CSV file.
 
-		id_name (string): Identifier in file_csv.
+		corr_func (string): Type of angular correlation.
 
 		Other arguments are passed to pandas.read_csv function
 
 		"""
 
-		#------- reads the data ----------------------------------------------
+		#------- Reads the data ---------------------------------------------------
 		data  = pn.read_csv(file_data,usecols=self.list_observables,*args,**kwargs) 
-		#---------- drop na values and reorder ------------
-		data  = data.dropna(thresh=len(self.list_observables))
+
+		#---------- Order ----------------------------------
 		data  = data.reindex(columns=self.list_observables)
 
-		#------- index as string ------
+		#------- ID as string ----------------------------
 		data[self.id_name] = data[self.id_name].astype('str')
 
-		#----- put ID as row name-----
+		#----- ID as index ----------------------
 		data.set_index(self.id_name,inplace=True)
+
+		#-------- Drop NaNs ------------------------
+		data.dropna(subset=self.names_nan,inplace=True,
+						thresh=len(self.names_nan))
 
 		#----- Track ID -------------
 		# In case of missing values in parallax
 		IDs = []
 		#----------------------------
 
-		self.n_stars,D = np.shape(data)
+		self.n_sources,D = np.shape(data)
 		if D != 2 :
 			RuntimeError("Data have incorrect shape!")
 
 		#==================== Set Mu and Sigma =========================================
-		mu_data = np.zeros(self.n_stars*self.D)
-		sg_data = np.zeros((self.n_stars*self.D,self.n_stars*self.D))
+		mu_data = np.zeros(self.n_sources*self.D)
+		sg_data = np.zeros((self.n_sources*self.D,self.n_sources*self.D))
 		idx_tru = np.triu_indices(self.D,k=1)
 		if self.D == 6:
 			#----- There is no correlation with r_vel ---
@@ -170,7 +182,7 @@ class Inference:
 			IDs.append(ID)
 			#--------------------------
 			ida  = range(i*self.D,i*self.D + self.D)
-			mu   = np.array(datum[self.names_mu])  - self.zero_point
+			mu   = np.array(datum[self.names_mu]) - self.zero_point
 			sd   = np.array(datum[self.names_sd])
 			corr = np.array(datum[self.names_corr])
 
@@ -182,7 +194,7 @@ class Inference:
 			#-------- Covariance matrix of uncertainties ----------------------
 			sigma = np.diag(sd).dot(rho.dot(np.diag(sd)))
 			
-			#---------- Insert star data --------------
+			#---------- Insert source data --------------
 			mu_data[ida] = mu
 			sg_data[np.ix_(ida,ida)] = sigma
 		#=========================================================================
@@ -214,7 +226,7 @@ class Inference:
 			#------------------------------------------------------------------------------------
 
 			#------ Add parallax covariance -----------------------
-			ida_plx = [i*self.D + self.idx_plx for i in range(self.n_stars)]
+			ida_plx = [i*self.D + self.idx_plx for i in range(self.n_sources)]
 			sg_data[np.ix_(ida_plx,ida_plx)] += cov_plx
 			#------------------------------------------------------
 			
@@ -231,17 +243,25 @@ class Inference:
 				#------------------------------------------------------------------------------------
 
 				#------ Add PM covariances -----------------------
-				ida_pma = [i*self.D + self.idx_pma for i in range(self.n_stars)]
-				ida_pmd = [i*self.D + self.idx_pmd for i in range(self.n_stars)]
+				ida_pma = [i*self.D + self.idx_pma for i in range(self.n_sources)]
+				ida_pmd = [i*self.D + self.idx_pmd for i in range(self.n_sources)]
 
 				sg_data[np.ix_(ida_pma,ida_pma)] += cov_pms
 				sg_data[np.ix_(ida_pmd,ida_pmd)] += cov_pms
 
+		#------------ Project into observed subspace -------------
+		idx_obs = np.where(np.isfinite(mu_data))[0]
+		mu_data = mu_data[idx_obs]
+		sg_data = sg_data[np.ix_(idx_obs,idx_obs)]
+		#-------------------------------------------------------
+
 		#-------- Compute inverse of covariance matrix --------------------
+		self.idx_data  = idx_obs
+		self.mu_data  = mu_data
 		self.sg_data  = sg_data
 		self.tau_data = np.linalg.inv(sg_data)
-		self.mu_data  = mu_data
 		#=================================================================================
+
 		print("Data correctly loaded")
 
 
@@ -300,28 +320,47 @@ class Inference:
 
 
 		if self.D == 1:
-			self.Model = Model1D(mu_data=self.mu_data,tau_data=self.tau_data,
-								  prior=self.prior,
-								  parameters=self.parameters,
-								  hyper_alpha=self.hyper["alpha"],
-								  hyper_beta=self.hyper["beta"],
-								  hyper_gamma=self.hyper["gamma"],
-								  hyper_delta=self.hyper["delta"],
-								  transformation=self.transformation,
-								  parametrization=self.parametrization)
+			self.Model = Model1D(n_sources=self.n_sources,
+								mu_data=self.mu_data,
+								tau_data=self.tau_data,
+								prior=self.prior,
+								parameters=self.parameters,
+								hyper_alpha=self.hyper["alpha"],
+								hyper_beta=self.hyper["beta"],
+								hyper_gamma=self.hyper["gamma"],
+								hyper_delta=self.hyper["delta"],
+								transformation=self.transformation,
+								parametrization=self.parametrization)
 
 		elif self.D == 3:
-			self.Model = Model3D(dimension=self.D,mu_data=self.mu_data,tau_data=self.tau_data,
-								  prior=self.prior,
-								  parameters=self.parameters,
-								  hyper_alpha=self.hyper["alpha"],
-								  hyper_beta=self.hyper["beta"],
-								  hyper_gamma=self.hyper["gamma"],
-								  hyper_delta=self.hyper["delta"],
-								  hyper_eta=self.hyper["eta"],
-								  transformation=self.transformation,
-								  reference_system=self.reference_system,
-								  parametrization=self.parametrization)
+			self.Model = Model3D(n_sources=self.n_sources,
+								mu_data=self.mu_data,
+								tau_data=self.tau_data,
+								prior=self.prior,
+								parameters=self.parameters,
+								hyper_alpha=self.hyper["alpha"],
+								hyper_beta=self.hyper["beta"],
+								hyper_gamma=self.hyper["gamma"],
+								hyper_delta=self.hyper["delta"],
+								hyper_eta=self.hyper["eta"],
+								transformation=self.transformation,
+								reference_system=self.reference_system,
+								parametrization=self.parametrization)
+		elif self.D == 6:
+			self.Model = Model6D(n_sources=self.n_sources,
+								mu_data=self.mu_data,
+								tau_data=self.tau_data,
+								idx_data=self.idx_data,
+								prior=self.prior,
+								parameters=self.parameters,
+								hyper_alpha=self.hyper["alpha"],
+								hyper_beta=self.hyper["beta"],
+								hyper_gamma=self.hyper["gamma"],
+								hyper_delta=self.hyper["delta"],
+								hyper_eta=self.hyper["eta"],
+								transformation=self.transformation,
+								reference_system=self.reference_system,
+								parametrization=self.parametrization)
 		else:
 			sys.exit("Dimension not valid!")
 
@@ -517,10 +556,6 @@ class Inference:
 		self.loc_variables     = cluster_loc_var
 		self.std_variables     = cluster_std_var
 		self.cor_variables     = cluster_cor_var
-
-		#---------- Classify sources -------------------
-		self._classify()
-		#------------------------------------------------
 
 	def convergence(self):
 		"""
@@ -751,12 +786,13 @@ class Inference:
 						"error_lw":0.5,
 						"cmap":"tab10"},
 		n_samples=100,
-		labels=["X [pc]","Y [pc]","Z [pc]"],
+		labels=["X [pc]","Y [pc]","Z [pc]",
+				"U [km/s]","V [kms/s]","W [km/s]"],
 		fontsize_title=16):
 		"""
 		This function plots the model.
 		"""
-		assert self.D == 3, "Only valid for 3D model ... so far"
+		assert self.D in [3,6], "Only valid for 3D and 6D models"
 
 		msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
 
@@ -774,7 +810,7 @@ class Inference:
 		df_source  = az.summary(self.ds_posterior,var_names=self.source_variables)
 
 		#------------- Replace parameter id by index --------------------
-		n_sources = int(df_source.shape[0]/3)
+		n_sources = int(df_source.shape[0]/self.D)
 		ID  = np.repeat(np.arange(n_sources),self.D,axis=0).astype('str')
 		idx = np.tile(np.arange(self.D),n_sources)
 
@@ -782,8 +818,13 @@ class Inference:
 		df_source.insert(loc=0,column="parameter",value=idx)
 		#----------------------------------------------------------------
 
+		#---------- Classify sources -------------------
+		if not hasattr(self,"df_groups"):
+			self._classify(n_samples=n_samples)
+		#------------------------------------------------
+
 		# ------ Parameters into columns -------------------------------------
-		suffixes  = ["_X","_Y","_Z"]
+		suffixes  = ["_X","_Y","_Z","_U","_V","_W"]
 		dfs = []
 		for i in range(self.D):
 			idx = np.where(df_source["parameter"] == i)[0]
@@ -796,17 +837,24 @@ class Inference:
 		for i,suffix in enumerate(suffixes[1:]):
 			df_source = df_source.join(dfs[i+1],
 				how="inner",lsuffix="",rsuffix=suffix)
+		#---------------------------------------------
 
-		srcs_loc = df_source[["mean_X","mean_Y","mean_Z"]].to_numpy()
-		srcs_std = df_source[["sd_X","sd_Y","sd_Z"]].to_numpy()
+		#--------- Mean and SD ----------------------------------
+		mean_names = ["mean"+suffixes[i] for i in range(self.D)]
+		sd_names = ["sd"+suffixes[i] for i in range(self.D)]
+
+		srcs_loc = df_source[mean_names].to_numpy()
+		srcs_std = df_source[sd_names].to_numpy()
 		srcs_grp = self.df_groups["group"].to_numpy()
 		#-------------------------------------------------------------------
 
-		#---------- Extract prior and posterior -----------------
+		#---------- Extract prior and posterior -----------------------------------
 		_,pos_locs,pos_covs = self._extract(group="posterior",n_samples=n_samples)
 		if self.ds_prior is not None:
 			_,pri_locs,pri_covs = self._extract(group="prior",n_samples=n_samples)
+		#---------------------------------------------------------------------------
 
+		#=================== Positions ================================================
 		fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
 		for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[0,1],[2,1],[0,2]]):
 			#--------- Sources --------------------------
@@ -883,7 +931,88 @@ class Inference:
 		plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
 		pdf.savefig(bbox_inches='tight')
 		plt.close()
-		#---------------------------------------------------------------------------------------------
+		#==============================================================================================
+
+		#========================= Velocities =========================================================
+		if self.D == 6:
+			fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
+			for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[3,4],[5,4],[3,5]]):
+				#--------- Sources --------------------------
+				ax.errorbar(x=srcs_loc[:,idx[0]],
+							y=srcs_loc[:,idx[1]],
+							xerr=srcs_std[:,idx[0]],
+							yerr=srcs_std[:,idx[1]],
+							fmt='none',
+							ecolor=data_kwargs["error_color"],
+							elinewidth=data_kwargs["error_lw"],
+							zorder=1)
+				ax.scatter(x=srcs_loc[:,idx[0]],
+							y=srcs_loc[:,idx[1]],
+							c=cmap(srcs_grp),
+							marker=data_kwargs["marker"],
+							s=data_kwargs["size"],
+							zorder=1)
+
+				#-------- Posterior ----------------------------------------------------------
+				for mus,covs in zip(pos_locs,pos_covs):
+					for mu,cov in zip(mus,covs):
+							width, height, angle = get_principal(cov,idx)
+							ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
+											clip_box=ax.bbox,
+											edgecolor=posterior_kwargs["color"],
+											facecolor=None,
+											fill=False,
+											linewidth=posterior_kwargs["linewidth"],
+											alpha=posterior_kwargs["alpha"],
+											zorder=2)
+							ax.add_artist(ell)
+				#-----------------------------------------------------------------------------
+
+				#-------- Prior ----------------------------------------------------------
+				if self.ds_prior is not None:
+					for mus,covs in zip(pri_locs,pri_covs):
+						for mu,cov in zip(mus,covs):
+								width, height, angle = get_principal(cov,idx)
+								ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
+												clip_box=ax.bbox,
+												edgecolor=prior_kwargs["color"],
+												facecolor=None,
+												fill=False,
+												linewidth=prior_kwargs["linewidth"],
+												alpha=prior_kwargs["alpha"],
+												zorder=0)
+								ax.add_artist(ell)
+				#-----------------------------------------------------------------------------
+
+				#------------- Titles -------------------------------------
+				ax.set_xlabel(labels[idx[0]])
+				ax.set_ylabel(labels[idx[1]])
+
+			axs[0,0].axes.xaxis.set_visible(False)
+			axs[0,1].axes.yaxis.set_visible(False)
+
+			#------------- Legend -----------------------------------------------------------
+			prior_line = mlines.Line2D([], [], color=prior_kwargs["color"], 
+									marker=None, label=prior_kwargs["label"])
+			posterior_line = mlines.Line2D([], [], color=posterior_kwargs["color"], 
+									marker=None, label=posterior_kwargs["label"])
+			data_mrkr =  mlines.Line2D([], [], marker=data_kwargs["marker"], color="w", 
+							  markerfacecolor=data_kwargs["color"], 
+							  markersize=5,
+							  label=data_kwargs["label"])
+			if self.ds_prior is not None:
+				handles = [prior_line,posterior_line,data_mrkr]
+			else:
+				handles = [posterior_line,data_mrkr]
+			axs[1,1].legend(handles=handles,loc='center')
+			axs[1,1].axis("off")
+			#-------------------------------------------------------------------------------
+
+			plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
+			pdf.savefig(bbox_inches='tight')
+			plt.close()
+		#=============================================================================================
+
 		pdf.close()
 
 
@@ -929,9 +1058,18 @@ class Inference:
 		df_source.insert(loc=0,column="parameter",value=idx)
 		#---------------------------------------------------------------
 
-		if self.D == 3 :
+		#---------- Classify sources -------------------
+		if not hasattr(self,"df_groups"):
+			if self.ds_posterior.sizes["draw"] > 100:
+				n_samples = 100
+			else:
+				n_samples = self.ds_posterior.sizes["draw"]
+			self._classify(n_samples=n_samples)
+		#------------------------------------------------
+
+		if self.D in [3,6] :
 			# ------ Parameters into columns ------------------------
-			suffixes  = ["_X","_Y","_Z"]
+			suffixes  = ["_X","_Y","_Z","_U","_V","_W"]
 			dfs = []
 			for i in range(self.D):
 				idx = np.where(df_source["parameter"] == i)[0]

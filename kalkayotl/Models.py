@@ -40,13 +40,11 @@ class Model1D(Model):
 		hyper_delta=None,
 		transformation="mas",
 		parametrization="non-central",
-		name='1D', model=None):
+		name="1D", model=None):
 		super().__init__(name, model)
 
 		#------------------- Data ------------------------------------------------------
-		self.N = len(mu_data)
-
-		if self.N == 0:
+		if n_sources == 0:
 			sys.exit("Data has length zero!. You must provide at least one data point")
 
 		#-------------------------------------------------------------------------------
@@ -92,16 +90,16 @@ class Model1D(Model):
 		#--------- Cluster oriented prior-----------------------------------------------
 		if prior == "Uniform":
 			if parametrization == "central":
-				pm.Uniform("source",lower=self.loc-self.scl,upper=self.loc+self.scl,shape=self.N)
+				pm.Uniform("source",lower=self.loc-self.scl,upper=self.loc+self.scl,shape=n_sources)
 			else:
-				pm.Uniform("offset",lower=-1.,upper=1.,shape=self.N)
+				pm.Uniform("offset",lower=-1.,upper=1.,shape=n_sources)
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior == "Gaussian":
 			if parametrization == "central":
-				pm.Normal("source",mu=self.loc,sd=self.scl,shape=self.N)
+				pm.Normal("source",mu=self.loc,sd=self.scl,shape=n_sources)
 			else:
-				pm.Normal("offset",mu=0.0,sd=1.0,shape=self.N)
+				pm.Normal("offset",mu=0.0,sd=1.0,shape=n_sources)
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior == "GMM":
@@ -118,11 +116,11 @@ class Model1D(Model):
 					mu=self.loc,
 					sigma=self.scl,
 					comp_shape=1,
-					shape=self.N)
+					shape=n_sources)
 			else:
-				pm.Normal("offset",mu=0.0,sd=1.0,shape=self.N)
+				pm.Normal("offset",mu=0.0,sd=1.0,shape=n_sources)
 				# latent cluster of each observation
-				component = pm.Categorical("component",p=self.weights,shape=self.N)
+				component = pm.Categorical("component",p=self.weights,shape=n_sources)
 				pm.Deterministic("source",self.loc[component] + self.scl[component]*self.offset) 
 
 		elif prior == "EFF":
@@ -133,9 +131,9 @@ class Model1D(Model):
 				self.gamma = parameters["gamma"]
 
 			if parametrization == "central":
-				EFF("source",location=self.loc,scale=self.scl,gamma=self.gamma,shape=self.N)
+				EFF("source",location=self.loc,scale=self.scl,gamma=self.gamma,shape=n_sources)
 			else:
-				EFF("offset",location=0.0,scale=1.0,gamma=self.gamma,shape=self.N)
+				EFF("offset",location=0.0,scale=1.0,gamma=self.gamma,shape=n_sources)
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior == "King":
@@ -146,14 +144,14 @@ class Model1D(Model):
 				self.rt = parameters["rt"]
 
 			if parametrization == "central":
-				King("source",location=self.loc,scale=self.scl,rt=self.rt,shape=self.N)
+				King("source",location=self.loc,scale=self.scl,rt=self.rt,shape=n_sources)
 			else:
-				King("offset",location=0.0,scale=1.0,rt=self.rt,shape=self.N)
+				King("offset",location=0.0,scale=1.0,rt=self.rt,shape=n_sources)
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 			
 		#---------- Galactic oriented prior ---------------------------------------------
 		elif prior == "EDSD":
-			EDSD("source",scale=self.scl,shape=self.N)
+			EDSD("source",scale=self.scl,shape=n_sources)
 		
 		else:
 			sys.exit("The specified prior is not implemented")
@@ -171,9 +169,9 @@ class Model1D(Model):
 ############################ ND Model ###########################################################
 class Model3D(Model):
 	'''
-	Model to infer the N-dimensional parameter vector of a cluster
+	Model to infer the n_sources-dimensional parameter vector of a cluster
 	'''
-	def __init__(self,dimension,mu_data,tau_data,
+	def __init__(self,n_sources,mu_data,tau_data,
 		prior="Gaussian",
 		parameters={"location":None,"scale":None},
 		hyper_alpha=None,
@@ -184,16 +182,11 @@ class Model3D(Model):
 		transformation=None,
 		reference_system="ICRS",
 		parametrization="non-central",
-		name='', model=None):
-
-		assert isinstance(dimension,int), "dimension must be integer!"
-		assert dimension == 3,"Not a valid dimension!"
-
-		super().__init__("3D", model)
+		name="3D", model=None):
+		super().__init__(name, model)
 
 		#------------------- Data ------------------------------------------------------
-		N = int(len(mu_data)/3)
-		if N == 0:
+		if n_sources == 0:
 			sys.exit("Data has length zero! You must provide at least one data point.")
 		#-------------------------------------------------------------------------------
 
@@ -293,9 +286,9 @@ class Model3D(Model):
 		#===================== True values ============================================		
 		if prior == "Gaussian":
 			if parametrization == "central":
-				pm.MvNormal("source",mu=loc,chol=chol,shape=(N,3))
+				pm.MvNormal("source",mu=loc,chol=chol,shape=(n_sources,3))
 			else:
-				pm.Normal("offset",mu=0,sigma=1,shape=(N,3))
+				pm.Normal("offset",mu=0,sigma=1,shape=(n_sources,3))
 				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
 		elif prior == "King":
@@ -306,9 +299,9 @@ class Model3D(Model):
 				self.rt = parameters["rt"]
 
 			if parametrization == "central":
-				MvKing("source",location=loc,chol=chol,rt=self.rt,shape=(N,3))
+				MvKing("source",location=loc,chol=chol,rt=self.rt,shape=(n_sources,3))
 			else:
-				MvKing("offset",location=np.zeros(3),chol=np.eye(3),rt=self.rt,shape=(N,3))
+				MvKing("offset",location=np.zeros(3),chol=np.eye(3),rt=self.rt,shape=(n_sources,3))
 				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
 		elif prior == "EFF":
@@ -319,9 +312,9 @@ class Model3D(Model):
 				self.gamma = parameters["gamma"]
 
 			if parametrization == "central":
-				MvEFF("source",location=loc,chol=chol,gamma=self.gamma,shape=(N,3))
+				MvEFF("source",location=loc,chol=chol,gamma=self.gamma,shape=(n_sources,3))
 			else:
-				MvEFF("offset",location=np.zeros(3),chol=np.eye(3),gamma=self.gamma,shape=(N,3))
+				MvEFF("offset",location=np.zeros(3),chol=np.eye(3),gamma=self.gamma,shape=(n_sources,3))
 				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
 		elif prior in ["GMM","CGMM"]:
@@ -330,7 +323,7 @@ class Model3D(Model):
 			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_gauss)]
 
 			#---- Sample from the mixture ----------------------------------
-			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(N,3))
+			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(n_sources,3))
 		
 		else:
 			sys.exit("The specified prior is not supported")
@@ -353,7 +346,7 @@ class Model6D(Model):
 	'''
 	Model to infer the 6-dimensional parameter vector of a cluster
 	'''
-	def __init__(self,dimension,mu_data,tau_data,
+	def __init__(self,n_sources,mu_data,tau_data,idx_data,
 		prior="Gaussian",
 		parameters={"location":None,"scale":None},
 		hyper_alpha=None,
@@ -362,66 +355,44 @@ class Model6D(Model):
 		hyper_delta=None,
 		hyper_eta=None,
 		transformation=None,
+		reference_system="ICRS",
 		parametrization="non-central",
-		name='', model=None):
-
-		assert isinstance(dimension,int), "dimension must be integer!"
-		assert dimension == 6,"Not a valid dimension!"
-
-		# 2) call super's init first, passing model and name
-		# to it name will be prefix for all variables here if
-		# no name specified for model there will be no prefix
-		super().__init__("6D", model)
-		# now you are in the context of instance,
-		# `modelcontext` will return self you can define
-		# variables in several ways note, that all variables
-		# will get model's name prefix
+		name="6D", model=None):
+		super().__init__(name, model)
 
 		#------------------- Data ------------------------------------------------------
-		N = int(len(mu_data)/6)
-		if N == 0:
+		if n_sources == 0:
 			sys.exit("Data has length zero! You must provide at least one data point.")
 		#-------------------------------------------------------------------------------
 
 		print("Using {0} parametrization".format(parametrization))
 
-		#============= Transformations ====================================
+		#============= Transformations ==============================================
+		assert transformation == "pc","6D model only works with 'pc' transformation"
 
-
-		if transformation == "mas":
-			Transformation = Iden
-
-		elif transformation == "pc":
-			if D == 3:
-				Transformation = cartesianToSpherical
-			elif D == 6:
+		if reference_system == "ICRS":
 				Transformation = phaseSpaceToAstrometry_and_RV
 		else:
-			sys.exit("Transformation is not accepted")
-		#==================================================================
+			sys.exit("Reference system not accepted")
+		#===========================================================================
 
 		#================ Hyper-parameters =====================================
 		#----------------- Mixture prior families ----------------------------
-		if prior in ["GMM","GUM","CGMM"]:
+		if prior in ["GMM","CGMM"]:
 			#------------- Shapes -------------------------
-			shape = len(hyper_delta)
-			
-			if prior == "GUM":
-				n_gauss = shape -1
-			else:
-				n_gauss = shape
+			n_gauss = len(hyper_delta)
 
-			loc  = theano.shared(np.zeros((n_gauss,D)))
-			chol = theano.shared(np.zeros((n_gauss,D,D)))
+			loc  = theano.shared(np.zeros((n_gauss,6)))
+			chol = theano.shared(np.zeros((n_gauss,6,6)))
 			#----------------------------------------------
 
 			#----------- Locations ------------------------------------------
 			if parameters["location"] is None:
-				if prior == "CGMM":
+				if prior in ["CGMM"]:
 					#----------------- Concentric prior --------------------
 					location = [ pm.Normal("loc_{0}".format(j),
 								mu=hyper_alpha[j][0],
-								sigma=hyper_alpha[j][1]) for j in range(D) ]
+								sigma=hyper_alpha[j][1]) for j in range(6) ]
 
 					loci = pm.math.stack(location,axis=1)
 
@@ -431,45 +402,29 @@ class Model6D(Model):
 
 				else:
 					#----------- Non-concentric prior ----------------------------
-					for i in range(n_gauss):
-						location = [ pm.Normal("loc_{0}_{1}".format(i,j),
-									mu=hyper_alpha[j][0],
-									sigma=hyper_alpha[j][1]) for j in range(D) ]
-						
-						loci = pm.math.stack(location,axis=1)
-
-						loc  = tt.set_subtensor(loc[i],loci)
-					#---------------------------------------------------------
+					location = [ pm.Normal("loc_{0}".format(j),
+								mu=hyper_alpha[j][0],
+								sigma=hyper_alpha[j][1],
+								shape=n_gauss) for j in range(6) ]
 					
-					if prior == "GUM":
-						#---------- Gaussian+Uniform ------------------------------
-						location_unif = [ pm.Normal("loc_unif_{0}".format(i),
-									mu=hyper_alpha[i][0],
-									sigma=hyper_alpha[i][1]) for i in range(D) ]
-
-						loc_unif = pm.math.stack(location_unif,axis=1)
-						#----------------------------------------------------------
+					loc = pm.math.stack(location,axis=1)
+					#---------------------------------------------------------
 				#-------------------------------------------------------------------
 			else:
 				for i in range(n_gauss):
 					loc  = tt.set_subtensor(loc[i],np.array(parameters["location"][i]))
 
-				if prior == "GUM":
-					loc_unif = pm.math.stack(np.array(parameters["location"][-1]),axis=1)
-
 			#---------- Covariance matrices -----------------------------------
 			if parameters["scale"] is None:
 				for i in range(n_gauss):
 					choli, corri, stdsi = pm.LKJCholeskyCov("scl_{0}".format(i), 
-										n=D, eta=hyper_eta, 
+										n=6, eta=hyper_eta, 
 										sd_dist=pm.Gamma.dist(
-										alpha=2.0,beta=2.0/hyper_beta),
+										alpha=2.0,beta=1.0/hyper_beta),
 										compute_corr=True)
 				
 					chol = tt.set_subtensor(chol[i],choli)
 
-				if prior == "GUM":
-					scl_unif = pm.Gamma("scl_unif",alpha=2.0,beta=2.0/hyper_beta,shape=D)
 			else:
 				sys.exit("Not yet implemented.")
 			#--------------------------------------------------------------------
@@ -481,7 +436,7 @@ class Model6D(Model):
 			if parameters["location"] is None:
 				location = [ pm.Normal("loc_{0}".format(i),
 							mu=hyper_alpha[i][0],
-							sigma=hyper_alpha[i][1]) for i in range(D) ]
+							sigma=hyper_alpha[i][1]) for i in range(6) ]
 
 				#--------- Join variables --------------
 				loc = pm.math.stack(location,axis=1)
@@ -492,8 +447,8 @@ class Model6D(Model):
 
 			#---------- Covariance matrix ------------------------------------
 			if parameters["scale"] is None:
-				chol, corr, stds = pm.LKJCholeskyCov("scl", n=D, eta=hyper_eta, 
-						sd_dist=pm.Gamma.dist(alpha=2.0,beta=2.0/hyper_beta),
+				chol, corr, stds = pm.LKJCholeskyCov("scl", n=6, eta=hyper_eta, 
+						sd_dist=pm.Gamma.dist(alpha=2.0,beta=1.0/hyper_beta),
 						compute_corr=True)
 			else:
 				sys.exit("Not yet implemented.")
@@ -504,47 +459,18 @@ class Model6D(Model):
 		#===================== True values ============================================		
 		if prior == "Gaussian":
 			if parametrization == "central":
-				pm.MvNormal("source",mu=loc,chol=chol,shape=(N,D))
+				pm.MvNormal("source",mu=loc,chol=chol,shape=(n_sources,6))
 			else:
-				pm.Normal("offset",mu=0,sigma=1,shape=(N,D))
+				pm.Normal("offset",mu=0,sigma=1,shape=(n_sources,6))
 				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
-		elif prior == "King":
-			if parameters["rt"] is None:
-				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma)
-				pm.Deterministic("rt",1.0+self.x)
-			else:
-				self.rt = parameters["rt"]
-
-			if parametrization == "central":
-				MvKing("source",location=loc,scale=scl,rt=self.rt,shape=(N,D))
-			else:
-				King("offset",location=0.0,scale=1.0,rt=self.rt,shape=(N,D))
-				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
-
-		elif prior == "EFF":
-			if parameters["gamma"] is None:
-				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma)
-				pm.Deterministic("gamma",1.0+self.x)
-			else:
-				self.gamma = parameters["gamma"]
-
-			if parametrization == "central":
-				MvEFF("source",location=loc,scale=scl,gamma=self.gamma,shape=(N,D))
-			else:
-				EFF("offset",location=0.0,scale=1.0,gamma=self.gamma,shape=(N,D))
-				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
-
-		elif prior in ["GMM","CGMM","GUM"]:
-			pm.Dirichlet("weights",a=hyper_delta,shape=shape)
+		elif prior in ["GMM","CGMM"]:
+			pm.Dirichlet("weights",a=hyper_delta)
 
 			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_gauss)]
 
-			if prior == "GUM":
-				comps.extend(MvUniform.dist(location=loc_unif,scale=scl_unif))
-
 			#---- Sample from the mixture ----------------------------------
-			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(N,D))
+			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(n_sources,6))
 		
 		else:
 			sys.exit("The specified prior is not supported")
@@ -559,5 +485,6 @@ class Model6D(Model):
 		#----------------------------------------------------------------------------
 
 		#----------------------- Likelihood ----------------------------------------
-		pm.MvNormal('obs', mu=true, tau=tau_data,observed=mu_data)
+		# Select only those observed e.g., true[idx_obs]
+		pm.MvNormal('obs', mu=true[idx_data], tau=tau_data,observed=mu_data)
 		#------------------------------------------------------------------------------
