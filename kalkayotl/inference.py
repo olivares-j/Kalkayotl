@@ -158,10 +158,10 @@ class Inference:
 		#-------- Drop NaNs ------------------------
 		data.dropna(subset=self.names_nan,inplace=True,
 						thresh=len(self.names_nan))
+		#----------------------------------------------
 
 		#----- Track ID -------------
-		# In case of missing values in parallax
-		IDs = []
+		self.ID = data.index.values
 		#----------------------------
 
 		self.n_sources,D = np.shape(data)
@@ -178,8 +178,6 @@ class Inference:
 			idx_tru = (idx_tru[0][idi],idx_tru[1][idi])
 
 		for i,(ID,datum) in enumerate(data.iterrows()):
-			#---Populate IDs ----------
-			IDs.append(ID)
 			#--------------------------
 			ida  = range(i*self.D,i*self.D + self.D)
 			mu   = np.array(datum[self.names_mu]) - self.zero_point
@@ -199,10 +197,10 @@ class Inference:
 			sg_data[np.ix_(ida,ida)] = sigma
 		#=========================================================================
 
-		#----- Save identifiers ------
-		df_IDs = pn.DataFrame(IDs,columns=[self.id_name])
-		df_IDs.to_csv(path_or_buf=self.file_ids,index=False)
-		self.ID = IDs
+		#----- Save identifiers --------------------------
+		df = pn.DataFrame(self.ID,columns=[self.id_name])
+		df.to_csv(path_or_buf=self.file_ids,index=False)
+		#------------------------------------------------
 
 
 
@@ -667,8 +665,9 @@ class Inference:
 		'''
 		Obtain the class of each source at each chain step
 		'''
+		print("Classifying sources ...")
+
 		if self.prior in ["GMM","CGMM"]:
-			print("Classifying sources ...")
 			#------- Extract GMM parameters ----------------------------------
 			pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
 										n_samples=n_samples,
@@ -698,7 +697,7 @@ class Inference:
 			grps = st.mode(log_lk.argmax(axis=2),axis=1)[0].flatten()
 
 		else:
-			grps = np.zeros_like(self.ID)
+			grps = np.zeros(len(self.ID))
 
 		self.df_groups = pn.DataFrame(data={"group":grps},index=self.ID)
 
