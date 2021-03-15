@@ -48,7 +48,7 @@ file_data = "/home/jromero/OCs/Perseus/Catalogues/eGDR3/members_run_5.csv"
 
 
 #=============== Tuning knobs ============================
-dimension = 3
+dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -99,7 +99,7 @@ reference_system = "ICRS"
 # The zero point of the parallax measurements
 # You can provide either a scalar or a vector of the same dimension
 # as the valid sources in your data set.
-zero_point = [0.,0.,-0.017,0.,0.,0.]  # This is Lindegren+2020 value
+zero_point = [0.,0.,-0.017,0.,0.,0.]  # This is Brrowns+2020 value
 #---------------------------------------------------------------------
 
 #------- Independent measurements--------
@@ -232,7 +232,7 @@ list_of_prior = [
 							"alpha":hyper_alpha[:dimension], 
 							"beta":hyper_beta, 
 							"gamma":None,
-							"delta":np.array([5,5,5,5,5]),
+							"delta":np.array([5,5,5,5]),
 							"eta":hyper_eta
 							},
 		"parametrization":"central",

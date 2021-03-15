@@ -46,7 +46,7 @@ file_data = dir_out + "Ruprecht_147.csv"
 
 
 #=============== Tuning knobs ============================
-dimension = 3
+dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -60,12 +60,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 3000
+tuning_iters = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 3000
+sample_iters = 1000
 
 
 #----- Target_accept-------
@@ -189,20 +189,20 @@ list_of_prior = [
 	# 	"optimize":False},
 
 	
-	{"type":"King",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],     
-		"parameters":{"location":None,"scale":None,"rt":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension], 
-							"beta":hyper_beta, 
-							"gamma":10.0,
-							"delta":None,
-							"eta":hyper_eta
-							},
-		"parametrization":"non-central",
-		"prior_predictive":False,
-		"optimize":False},
+	# {"type":"King",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],     
+	# 	"parameters":{"location":None,"scale":None,"rt":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension], 
+	# 						"beta":hyper_beta, 
+	# 						"gamma":10.0,
+	# 						"delta":None,
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"non-central",
+	# 	"prior_predictive":False,
+	# 	"optimize":False},
 	# # # NOTE: the tidal radius and its parameters are scaled.
 
 	
@@ -222,20 +222,20 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	# {"type":"GMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
-	# 	"parameters":{"location":None,"scale":None,"weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension], 
-	# 						"beta":hyper_beta, 
-	# 						"gamma":None,
-	# 						"delta":np.array([5,5]),
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"GMM",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],        
+		"parameters":{"location":None,"scale":None,"weights":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension], 
+							"beta":hyper_beta, 
+							"gamma":None,
+							"delta":np.array([5,5]),
+							"eta":hyper_eta
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":False},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
@@ -258,7 +258,7 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_out + prior["type"] + "_" + prior["parametrization"]
+	dir_prior = dir_out + str(dimension)+"D_"+prior["type"] + "_" + prior["parametrization"]
 
 	#---------- Create prior directory -------------
 	os.makedirs(dir_prior,exist_ok=True)
@@ -278,20 +278,20 @@ for prior in list_of_prior:
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	p3d.load_data(file_data)
+	p3d.load_data(file_data,corr_func="Lindegren+2018")
 
 	#------ Prepares the model -------------------
 	p3d.setup()
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	# p3d.run(sample_iters=sample_iters,
-	# 		tuning_iters=tuning_iters,
-	# 		target_accept=target_accept,
-	# 		optimize=prior["optimize"],
-	# 		prior_predictive=prior["prior_predictive"],
-	# 		chains=chains,
-	# 		cores=cores)
+	p3d.run(sample_iters=sample_iters,
+			tuning_iters=tuning_iters,
+			target_accept=target_accept,
+			optimize=prior["optimize"],
+			prior_predictive=prior["prior_predictive"],
+			chains=chains,
+			cores=cores)
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
