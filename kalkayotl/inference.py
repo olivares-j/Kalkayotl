@@ -379,6 +379,7 @@ class Inference:
 				"plot":True
 				},
 		prior_predictive=True,
+		posterior_predictive=False,
 		progressbar=True,
 		*args,**kwargs):
 		"""
@@ -447,12 +448,12 @@ class Inference:
 		print("Sampling the model ...")
 
 		with self.Model:
-			#-------- Prior predictive -----------------------------
+			#-------- Prior predictive ----------------------------------
 			if prior_predictive:
 				prior = pm.sample_prior_predictive(samples=sample_iters) #Fails for MvNorm
 			else:
 				prior = None
-			#--------------------------------------------------------
+			#-------------------------------------------------------------
 
 			#---------- Posterior -----------------------
 			trace = pm.sample(draws=sample_iters,
@@ -463,9 +464,14 @@ class Inference:
 							progressbar=progressbar,
 							discard_tuned_samples=True,
 							return_inferencedata=False)
+			#-----------------------------------------------
 
-			posterior_predictive = pm.sample_posterior_predictive(trace)
-			#------------------------------------------------------------
+			#-------- Posterior predictive -----------------------------
+			if posterior_predictive:
+				posterior_predictive = pm.sample_posterior_predictive(trace)
+			else:
+				posterior_predictive = None
+			#--------------------------------------------------------
 
 			#--------- Save with arviz ------------
 			pm_data = az.from_pymc3(

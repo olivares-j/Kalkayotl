@@ -30,15 +30,21 @@ from kalkayotl import Inference
 from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
-#============ Directory and data =============================
+#============ Directory and data ===========================================
 #----- Directory where chains and plots will be saved ----
-dir_out    = "/home/jromero/Repos/Amasijo/Rup147_100_1/"
-#--------------------------------------
+dir_out    = "/home/jromero/OCs/Perseus/Kalkayotl/K1/"
+# dir_out    = "/home/javier/Cumulos/Perseus/Miec/run_5/kalkayotl/3D_5GMM/"
+#-------------------------------------------------------------------------
 
-#----------- Data file --------------------
-file_data = dir_out + "synthetic.csv"
-#-----------------------------------------
-#==================================================
+#------- Creates directory if it does not exists -------
+os.makedirs(dir_out,exist_ok=True)
+#-------------------------------------------------------
+
+#----------- Data file -----------------------------------------------------
+file_data = "/home/jromero/OCs/Perseus/Catalogues/eGDR3/run_5/kalkayotl/members_group_1.csv"
+# file_data = "/home/javier/Cumulos/Perseus/Miec/run_5/members.csv"
+#----------------------------------------------------------------------------
+#============================================================================
 
 
 #=============== Tuning knobs ============================
@@ -93,7 +99,7 @@ reference_system = "ICRS"
 # The zero point of the parallax measurements
 # You can provide either a scalar or a vector of the same dimension
 # as the valid sources in your data set.
-zero_point = [0.,0.,0.,0.,0.,0.]
+zero_point = [0.,0.,-0.017,0.,0.,0.]  # This is Brrowns+2020 value
 #---------------------------------------------------------------------
 
 #------- Independent measurements--------
@@ -111,7 +117,7 @@ indep_measures = False
 
 #=========== Cluster initial parameters ===========================
 #----- First guess of cluster observational position -------
-astrometry = np.array([[289.02,-16.43,3.25,-0.98,-26.7,40.0]])
+astrometry = np.array([[55.65,31.83,3.25,5.17,-7.29,17.31]])
 #----- Cluster Cartesian position ---------
 x,y,z,u,v,w = astrometryToPhaseSpace(astrometry,reference_system=reference_system)[0]
 
@@ -154,20 +160,20 @@ hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	{"type":"Gaussian",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension],
-							"beta":hyper_beta,
-							"gamma":None,
-							"delta":None,
-							"eta":hyper_eta
-							},
-		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":False},
+	# {"type":"Gaussian",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension],
+	# 						"beta":hyper_beta,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":False,
+	# 	"optimize":False},
 
 	# {"type":"Gaussian",
 	# 	"dimension":dimension,
@@ -218,20 +224,20 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	# {"type":"GMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
-	# 	"parameters":{"location":None,"scale":None,"weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension], 
-	# 						"beta":hyper_beta, 
-	# 						"gamma":None,
-	# 						"delta":np.array([5,5]),
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"GMM",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],        
+		"parameters":{"location":None,"scale":None,"weights":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension], 
+							"beta":hyper_beta, 
+							"gamma":None,
+							"delta":np.array([5,5]),
+							"eta":hyper_eta
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":False},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
@@ -254,7 +260,7 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_out + str(dimension)+"D_"+prior["type"] + "_" + prior["parametrization"]
+	dir_prior = dir_out + str(dimension) + "D_" + prior["type"] + "_" + prior["parametrization"]
 
 	#---------- Create prior directory -------------
 	os.makedirs(dir_prior,exist_ok=True)
@@ -274,7 +280,7 @@ for prior in list_of_prior:
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	p3d.load_data(file_data,corr_func="Lindegren+2018")
+	p3d.load_data(file_data)
 
 	#------ Prepares the model -------------------
 	p3d.setup()
