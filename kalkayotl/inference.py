@@ -468,16 +468,16 @@ class Inference:
 
 			#-------- Posterior predictive -----------------------------
 			if posterior_predictive:
-				posterior_predictive = pm.sample_posterior_predictive(trace)
+				predictive = pm.sample_posterior_predictive(trace)
 			else:
-				posterior_predictive = None
+				predictive = None
 			#--------------------------------------------------------
 
 			#--------- Save with arviz ------------
 			pm_data = az.from_pymc3(
 						trace=trace,
 						prior=prior,
-						posterior_predictive=posterior_predictive)
+						posterior_predictive=predictive)
 			az.to_netcdf(pm_data,file_chains)
 			#-------------------------------------
 
