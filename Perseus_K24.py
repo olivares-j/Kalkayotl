@@ -34,11 +34,11 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 dir_main = "/home/jromero/OCs/Perseus/"
 
 #----- Directory where chains and plots will be saved ----
-dir_out  = dir_main + "Kalkayotl/K3/b/"
+dir_out  = dir_main + "Kalkayotl/K24/b/"
 #-------------------------------------------------------------------------
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_main + "Runs/eGDR3/Groups_run_5/kalkayotl/K3_b/outputs/members.csv"
+file_data = dir_main + "Runs/eGDR3/Groups_run_5/kalkayotl/K24_b/outputs/members.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -224,9 +224,24 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	{"type":"GMM",
+	# {"type":"GMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],        
+	# 	"parameters":{"location":None,"scale":None,"weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension], 
+	# 						"beta":hyper_beta, 
+	# 						"gamma":None,
+	# 						"delta":np.array([5,5]),
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":False,
+	# 	"optimize":False},
+
+	{"type":"CGMM",
 		"dimension":dimension,
-		"zero_point":zero_point[:dimension],        
+		"zero_point":zero_point[:dimension],       
 		"parameters":{"location":None,"scale":None,"weights":None},
 		"hyper_parameters":{
 							"alpha":hyper_alpha[:dimension], 
@@ -237,22 +252,7 @@ list_of_prior = [
 							},
 		"parametrization":"central",
 		"prior_predictive":False,
-		"optimize":False},
-
-	# {"type":"CGMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],       
-	# 	"parameters":{"location":None,"scale":None,"weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension], 
-	# 						"beta":hyper_beta, 
-	# 						"gamma":None,
-	# 						"delta":np.array([5,5]),
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":True,
-	# 	"optimize":False}
+		"optimize":False}
 	]
 #======================= Inference and Analysis =====================================================
 
