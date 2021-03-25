@@ -31,19 +31,20 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
 #============ Directory and data ===========================================
+dir_main = "/home/jromero/OCs/Perseus/"
+
 #----- Directory where chains and plots will be saved ----
-dir_out    = "/home/jromero/OCs/Perseus/Kalkayotl/K1/"
-# dir_out    = "/home/javier/Cumulos/Perseus/Miec/run_5/kalkayotl/3D_5GMM/"
+dir_out  = dir_main + "Kalkayotl/K1/b/"
 #-------------------------------------------------------------------------
+
+#----------- Data file -----------------------------------------------------
+# file_data = dir_main + "Runs/eGDR3/Groups_run_5/kalkayotl/K3_b/outputs/members.csv"
+file_data = dir_out + "members_K1_01.csv"
+#----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
 os.makedirs(dir_out,exist_ok=True)
 #-------------------------------------------------------
-
-#----------- Data file -----------------------------------------------------
-file_data = "/home/jromero/OCs/Perseus/Catalogues/eGDR3/run_5/kalkayotl/members_group_1.csv"
-# file_data = "/home/javier/Cumulos/Perseus/Miec/run_5/members.csv"
-#----------------------------------------------------------------------------
 #============================================================================
 
 
