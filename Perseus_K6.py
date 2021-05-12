@@ -31,15 +31,14 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
 #============ Directory and data ===========================================
-dir_main = "/home/jromero/OCs/Perseus/"
+dir_main = "/home/jromero/OCs/Perseus/Runs/eGDR3/Groups_run_5/kalkayotl/K6_g/"
 
 #----- Directory where chains and plots will be saved ----
-dir_out  = dir_main + "Kalkayotl/K1/b/"
+dir_out  = dir_main + "kal/"
 #-------------------------------------------------------------------------
 
 #----------- Data file -----------------------------------------------------
-# file_data = dir_main + "Runs/eGDR3/Groups_run_5/kalkayotl/K3_b/outputs/members.csv"
-file_data = dir_out + "members_K1_01.csv"
+file_data = dir_main + "outputs/members.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -161,35 +160,35 @@ hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":False},
 
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"non-central",
+		"prior_predictive":False,
+		"optimize":False},
 
 	
 	# {"type":"King",

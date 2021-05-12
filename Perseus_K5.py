@@ -31,19 +31,19 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
 #============ Directory and data ===========================================
+dir_main = "/home/jromero/OCs/Perseus/Runs/eGDR3/Groups_run_5/kalkayotl/K5_c/"
+
 #----- Directory where chains and plots will be saved ----
-dir_out    = "/home/jromero/OCs/Perseus/Kalkayotl/4GMM/"
-# dir_out    = "/home/javier/Cumulos/Perseus/Miec/run_5/kalkayotl/3D_5GMM/"
+dir_out  = dir_main + "kal/"
 #-------------------------------------------------------------------------
+
+#----------- Data file -----------------------------------------------------
+file_data = dir_main + "outputs/members.csv"
+#----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
 os.makedirs(dir_out,exist_ok=True)
 #-------------------------------------------------------
-
-#----------- Data file -----------------------------------------------------
-file_data = "/home/jromero/OCs/Perseus/Catalogues/eGDR3/members_run_5.csv"
-# file_data = "/home/javier/Cumulos/Perseus/Miec/run_5/members.csv"
-#----------------------------------------------------------------------------
 #============================================================================
 
 
@@ -160,35 +160,35 @@ hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":False},
 
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"non-central",
+		"prior_predictive":False,
+		"optimize":False},
 
 	
 	# {"type":"King",
@@ -232,7 +232,7 @@ list_of_prior = [
 							"alpha":hyper_alpha[:dimension], 
 							"beta":hyper_beta, 
 							"gamma":None,
-							"delta":np.array([5,5,5,5]),
+							"delta":np.array([5,5]),
 							"eta":hyper_eta
 							},
 		"parametrization":"central",
@@ -260,7 +260,7 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_out + prior["type"] + "_" + prior["parametrization"]
+	dir_prior = dir_out + str(dimension) + "D_" + prior["type"] + "_" + prior["parametrization"]
 
 	#---------- Create prior directory -------------
 	os.makedirs(dir_prior,exist_ok=True)

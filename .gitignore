@@ -2,6 +2,7 @@ docs/
 Outputs/
 Real/
 Example/
+Validation/
 *.pyc
 *.pdf
 *.csv
