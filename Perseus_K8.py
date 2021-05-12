@@ -34,12 +34,11 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 dir_main = "/home/jromero/OCs/Perseus/"
 
 #----- Directory where chains and plots will be saved ----
-dir_out  = dir_main + "Kalkayotl/K24/c/"
+dir_out  = dir_main + "Kalkayotl/K8/c/"
 #-------------------------------------------------------------------------
 
 #----------- Data file -----------------------------------------------------
-# file_data = dir_main + "Runs/eGDR3/Groups_run_5/kalkayotl/K24_b/outputs/members.csv"
-file_data = dir_out + "members.csv"
+file_data = dir_main + "Runs/eGDR3/Groups_run_5/kalkayotl/K8_b/outputs/members.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -63,12 +62,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 5000
+tuning_iters = 3000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 5000
+sample_iters = 3000
 
 
 #----- Target_accept-------
@@ -161,35 +160,35 @@ hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":True},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":False},
 
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"non-central",
+		"prior_predictive":False,
+		"optimize":False},
 
 	
 	# {"type":"King",
@@ -225,24 +224,9 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	# {"type":"GMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
-	# 	"parameters":{"location":None,"scale":None,"weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension], 
-	# 						"beta":hyper_beta, 
-	# 						"gamma":None,
-	# 						"delta":np.array([5,5]),
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
-
-	{"type":"CGMM",
+	{"type":"GMM",
 		"dimension":dimension,
-		"zero_point":zero_point[:dimension],       
+		"zero_point":zero_point[:dimension],        
 		"parameters":{"location":None,"scale":None,"weights":None},
 		"hyper_parameters":{
 							"alpha":hyper_alpha[:dimension], 
@@ -253,7 +237,22 @@ list_of_prior = [
 							},
 		"parametrization":"central",
 		"prior_predictive":False,
-		"optimize":False}
+		"optimize":False},
+
+	# {"type":"CGMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],       
+	# 	"parameters":{"location":None,"scale":None,"weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension], 
+	# 						"beta":hyper_beta, 
+	# 						"gamma":None,
+	# 						"delta":np.array([5,5]),
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":True,
+	# 	"optimize":False}
 	]
 #======================= Inference and Analysis =====================================================
 
