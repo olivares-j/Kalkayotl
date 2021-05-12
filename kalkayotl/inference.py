@@ -722,10 +722,15 @@ class Inference:
 		#------------------------------------------------------------------
 		
 		#--------- Reorder indices ----------------------
-		if self.prior in ["GMM"]:
-			locs = np.swapaxes(locs,0,3)
+		if self.prior in ["GMM","CGMM"]:
 			amps = np.array(data[str(self.D)+"D_weights"].values)
 			amps = np.moveaxis(amps,2,0)
+			if self.prior == "GMM":
+				locs = np.swapaxes(locs,0,3)
+			else:
+				locs = np.moveaxis(locs,0,-1)[np.newaxis,:]
+				locs = np.tile(locs,(stds.shape[0],1,1,1))
+
 		else:
 			locs = np.moveaxis(locs,0,-1)[np.newaxis,:]
 			amps = np.ones_like(locs)[:,:,:,0]
