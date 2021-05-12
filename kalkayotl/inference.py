@@ -71,6 +71,7 @@ class Inference:
 					"dec_parallax_corr","dec_pmra_corr","dec_pmdec_corr",
 					"parallax_pmra_corr","parallax_pmdec_corr",
 					"pmra_pmdec_corr"]
+		self.suffixes  = ["_X","_Y","_Z","_U","_V","_W"]
 
 		self.D                = dimension 
 		self.prior            = prior
@@ -829,24 +830,23 @@ class Inference:
 		#------------------------------------------------
 
 		# ------ Parameters into columns -------------------------------------
-		suffixes  = ["_X","_Y","_Z","_U","_V","_W"]
 		dfs = []
 		for i in range(self.D):
 			idx = np.where(df_source["parameter"] == i)[0]
-			tmp = df_source.drop(columns="parameter").add_suffix(suffixes[i])
+			tmp = df_source.drop(columns="parameter").add_suffix(self.suffixes[i])
 			dfs.append(tmp.iloc[idx])
 		#---------------------------------------------------------------------
 
 		#-------- Join on index --------------------
 		df_source = dfs[0]
-		for i,suffix in enumerate(suffixes[1:]):
-			df_source = df_source.join(dfs[i+1],
-				how="inner",lsuffix="",rsuffix=suffix)
+		for i in range(1,self.D) :
+			df_source = df_source.join(dfs[i],
+				how="inner",lsuffix="",rsuffix=self.suffixes[i])
 		#---------------------------------------------
 
 		#--------- Mean and SD ----------------------------------
-		mean_names = ["mean"+suffixes[i] for i in range(self.D)]
-		sd_names = ["sd"+suffixes[i] for i in range(self.D)]
+		mean_names = ["mean"+self.suffixes[i] for i in range(self.D)]
+		sd_names = ["sd"+self.suffixes[i] for i in range(self.D)]
 
 		srcs_loc = df_source[mean_names].to_numpy()
 		srcs_std = df_source[sd_names].to_numpy()
@@ -1074,18 +1074,17 @@ class Inference:
 
 		if self.D in [3,6] :
 			# ------ Parameters into columns ------------------------
-			suffixes  = ["_X","_Y","_Z","_U","_V","_W"]
 			dfs = []
 			for i in range(self.D):
 				idx = np.where(df_source["parameter"] == i)[0]
-				tmp = df_source.drop(columns="parameter").add_suffix(suffixes[i])
+				tmp = df_source.drop(columns="parameter").add_suffix(self.suffixes[i])
 				dfs.append(tmp.iloc[idx])
 
 			#-------- Join on index --------------------
 			df_source = dfs[0]
-			for i,suffix in enumerate(suffixes[1:]):
-				df_source = df_source.join(dfs[i+1],
-					how="inner",lsuffix="",rsuffix=suffix)
+			for i in range(1,self.D) :
+				df_source = df_source.join(dfs[i],
+					how="inner",lsuffix="",rsuffix=self.suffixes[i])
 			#---------------------------------------------------------------------
 
 		#---------- Add group -----------------------------------
