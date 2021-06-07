@@ -31,15 +31,19 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
 #============ Directory and data ===========================================
-dir_main = "/home/jromero/OCs/Perseus/Runs/eGDR3/Groups_run_5/kalkayotl/K24_f/"
+# dir_main = "/home/jromero/OCs/Perseus/Runs/eGDR3/Groups_run_5/kalkayotl/K24_f/"
 
-#----- Directory where chains and plots will be saved ----
-dir_out  = dir_main + "kal/"
-#-------------------------------------------------------------------------
+# #----- Directory where chains and plots will be saved ----
+# dir_out  = dir_main + "kal/"
+# #-------------------------------------------------------------------------
 
-#----------- Data file -----------------------------------------------------
-file_data = dir_main + "outputs/members.csv"
-#----------------------------------------------------------------------------
+# #----------- Data file -----------------------------------------------------
+# file_data = dir_main + "outputs/members.csv"
+# #----------------------------------------------------------------------------
+
+dir_main = "/home/jromero/OCs/Perseus/Kalkayotl/K24/"
+dir_out  = dir_main
+file_data = dir_main + "members.csv"
 
 #------- Creates directory if it does not exists -------
 os.makedirs(dir_out,exist_ok=True)
@@ -74,7 +78,7 @@ sample_iters = 5000
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
 # Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
 # of the sampler but increases the computing time.
-target_accept = 0.9
+target_accept = 0.95
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------
@@ -160,20 +164,20 @@ hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":True},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":True},
 
 	# {"type":"Gaussian",
 	# 	"dimension":dimension,
@@ -239,20 +243,20 @@ list_of_prior = [
 	# 	"prior_predictive":False,
 	# 	"optimize":False},
 
-	{"type":"CGMM",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],       
-		"parameters":{"location":None,"scale":None,"weights":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension], 
-							"beta":hyper_beta, 
-							"gamma":None,
-							"delta":np.array([5,5]),
-							"eta":hyper_eta
-							},
-		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":False}
+	# {"type":"CGMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],       
+	# 	"parameters":{"location":None,"scale":None,"weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension], 
+	# 						"beta":hyper_beta, 
+	# 						"gamma":None,
+	# 						"delta":np.array([5,5]),
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":False,
+	# 	"optimize":True}
 	]
 #======================= Inference and Analysis =====================================================
 

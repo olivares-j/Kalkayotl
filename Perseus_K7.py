@@ -31,15 +31,19 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
 #============ Directory and data ===========================================
-dir_main = "/home/jromero/OCs/Perseus/Runs/eGDR3/Groups_run_5/kalkayotl/K7_d/"
+# dir_main = "/home/jromero/OCs/Perseus/Runs/eGDR3/Groups_run_5/kalkayotl/K7_d/"
 
-#----- Directory where chains and plots will be saved ----
-dir_out  = dir_main + "kal/"
-#-------------------------------------------------------------------------
+# #----- Directory where chains and plots will be saved ----
+# dir_out  = dir_main + "kal/"
+# #-------------------------------------------------------------------------
 
-#----------- Data file -----------------------------------------------------
-file_data = dir_main + "outputs/members.csv"
-#----------------------------------------------------------------------------
+# #----------- Data file -----------------------------------------------------
+# file_data = dir_main + "outputs/members.csv"
+# #----------------------------------------------------------------------------
+
+dir_main = "/home/jromero/OCs/Perseus/Kalkayotl/K7/"
+dir_out  = dir_main
+file_data = dir_main + "members.csv"
 
 #------- Creates directory if it does not exists -------
 os.makedirs(dir_out,exist_ok=True)
@@ -62,19 +66,19 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 3000
+tuning_iters = 5000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 3000
+sample_iters = 5000
 
 
 #----- Target_accept-------
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
 # Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
 # of the sampler but increases the computing time.
-target_accept = 0.9
+target_accept = 0.95
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------

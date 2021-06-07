@@ -779,7 +779,7 @@ class Inference:
 	def plot_model(self,
 		file_plots=None,
 		figsize=None,
-		posterior_kwargs={"label":"Posterior",
+		group_kwargs={"label":"Group",
 							"color":"orange",
 							"linewidth":1,
 							"alpha":0.1},
@@ -789,7 +789,7 @@ class Inference:
 							"linewidth":0.5,
 							"alpha":0.1},
 
-		data_kwargs={"label":"Data",
+		source_kwargs={"label":"Source",
 						"marker":"o",
 						"color":"black",
 						"size":2,
@@ -811,7 +811,7 @@ class Inference:
 
 		print("Plotting model ...")
 
-		cmap = matplotlib.cm.get_cmap(data_kwargs["cmap"])
+		cmap = matplotlib.cm.get_cmap(source_kwargs["cmap"])
 
 		file_plots = self.dir_out+"/Model.pdf" if (file_plots is None) else file_plots
 
@@ -873,14 +873,14 @@ class Inference:
 						xerr=srcs_std[:,idx[0]],
 						yerr=srcs_std[:,idx[1]],
 						fmt='none',
-						ecolor=data_kwargs["error_color"],
-						elinewidth=data_kwargs["error_lw"],
+						ecolor=source_kwargs["error_color"],
+						elinewidth=source_kwargs["error_lw"],
 						zorder=1)
 			ax.scatter(x=srcs_loc[:,idx[0]],
 						y=srcs_loc[:,idx[1]],
 						c=cmap(srcs_grp),
-						marker=data_kwargs["marker"],
-						s=data_kwargs["size"],
+						marker=source_kwargs["marker"],
+						s=source_kwargs["size"],
 						zorder=1)
 
 			#-------- Posterior ----------------------------------------------------------
@@ -889,11 +889,11 @@ class Inference:
 						width, height, angle = get_principal(cov,idx)
 						ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
 										clip_box=ax.bbox,
-										edgecolor=posterior_kwargs["color"],
+										edgecolor=group_kwargs["color"],
 										facecolor=None,
 										fill=False,
-										linewidth=posterior_kwargs["linewidth"],
-										alpha=posterior_kwargs["alpha"],
+										linewidth=group_kwargs["linewidth"],
+										alpha=group_kwargs["alpha"],
 										zorder=2)
 						ax.add_artist(ell)
 			#-----------------------------------------------------------------------------
@@ -924,16 +924,16 @@ class Inference:
 		#------------- Legend -----------------------------------------------------------
 		prior_line = mlines.Line2D([], [], color=prior_kwargs["color"], 
 								marker=None, label=prior_kwargs["label"])
-		posterior_line = mlines.Line2D([], [], color=posterior_kwargs["color"], 
-								marker=None, label=posterior_kwargs["label"])
-		data_mrkr =  mlines.Line2D([], [], marker=data_kwargs["marker"], color="w", 
-						  markerfacecolor=data_kwargs["color"], 
+		group_line = mlines.Line2D([], [], color=group_kwargs["color"], 
+								marker=None, label=group_kwargs["label"])
+		source_mrkr =  mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
+						  markerfacecolor=source_kwargs["color"], 
 						  markersize=5,
-						  label=data_kwargs["label"])
+						  label=source_kwargs["label"])
 		if self.ds_prior is not None:
-			handles = [prior_line,posterior_line,data_mrkr]
+			handles = [prior_line,group_line,source_mrkr]
 		else:
-			handles = [posterior_line,data_mrkr]
+			handles = [group_line,source_mrkr]
 		axs[1,1].legend(handles=handles,loc='center')
 		axs[1,1].axis("off")
 		#-------------------------------------------------------------------------------
@@ -953,14 +953,14 @@ class Inference:
 							xerr=srcs_std[:,idx[0]],
 							yerr=srcs_std[:,idx[1]],
 							fmt='none',
-							ecolor=data_kwargs["error_color"],
-							elinewidth=data_kwargs["error_lw"],
+							ecolor=source_kwargs["error_color"],
+							elinewidth=source_kwargs["error_lw"],
 							zorder=1)
 				ax.scatter(x=srcs_loc[:,idx[0]],
 							y=srcs_loc[:,idx[1]],
 							c=cmap(srcs_grp),
-							marker=data_kwargs["marker"],
-							s=data_kwargs["size"],
+							marker=source_kwargs["marker"],
+							s=source_kwargs["size"],
 							zorder=1)
 
 				#-------- Posterior ----------------------------------------------------------
@@ -969,11 +969,11 @@ class Inference:
 							width, height, angle = get_principal(cov,idx)
 							ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
 											clip_box=ax.bbox,
-											edgecolor=posterior_kwargs["color"],
+											edgecolor=group_kwargs["color"],
 											facecolor=None,
 											fill=False,
-											linewidth=posterior_kwargs["linewidth"],
-											alpha=posterior_kwargs["alpha"],
+											linewidth=group_kwargs["linewidth"],
+											alpha=group_kwargs["alpha"],
 											zorder=2)
 							ax.add_artist(ell)
 				#-----------------------------------------------------------------------------
@@ -1004,12 +1004,12 @@ class Inference:
 			#------------- Legend -----------------------------------------------------------
 			prior_line = mlines.Line2D([], [], color=prior_kwargs["color"], 
 									marker=None, label=prior_kwargs["label"])
-			posterior_line = mlines.Line2D([], [], color=posterior_kwargs["color"], 
-									marker=None, label=posterior_kwargs["label"])
-			data_mrkr =  mlines.Line2D([], [], marker=data_kwargs["marker"], color="w", 
-							  markerfacecolor=data_kwargs["color"], 
+			posterior_line = mlines.Line2D([], [], color=group_kwargs["color"], 
+									marker=None, label=group_kwargs["label"])
+			data_mrkr =  mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
+							  markerfacecolor=source_kwargs["color"], 
 							  markersize=5,
-							  label=data_kwargs["label"])
+							  label=source_kwargs["label"])
 			if self.ds_prior is not None:
 				handles = [prior_line,posterior_line,data_mrkr]
 			else:
