@@ -810,7 +810,8 @@ class Inference:
 		#-----------------------------------------
 
 		#---- Normalized position -----------------------
-		ers = rs/np.linalg.norm(rs,axis=2,keepdims=True)
+		nrs = np.linalg.norm(rs,axis=2,keepdims=True)
+		ers = rs/nrs
 		#-----------------------------------------------
 
 		#------- Products ---------------
@@ -820,7 +821,7 @@ class Inference:
 			exp[i] = np.diag(np.inner(er,v))
 			rot[i] = np.linalg.norm(np.cross(er,v),axis=1)
 		
-		return exp,rot
+		return nrs.squeeze(),exp,rot
 
 	def plot_model(self,
 		file_plots=None,
@@ -842,7 +843,8 @@ class Inference:
 						"error_color":"grey",
 						"error_lw":0.5,
 						"cmap_mix":"tab10",
-						"cmap_sin":"coolwarm"},
+						"cmap_pos":"coolwarm",
+						"cmap_vel":"summer"},
 		n_samples=100,
 		labels=["X [pc]","Y [pc]","Z [pc]",
 				"U [km/s]","V [kms/s]","W [km/s]"],
@@ -858,54 +860,14 @@ class Inference:
 
 		print("Plotting model ...")
 
-		if self.prior in ["GMM","CGMM"]:
-			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
-		else:
-			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_sin"])
-
 		file_plots = self.dir_out+"/Model.pdf" if (file_plots is None) else file_plots
 
 		pdf = PdfPages(filename=file_plots)
 		
-		# #------- Sources --------------------------------------------------
-		# df_source  = az.summary(self.ds_posterior,var_names=self.source_variables)
-
-		# #------------- Replace parameter id by index --------------------
-		# n_sources = int(df_source.shape[0]/self.D)
-		# ID  = np.repeat(np.arange(n_sources),self.D,axis=0).astype('str')
-		# idx = np.tile(np.arange(self.D),n_sources)
-
-		# df_source.set_index(ID,inplace=True)
-		# df_source.insert(loc=0,column="parameter",value=idx)
-		# #----------------------------------------------------------------
-
 		#---------- Classify sources -------------------
 		if not hasattr(self,"df_groups"):
 			self._classify(n_samples=n_samples)
 		#------------------------------------------------
-
-		# # ------ Parameters into columns -------------------------------------
-		# dfs = []
-		# for i in range(self.D):
-		# 	idx = np.where(df_source["parameter"] == i)[0]
-		# 	tmp = df_source.drop(columns="parameter").add_suffix(self.suffixes[i])
-		# 	dfs.append(tmp.iloc[idx])
-		# #---------------------------------------------------------------------
-
-		# #-------- Join on index --------------------
-		# df_source = dfs[0]
-		# for i in range(1,self.D) :
-		# 	df_source = df_source.join(dfs[i],
-		# 		how="inner",lsuffix="",rsuffix=self.suffixes[i])
-		# #---------------------------------------------
-
-		# #--------- Mean and SD ----------------------------------
-		# mean_names = ["mean"+self.suffixes[i] for i in range(self.D)]
-		# sd_names = ["sd"+self.suffixes[i] for i in range(self.D)]
-
-		# srcs_loc = df_source[mean_names].to_numpy()
-		# srcs_std = df_source[sd_names].to_numpy()
-		# #-------------------------------------------------------------------
 
 		#---------- Extract prior and posterior --------------------------------------------
 		pos_srcs,_,pos_locs,pos_covs = self._extract(group="posterior",n_samples=n_samples)
@@ -923,18 +885,26 @@ class Inference:
 			srcs_clr_pos = self.df_groups["group"].to_numpy()
 			srcs_clr_vel = self.df_groups["group"].to_numpy()
 		else:
-			exp,rot = self._kinematic_indices(group="posterior")
+			nrs, exp, rot = self._kinematic_indices(group="posterior")
 
 			print("Expansion: {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(exp),np.std(exp)))
 			print("Rotation:  {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(rot),np.std(rot)))
 
 			srcs_clr_pos = np.mean(exp,axis=1)
-			srcs_clr_vel = np.mean(rot,axis=1)
+			srcs_clr_vel = np.mean(nrs,axis=1)
 		#------------------------------------------------------------------------------
 
 		#=================== Positions ================================================
+		#----------- Colour and normalization --------------------------
+		if self.prior in ["GMM","CGMM"]:
+			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
+			norm = None
+		else:
+			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_pos"])
+			norm = matplotlib.colors.TwoSlopeNorm(vcenter=0)
+		#---------------------------------------------------------------
+
 		fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
-		tsn_pos = matplotlib.colors.TwoSlopeNorm(vcenter=0)
 		for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[0,1],[2,1],[0,2]]):
 			#--------- Sources --------------------------
 			ax.errorbar(x=srcs_loc[:,idx[0]],
@@ -945,11 +915,11 @@ class Inference:
 						ecolor=source_kwargs["error_color"],
 						elinewidth=source_kwargs["error_lw"],
 						zorder=1)
-			clr = ax.scatter(x=srcs_loc[:,idx[0]],
+			clr_pos = ax.scatter(x=srcs_loc[:,idx[0]],
 						y=srcs_loc[:,idx[1]],
 						c=srcs_clr_pos,
 						cmap=cmap,
-						norm=tsn_pos,
+						norm=norm,
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
 						zorder=1)
@@ -1010,7 +980,7 @@ class Inference:
 		#-------------------------------------------------------------------------------
 
 		#--------- Colour bar---------------------------------------------------------------------
-		cbar = fig.colorbar(clr, ax=axs[1,1],fraction=0.3,shrink=0.75,extend="both",label='km/s')
+		cbar = fig.colorbar(clr_pos, ax=axs[1,1],fraction=0.3,shrink=0.75,extend="both",label='$||V_r||$ [km/s]')
 		#-----------------------------------------------------------------------------------------
 
 		plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
@@ -1020,8 +990,17 @@ class Inference:
 
 		#========================= Velocities =========================================================
 		if self.D == 6:
+			#----------- Colour and normalization --------------------------
+			if self.prior in ["GMM","CGMM"]:
+				cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
+				norm = None
+			else:
+				cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_vel"])
+				norm = None
+			#---------------------------------------------------------------
+
 			fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
-			tsn_vel = matplotlib.colors.TwoSlopeNorm(vcenter=0)
+			tsn_vel = matplotlib.colors.TwoSlopeNorm(vcenter=np.mean(srcs_clr_vel))
 			for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[3,4],[5,4],[3,5]]):
 				#--------- Sources --------------------------
 				ax.errorbar(x=srcs_loc[:,idx[0]],
@@ -1032,11 +1011,11 @@ class Inference:
 							ecolor=source_kwargs["error_color"],
 							elinewidth=source_kwargs["error_lw"],
 							zorder=1)
-				clr = ax.scatter(x=srcs_loc[:,idx[0]],
+				clr_vel = ax.scatter(x=srcs_loc[:,idx[0]],
 							y=srcs_loc[:,idx[1]],
 							c=srcs_clr_vel,
 							cmap=cmap,
-							norm=tsn_vel,
+							# norm=tsn_vel,
 							marker=source_kwargs["marker"],
 							s=source_kwargs["size"],
 							zorder=1)
@@ -1097,7 +1076,7 @@ class Inference:
 			#-------------------------------------------------------------------------------
 
 			#--------- Colour bar---------------------------------------------------------------------
-			cbar = fig.colorbar(clr, ax=axs[1,1],fraction=0.3,shrink=0.75,extend="both",label='km/s')
+			cbar = fig.colorbar(clr_vel, ax=axs[1,1],fraction=0.3,shrink=0.75,extend="max",label='$||r||$ [pc]')
 			#-----------------------------------------------------------------------------------------
 
 			plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
