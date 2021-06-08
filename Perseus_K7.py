@@ -41,7 +41,8 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 # file_data = dir_main + "outputs/members.csv"
 # #----------------------------------------------------------------------------
 
-dir_main = "/home/jromero/OCs/Perseus/Kalkayotl/K7/"
+# dir_main = "/home/jromero/OCs/Perseus/Kalkayotl/K7/"
+dir_main = "/home/javier/Cumulos/Perseus/Data/Groups/K7/"
 dir_out  = dir_main
 file_data = dir_main + "members.csv"
 
@@ -164,20 +165,20 @@ hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	{"type":"Gaussian",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension],
-							"beta":hyper_beta,
-							"gamma":None,
-							"delta":None,
-							"eta":hyper_eta
-							},
-		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":False},
+	# {"type":"Gaussian",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension],
+	# 						"beta":hyper_beta,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":False,
+	# 	"optimize":False},
 
 	{"type":"Gaussian",
 		"dimension":dimension,
@@ -228,20 +229,20 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	{"type":"GMM",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],        
-		"parameters":{"location":None,"scale":None,"weights":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension], 
-							"beta":hyper_beta, 
-							"gamma":None,
-							"delta":np.array([5,5]),
-							"eta":hyper_eta
-							},
-		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":False},
+	# {"type":"GMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],        
+	# 	"parameters":{"location":None,"scale":None,"weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension], 
+	# 						"beta":hyper_beta, 
+	# 						"gamma":None,
+	# 						"delta":np.array([5,5]),
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":False,
+	# 	"optimize":False},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,

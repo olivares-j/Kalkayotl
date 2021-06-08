@@ -668,47 +668,6 @@ class Inference:
 		
 		pdf.close()
 
-	def _classify(self,chain=0,n_samples=100):
-		'''
-		Obtain the class of each source at each chain step
-		'''
-		print("Classifying sources ...")
-
-		if self.prior in ["GMM","CGMM"]:
-			#------- Extract GMM parameters ----------------------------------
-			pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
-										n_samples=n_samples,
-										chain=chain)
-			#-----------------------------------------------------------------------
-
-			#------- Swap axes -----------------
-			pos_amps = np.swapaxes(pos_amps,0,1)
-			pos_locs = np.swapaxes(pos_locs,0,1)
-			pos_covs = np.swapaxes(pos_covs,0,1)
-			#-----------------------------------
-
-			#-------- Extract sources positions ----------------------
-			data = self.ds_posterior[self.source_variables].to_array()
-			#---------------------------------------------------------
-
-			#------ Loop over sources ----------------------------------
-			log_lk = np.zeros((data.shape[3],pos_amps.shape[0],pos_amps.shape[1]))
-			for i in range(data.shape[3]):
-				dtm = np.array(data[{str(self.D)+"D_source_dim_0" : i}])
-				dtm = dtm.reshape((-1,dtm.shape[-1]))
-				for j,(dt,amps,locs,covs) in enumerate(zip(dtm,pos_amps,pos_locs,pos_covs)):
-					for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
-						log_lk[i,j,k] = st.multivariate_normal(
-											mean=loc,cov=cov).logpdf(dt)
-
-			grps = st.mode(log_lk.argmax(axis=2),axis=1)[0].flatten()
-
-		else:
-			grps = np.zeros(len(self.ID))
-
-		self.df_groups = pn.DataFrame(data={"group":grps},index=self.ID)
-
-
 	def _extract(self,group="posterior",n_samples=None,chain=None):
 		if group == "posterior":
 			data = self.ds_posterior.data_vars
@@ -716,10 +675,12 @@ class Inference:
 			data = self.ds_prior.data_vars
 		else:
 			sys.exit("Group not recognized")
+
 		#------------ Extract variables -----------------------------------
 		locs = np.array([data[var].values for var in self.loc_variables])
 		stds = np.array([data[var].values for var in self.std_variables])
 		cors = np.array([data[var].values for var in self.cor_variables])
+		srcs = np.array([data[var].values for var in self.source_variables])
 		#------------------------------------------------------------------
 		
 		#--------- Reorder indices ----------------------
@@ -737,7 +698,13 @@ class Inference:
 			amps = np.ones_like(locs)[:,:,:,0]
 		#-------------------------------------------------
 
-		#---------- One or multiple chains --------
+		
+		# Organize sources ----------
+		srcs = srcs.squeeze(axis=0)
+		srcs = np.moveaxis(srcs,2,0)
+		#---------------------------
+
+		#---------- One or multiple chains -------
 		if chain is None:
 			#-------- Merge chains --------------
 			ng,nc,ns,nd = locs.shape
@@ -745,13 +712,18 @@ class Inference:
 			locs = locs.reshape((ng,nc*ns,nd))
 			stds = stds.reshape((ng,nc*ns,nd))
 			cors = cors.reshape((ng,nc*ns,nd,nd))
+			
+			n,_,_,nd = srcs.shape
+			srcs = srcs.reshape((n,nc*ns,nd))
 			#------------------------------------
+
 		else:
 			#--- Extract chain -------
 			amps = amps[:,chain]
 			locs = locs[:,chain]
 			stds = stds[:,chain]
 			cors = cors[:,chain]
+			srcs = srcs[:,chain]
 			#-------------------------
 		#-------------------------------------------
 
@@ -764,6 +736,7 @@ class Inference:
 			locs = locs[:,idx]
 			stds = stds[:,idx]
 			cors = cors[:,idx]
+			srcs = srcs[:,idx]
 		#------------------------------------
 
 		#------- Construct covariances ---------------
@@ -774,7 +747,80 @@ class Inference:
 							co.dot(np.diag(st)))
 		#----------------------------------------------
 
-		return amps,locs,covs
+		return srcs,amps,locs,covs
+
+	def _classify(self,chain=0,n_samples=100):
+		'''
+		Obtain the class of each source at each chain step
+		'''
+		print("Classifying sources ...")
+
+		if self.prior in ["GMM","CGMM"]:
+			#------- Extract GMM parameters ----------------------------------
+			pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
+										n_samples=n_samples,
+										chain=chain)
+			#-----------------------------------------------------------------------
+
+			#------- Swap axes -----------------
+			pos_amps = np.swapaxes(pos_amps,0,1)
+			pos_locs = np.swapaxes(pos_locs,0,1)
+			pos_covs = np.swapaxes(pos_covs,0,1)
+			#-----------------------------------
+
+			#------ Loop over sources ----------------------------------
+			log_lk = np.zeros((pos_srcs.shape[0],pos_amps.shape[0],pos_amps.shape[1]))
+			for i,pos_src in enumerate(pos_srcs):
+				for j,(dt,amps,locs,covs) in enumerate(zip(pos_src,pos_amps,pos_locs,pos_covs)):
+					for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
+						log_lk[i,j,k] = st.multivariate_normal(
+											mean=loc,cov=cov).logpdf(dt)
+
+			grps = st.mode(log_lk.argmax(axis=2),axis=1)[0].flatten()
+
+		else:
+			grps = np.zeros(len(self.ID))
+
+		self.df_groups = pn.DataFrame(data={"group":grps},index=self.ID)
+
+	def _kinematic_indices(self,group="posterior",chain=None,n_samples=None):
+		'''
+		Compute the kinematic indicators of expansion and rotation
+		'''
+		#---- Get parameters -------
+		srcs,_,locs,_ = self._extract(group=group,
+										n_samples=n_samples,
+										chain=chain)
+
+		if self.prior in ["GMM","CGMM"]:
+			sys.exit("Kinematic indices are not available for mixture models!")
+
+
+		#-- Extract positions and velocities-----
+		srcs_pos = srcs[:,:,:3]
+		srcs_vel = srcs[:,:,3:]
+
+		locs_pos = locs[:,:,:3]
+		locs_vel = locs[:,:,3:]
+		#---------------------------------------
+
+		#-- Relative positions and velocities ----
+		rs = np.subtract(srcs_pos,locs_pos)
+		vs = np.subtract(srcs_vel,locs_vel)
+		#-----------------------------------------
+
+		#---- Normalized position -----------------------
+		ers = rs/np.linalg.norm(rs,axis=2,keepdims=True)
+		#-----------------------------------------------
+
+		#------- Products ---------------
+		exp = np.empty((ers.shape[0],ers.shape[1]))
+		rot = np.empty((ers.shape[0],ers.shape[1]))
+		for i,(er, v) in enumerate(zip(ers,vs)):
+			exp[i] = np.diag(np.inner(er,v))
+			rot[i] = np.linalg.norm(np.cross(er,v),axis=1)
+		
+		return exp,rot
 
 	def plot_model(self,
 		file_plots=None,
@@ -795,7 +841,8 @@ class Inference:
 						"size":2,
 						"error_color":"grey",
 						"error_lw":0.5,
-						"cmap":"tab10"},
+						"cmap_mix":"tab10",
+						"cmap_sin":"coolwarm"},
 		n_samples=100,
 		labels=["X [pc]","Y [pc]","Z [pc]",
 				"U [km/s]","V [kms/s]","W [km/s]"],
@@ -811,61 +858,83 @@ class Inference:
 
 		print("Plotting model ...")
 
-		cmap = matplotlib.cm.get_cmap(source_kwargs["cmap"])
+		if self.prior in ["GMM","CGMM"]:
+			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
+		else:
+			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_sin"])
 
 		file_plots = self.dir_out+"/Model.pdf" if (file_plots is None) else file_plots
 
 		pdf = PdfPages(filename=file_plots)
 		
-		#------- Sources --------------------------------------------------
-		df_source  = az.summary(self.ds_posterior,var_names=self.source_variables)
+		# #------- Sources --------------------------------------------------
+		# df_source  = az.summary(self.ds_posterior,var_names=self.source_variables)
 
-		#------------- Replace parameter id by index --------------------
-		n_sources = int(df_source.shape[0]/self.D)
-		ID  = np.repeat(np.arange(n_sources),self.D,axis=0).astype('str')
-		idx = np.tile(np.arange(self.D),n_sources)
+		# #------------- Replace parameter id by index --------------------
+		# n_sources = int(df_source.shape[0]/self.D)
+		# ID  = np.repeat(np.arange(n_sources),self.D,axis=0).astype('str')
+		# idx = np.tile(np.arange(self.D),n_sources)
 
-		df_source.set_index(ID,inplace=True)
-		df_source.insert(loc=0,column="parameter",value=idx)
-		#----------------------------------------------------------------
+		# df_source.set_index(ID,inplace=True)
+		# df_source.insert(loc=0,column="parameter",value=idx)
+		# #----------------------------------------------------------------
 
 		#---------- Classify sources -------------------
 		if not hasattr(self,"df_groups"):
 			self._classify(n_samples=n_samples)
 		#------------------------------------------------
 
-		# ------ Parameters into columns -------------------------------------
-		dfs = []
-		for i in range(self.D):
-			idx = np.where(df_source["parameter"] == i)[0]
-			tmp = df_source.drop(columns="parameter").add_suffix(self.suffixes[i])
-			dfs.append(tmp.iloc[idx])
-		#---------------------------------------------------------------------
+		# # ------ Parameters into columns -------------------------------------
+		# dfs = []
+		# for i in range(self.D):
+		# 	idx = np.where(df_source["parameter"] == i)[0]
+		# 	tmp = df_source.drop(columns="parameter").add_suffix(self.suffixes[i])
+		# 	dfs.append(tmp.iloc[idx])
+		# #---------------------------------------------------------------------
 
-		#-------- Join on index --------------------
-		df_source = dfs[0]
-		for i in range(1,self.D) :
-			df_source = df_source.join(dfs[i],
-				how="inner",lsuffix="",rsuffix=self.suffixes[i])
-		#---------------------------------------------
+		# #-------- Join on index --------------------
+		# df_source = dfs[0]
+		# for i in range(1,self.D) :
+		# 	df_source = df_source.join(dfs[i],
+		# 		how="inner",lsuffix="",rsuffix=self.suffixes[i])
+		# #---------------------------------------------
 
-		#--------- Mean and SD ----------------------------------
-		mean_names = ["mean"+self.suffixes[i] for i in range(self.D)]
-		sd_names = ["sd"+self.suffixes[i] for i in range(self.D)]
+		# #--------- Mean and SD ----------------------------------
+		# mean_names = ["mean"+self.suffixes[i] for i in range(self.D)]
+		# sd_names = ["sd"+self.suffixes[i] for i in range(self.D)]
 
-		srcs_loc = df_source[mean_names].to_numpy()
-		srcs_std = df_source[sd_names].to_numpy()
-		srcs_grp = self.df_groups["group"].to_numpy()
-		#-------------------------------------------------------------------
+		# srcs_loc = df_source[mean_names].to_numpy()
+		# srcs_std = df_source[sd_names].to_numpy()
+		# #-------------------------------------------------------------------
 
-		#---------- Extract prior and posterior -----------------------------------
-		_,pos_locs,pos_covs = self._extract(group="posterior",n_samples=n_samples)
+		#---------- Extract prior and posterior --------------------------------------------
+		pos_srcs,_,pos_locs,pos_covs = self._extract(group="posterior",n_samples=n_samples)
 		if self.ds_prior is not None:
-			_,pri_locs,pri_covs = self._extract(group="prior",n_samples=n_samples)
-		#---------------------------------------------------------------------------
+			_,_,pri_locs,pri_covs = self._extract(group="prior",n_samples=n_samples)
+		#-----------------------------------------------------------------------------------
+
+		#-- Sources mean and standard deviation ---------
+		srcs_loc = np.mean(pos_srcs,axis=1)
+		srcs_std = np.std(pos_srcs,axis=1)
+		#------------------------------------------------
+
+		#------------------ Sources colour --------------------------------------------
+		if self.prior in ["GMM","CGMM"]:
+			srcs_clr_pos = self.df_groups["group"].to_numpy()
+			srcs_clr_vel = self.df_groups["group"].to_numpy()
+		else:
+			exp,rot = self._kinematic_indices(group="posterior")
+
+			print("Expansion: {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(exp),np.std(exp)))
+			print("Rotation:  {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(rot),np.std(rot)))
+
+			srcs_clr_pos = np.mean(exp,axis=1)
+			srcs_clr_vel = np.mean(rot,axis=1)
+		#------------------------------------------------------------------------------
 
 		#=================== Positions ================================================
 		fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
+		tsn_pos = matplotlib.colors.TwoSlopeNorm(vcenter=0)
 		for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[0,1],[2,1],[0,2]]):
 			#--------- Sources --------------------------
 			ax.errorbar(x=srcs_loc[:,idx[0]],
@@ -876,9 +945,11 @@ class Inference:
 						ecolor=source_kwargs["error_color"],
 						elinewidth=source_kwargs["error_lw"],
 						zorder=1)
-			ax.scatter(x=srcs_loc[:,idx[0]],
+			clr = ax.scatter(x=srcs_loc[:,idx[0]],
 						y=srcs_loc[:,idx[1]],
-						c=cmap(srcs_grp),
+						c=srcs_clr_pos,
+						cmap=cmap,
+						norm=tsn_pos,
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
 						zorder=1)
@@ -938,6 +1009,10 @@ class Inference:
 		axs[1,1].axis("off")
 		#-------------------------------------------------------------------------------
 
+		#--------- Colour bar---------------------------------------------------------------------
+		cbar = fig.colorbar(clr, ax=axs[1,1],fraction=0.3,shrink=0.75,extend="both",label='km/s')
+		#-----------------------------------------------------------------------------------------
+
 		plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
 		pdf.savefig(bbox_inches='tight')
 		plt.close()
@@ -946,6 +1021,7 @@ class Inference:
 		#========================= Velocities =========================================================
 		if self.D == 6:
 			fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
+			tsn_vel = matplotlib.colors.TwoSlopeNorm(vcenter=0)
 			for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[3,4],[5,4],[3,5]]):
 				#--------- Sources --------------------------
 				ax.errorbar(x=srcs_loc[:,idx[0]],
@@ -956,9 +1032,11 @@ class Inference:
 							ecolor=source_kwargs["error_color"],
 							elinewidth=source_kwargs["error_lw"],
 							zorder=1)
-				ax.scatter(x=srcs_loc[:,idx[0]],
+				clr = ax.scatter(x=srcs_loc[:,idx[0]],
 							y=srcs_loc[:,idx[1]],
-							c=cmap(srcs_grp),
+							c=srcs_clr_vel,
+							cmap=cmap,
+							norm=tsn_vel,
 							marker=source_kwargs["marker"],
 							s=source_kwargs["size"],
 							zorder=1)
@@ -1017,6 +1095,10 @@ class Inference:
 			axs[1,1].legend(handles=handles,loc='center')
 			axs[1,1].axis("off")
 			#-------------------------------------------------------------------------------
+
+			#--------- Colour bar---------------------------------------------------------------------
+			cbar = fig.colorbar(clr, ax=axs[1,1],fraction=0.3,shrink=0.75,extend="both",label='km/s')
+			#-----------------------------------------------------------------------------------------
 
 			plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
 			pdf.savefig(bbox_inches='tight')
