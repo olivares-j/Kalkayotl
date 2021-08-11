@@ -826,15 +826,19 @@ class Inference:
 	def plot_model(self,
 		file_plots=None,
 		figsize=None,
+		n_samples=100,
+		fontsize_title=16,
+		labels=["X [pc]","Y [pc]","Z [pc]",
+				"U [km/s]","V [kms/s]","W [km/s]"],
 		group_kwargs={"label":"Group",
-							"color":"orange",
-							"linewidth":1,
-							"alpha":0.1},
+						"color":"orange",
+						"linewidth":1,
+						"alpha":0.1},
 
 		prior_kwargs={"label":"Prior",
-							"color":"green",
-							"linewidth":0.5,
-							"alpha":0.1},
+						"color":"green",
+						"linewidth":0.5,
+						"alpha":0.1},
 
 		source_kwargs={"label":"Source",
 						"marker":"o",
@@ -845,10 +849,9 @@ class Inference:
 						"cmap_mix":"tab10",
 						"cmap_pos":"coolwarm",
 						"cmap_vel":"summer"},
-		n_samples=100,
-		labels=["X [pc]","Y [pc]","Z [pc]",
-				"U [km/s]","V [kms/s]","W [km/s]"],
-		fontsize_title=16):
+		source_labels={0:"A",1:"B",2:"C",3:"D",4:"E",5:"F"},
+		legend_bbox_to_anchor=(0.25, 0., 0.5, 0.5)
+		):
 		"""
 		This function plots the model.
 		"""
@@ -870,7 +873,10 @@ class Inference:
 		#------------------------------------------------
 
 		#---------- Extract prior and posterior --------------------------------------------
-		pos_srcs,_,pos_locs,pos_covs = self._extract(group="posterior",n_samples=n_samples)
+		pos_srcs,_,pos_locs,pos_covs = self._extract(group="posterior",
+													n_samples=n_samples,
+													chain=0 if self.prior in ["GMM","CGMM"]
+													else None)
 		if self.ds_prior is not None:
 			_,_,pri_locs,pri_covs = self._extract(group="prior",n_samples=n_samples)
 		#-----------------------------------------------------------------------------------
@@ -882,28 +888,25 @@ class Inference:
 
 		#------------------ Sources colour --------------------------------------------
 		if self.prior in ["GMM","CGMM"]:
-			srcs_clr_pos = self.df_groups["group"].to_numpy()
-			srcs_clr_vel = self.df_groups["group"].to_numpy()
-		else:
-			nrs, exp, rot = self._kinematic_indices(group="posterior")
-
-			print("Expansion: {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(exp),np.std(exp)))
-			print("Rotation:  {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(rot),np.std(rot)))
-
-			srcs_clr_pos = np.mean(exp,axis=1)
-			srcs_clr_vel = np.mean(nrs,axis=1)
-		#------------------------------------------------------------------------------
-
-		#=================== Positions ================================================
-		#----------- Colour and normalization --------------------------
-		if self.prior in ["GMM","CGMM"]:
 			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
 			norm = None
+
+			srcs_clr_pos = cmap(self.df_groups["group"].to_numpy())
+
 		else:
 			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_pos"])
 			norm = matplotlib.colors.TwoSlopeNorm(vcenter=0)
-		#---------------------------------------------------------------
 
+			nrs, exp, rot = self._kinematic_indices(group="posterior")
+
+			srcs_clr_pos = cmap(norm(np.mean(exp,axis=1)))
+
+			print("Expansion: {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(exp),np.std(exp)))
+			print("Rotation:  {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(rot),np.std(rot)))
+			
+		#------------------------------------------------------------------------------
+
+		#=================== Positions ================================================
 		fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
 		for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[0,1],[2,1],[0,2]]):
 			#--------- Sources --------------------------
@@ -918,8 +921,6 @@ class Inference:
 			clr_pos = ax.scatter(x=srcs_loc[:,idx[0]],
 						y=srcs_loc[:,idx[1]],
 						c=srcs_clr_pos,
-						cmap=cmap,
-						norm=norm,
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
 						zorder=1)
@@ -962,25 +963,40 @@ class Inference:
 		axs[0,0].axes.xaxis.set_visible(False)
 		axs[0,1].axes.yaxis.set_visible(False)
 
-		#------------- Legend -----------------------------------------------------------
+		#------------- Legend lines  ---------------------------------------
 		prior_line = mlines.Line2D([], [], color=prior_kwargs["color"], 
 								marker=None, label=prior_kwargs["label"])
 		group_line = mlines.Line2D([], [], color=group_kwargs["color"], 
 								marker=None, label=group_kwargs["label"])
-		source_mrkr =  mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
+		#-------------------------------------------------------------------
+
+		#----------- Legend symbols ----------------------------------
+		if self.prior in ["GMM","CGMM"]:
+			source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
+						  markerfacecolor=cmap(c), 
+						  markersize=5,
+						  label=source_labels[c]) 
+						for c in np.unique(self.df_groups["group"].to_numpy())] 
+		else:
+			source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
 						  markerfacecolor=source_kwargs["color"], 
 						  markersize=5,
-						  label=source_kwargs["label"])
+						  label=source_kwargs["label"])]
+		#---------------------------------------------------------------
+
 		if self.ds_prior is not None:
-			handles = [prior_line,group_line,source_mrkr]
+			handles = sum([[prior_line],[group_line],source_mrkr],[])
 		else:
-			handles = [group_line,source_mrkr]
-		axs[1,1].legend(handles=handles,loc='center')
+			handles = sum([[group_line],source_mrkr],[])
+		axs[1,1].legend(handles=handles,loc='center',
+							bbox_to_anchor=legend_bbox_to_anchor)
 		axs[1,1].axis("off")
 		#-------------------------------------------------------------------------------
 
 		#--------- Colour bar---------------------------------------------------------------------
-		cbar = fig.colorbar(clr_pos, ax=axs[1,1],fraction=0.3,shrink=0.75,extend="both",label='$||V_r||$ [km/s]')
+		if self.prior not in ["GMM","CGMM"]:
+			cbar = fig.colorbar(clr_pos, ax=axs[1,1],fraction=0.3,shrink=0.75,
+										extend="both",label='$||V_r||$ [km/s]')
 		#-----------------------------------------------------------------------------------------
 
 		plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
@@ -994,9 +1010,13 @@ class Inference:
 			if self.prior in ["GMM","CGMM"]:
 				cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
 				norm = None
+
+				srcs_clr_vel = cmap(self.df_groups["group"].to_numpy())
 			else:
 				cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_vel"])
 				norm = None
+
+				srcs_clr_vel = cmap(np.mean(nrs,axis=1))
 			#---------------------------------------------------------------
 
 			fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
@@ -1014,8 +1034,6 @@ class Inference:
 				clr_vel = ax.scatter(x=srcs_loc[:,idx[0]],
 							y=srcs_loc[:,idx[1]],
 							c=srcs_clr_vel,
-							cmap=cmap,
-							# norm=tsn_vel,
 							marker=source_kwargs["marker"],
 							s=source_kwargs["size"],
 							zorder=1)
@@ -1051,35 +1069,55 @@ class Inference:
 								ax.add_artist(ell)
 				#-----------------------------------------------------------------------------
 
-				#------------- Titles -------------------------------------
+				#--------- Titles ------------
 				ax.set_xlabel(labels[idx[0]])
 				ax.set_ylabel(labels[idx[1]])
+				#----------------------------
 
 			axs[0,0].axes.xaxis.set_visible(False)
 			axs[0,1].axes.yaxis.set_visible(False)
 
-			#------------- Legend -----------------------------------------------------------
+			#------------- Legend lines --------------------------------------
 			prior_line = mlines.Line2D([], [], color=prior_kwargs["color"], 
 									marker=None, label=prior_kwargs["label"])
-			posterior_line = mlines.Line2D([], [], color=group_kwargs["color"], 
+			group_line = mlines.Line2D([], [], color=group_kwargs["color"], 
 									marker=None, label=group_kwargs["label"])
-			data_mrkr =  mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
+			#-----------------------------------------------------------------
+
+			#----------- Legend symbols ----------------------------------
+			if self.prior in ["GMM","CGMM"]:
+				source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], 
+							  color="w", 
+							  markerfacecolor=cmap(g), 
+							  markersize=5,
+							  label=source_labels[g]) 
+								for g in np.unique(self.df_groups["group"])] 
+			else:
+				source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], 
+							  color="w", 
 							  markerfacecolor=source_kwargs["color"], 
 							  markersize=5,
-							  label=source_kwargs["label"])
+							  label=source_kwargs["label"])]
+			#---------------------------------------------------------------
+
+			#----------- Handles -------------------------------------------
 			if self.ds_prior is not None:
-				handles = [prior_line,posterior_line,data_mrkr]
+				handles = sum([[prior_line],[group_line],source_mrkr],[])
 			else:
-				handles = [posterior_line,data_mrkr]
-			axs[1,1].legend(handles=handles,loc='center')
+				handles = sum([[group_line],source_mrkr],[])
+			axs[1,1].legend(handles=handles,loc='center',
+							bbox_to_anchor=legend_bbox_to_anchor)
 			axs[1,1].axis("off")
-			#-------------------------------------------------------------------------------
+			#--------------------------------------------------------------
 
-			#--------- Colour bar---------------------------------------------------------------------
-			cbar = fig.colorbar(clr_vel, ax=axs[1,1],fraction=0.3,shrink=0.75,extend="max",label='$||r||$ [pc]')
-			#-----------------------------------------------------------------------------------------
+			#--------- Colour bar-------------------------------------------
+			if self.prior not in ["GMM","CGMM"]:
+				cbar = fig.colorbar(clr_vel, ax=axs[1,1],fraction=0.3,
+						shrink=0.75,extend="max",label='$||r||$ [pc]')
+			#--------------------------------------------------------------
 
-			plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
+			plt.subplots_adjust(left=None, bottom=None, right=None, top=None, 
+									wspace=0.0, hspace=0.0)
 			pdf.savefig(bbox_inches='tight')
 			plt.close()
 		#=============================================================================================
