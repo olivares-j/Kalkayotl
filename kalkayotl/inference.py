@@ -888,18 +888,25 @@ class Inference:
 
 		#------------------ Sources colour --------------------------------------------
 		if self.prior in ["GMM","CGMM"]:
-			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
-			norm = None
+			cmap_pos = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
+			cmap_vel = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
 
-			srcs_clr_pos = cmap(self.df_groups["group"].to_numpy())
+			norm_pos = None
+			norm_vel = None
+
+			srcs_clr_pos = self.df_groups["group"].to_numpy()
+			srcs_clr_vel = self.df_groups["group"].to_numpy()
 
 		else:
-			cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_pos"])
-			norm = matplotlib.colors.TwoSlopeNorm(vcenter=0)
+			cmap_pos = matplotlib.cm.get_cmap(source_kwargs["cmap_pos"])
+			cmap_vel = matplotlib.cm.get_cmap(source_kwargs["cmap_vel"])
+
+			norm_pos = matplotlib.colors.TwoSlopeNorm(vcenter=0)
+			norm_vel = None
 
 			nrs, exp, rot = self._kinematic_indices(group="posterior")
-
-			srcs_clr_pos = cmap(norm(np.mean(exp,axis=1)))
+			srcs_clr_pos = np.mean(exp,axis=1)
+			srcs_clr_vel = np.mean(nrs,axis=1)
 
 			print("Expansion: {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(exp),np.std(exp)))
 			print("Rotation:  {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(rot),np.std(rot)))
@@ -921,6 +928,8 @@ class Inference:
 			clr_pos = ax.scatter(x=srcs_loc[:,idx[0]],
 						y=srcs_loc[:,idx[1]],
 						c=srcs_clr_pos,
+						cmap=cmap_pos,
+						norm=norm_pos,
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
 						zorder=1)
@@ -973,10 +982,10 @@ class Inference:
 		#----------- Legend symbols ----------------------------------
 		if self.prior in ["GMM","CGMM"]:
 			source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
-						  markerfacecolor=cmap(c), 
-						  markersize=5,
-						  label=source_labels[c]) 
-						for c in np.unique(self.df_groups["group"].to_numpy())] 
+													markerfacecolor=cmap_pos(c), 
+								  					markersize=5,
+													label=source_labels[c]) 
+								for c in np.unique(srcs_clr_pos)] 
 		else:
 			source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
 						  markerfacecolor=source_kwargs["color"], 
@@ -995,7 +1004,7 @@ class Inference:
 
 		#--------- Colour bar---------------------------------------------------------------------
 		if self.prior not in ["GMM","CGMM"]:
-			cbar = fig.colorbar(clr_pos, ax=axs[1,1],fraction=0.3,shrink=0.75,
+			fig.colorbar(clr_pos, ax=axs[1,1],fraction=0.3,shrink=0.75,
 										extend="both",label='$||V_r||$ [km/s]')
 		#-----------------------------------------------------------------------------------------
 
@@ -1006,21 +1015,7 @@ class Inference:
 
 		#========================= Velocities =========================================================
 		if self.D == 6:
-			#----------- Colour and normalization --------------------------
-			if self.prior in ["GMM","CGMM"]:
-				cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
-				norm = None
-
-				srcs_clr_vel = cmap(self.df_groups["group"].to_numpy())
-			else:
-				cmap = matplotlib.cm.get_cmap(source_kwargs["cmap_vel"])
-				norm = None
-
-				srcs_clr_vel = cmap(np.mean(nrs,axis=1))
-			#---------------------------------------------------------------
-
 			fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
-			tsn_vel = matplotlib.colors.TwoSlopeNorm(vcenter=np.mean(srcs_clr_vel))
 			for ax,idx in zip([axs[0,0],axs[0,1],axs[1,0]],[[3,4],[5,4],[3,5]]):
 				#--------- Sources --------------------------
 				ax.errorbar(x=srcs_loc[:,idx[0]],
@@ -1034,6 +1029,8 @@ class Inference:
 				clr_vel = ax.scatter(x=srcs_loc[:,idx[0]],
 							y=srcs_loc[:,idx[1]],
 							c=srcs_clr_vel,
+							cmap=cmap_vel,
+							norm=norm_vel,
 							marker=source_kwargs["marker"],
 							s=source_kwargs["size"],
 							zorder=1)
@@ -1088,10 +1085,10 @@ class Inference:
 			if self.prior in ["GMM","CGMM"]:
 				source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], 
 							  color="w", 
-							  markerfacecolor=cmap(g), 
+							  markerfacecolor=cmap_vel(g), 
 							  markersize=5,
 							  label=source_labels[g]) 
-								for g in np.unique(self.df_groups["group"])] 
+								for g in np.unique(srcs_clr_vel)] 
 			else:
 				source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], 
 							  color="w", 
@@ -1112,7 +1109,8 @@ class Inference:
 
 			#--------- Colour bar-------------------------------------------
 			if self.prior not in ["GMM","CGMM"]:
-				cbar = fig.colorbar(clr_vel, ax=axs[1,1],fraction=0.3,
+				fig.colorbar(clr_vel, ax=axs[1,1],fraction=0.3,
+						anchor=(0.0,0.25),
 						shrink=0.75,extend="max",label='$||r||$ [pc]')
 			#--------------------------------------------------------------
 
