@@ -164,20 +164,6 @@ hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	{"type":"CGMM",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],       
-		"parameters":{"location":None,"scale":None,"weights":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension], 
-							"beta":hyper_beta, 
-							"gamma":None,
-							"delta":np.array([5,5]),
-							"eta":hyper_eta
-							},
-		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":True},
 	{"type":"Gaussian",
 		"dimension":dimension,
 		"zero_point":zero_point[:dimension],
@@ -191,22 +177,22 @@ list_of_prior = [
 							},
 		"parametrization":"central",
 		"prior_predictive":False,
-		"optimize":True},
+		"optimize":False},
 
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"non-central",
+		"prior_predictive":False,
+		"optimize":False},
 
 	
 	# {"type":"King",
@@ -242,9 +228,24 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	# {"type":"GMM",
+	{"type":"GMM",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],        
+		"parameters":{"location":None,"scale":None,"weights":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension], 
+							"beta":hyper_beta, 
+							"gamma":None,
+							"delta":np.array([5,5]),
+							"eta":hyper_eta
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":False},
+
+	# {"type":"CGMM",
 	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
+	# 	"zero_point":zero_point[:dimension],       
 	# 	"parameters":{"location":None,"scale":None,"weights":None},
 	# 	"hyper_parameters":{
 	# 						"alpha":hyper_alpha[:dimension], 
@@ -254,7 +255,7 @@ list_of_prior = [
 	# 						"eta":hyper_eta
 	# 						},
 	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
+	# 	"prior_predictive":True,
 	# 	"optimize":False}
 	]
 #======================= Inference and Analysis =====================================================

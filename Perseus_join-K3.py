@@ -38,7 +38,7 @@ dir_out  = dir_main
 #-------------------------------------------------------------------------
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_main + "members-K3.csv"
+file_data = dir_main + "members.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -48,7 +48,7 @@ os.makedirs(dir_out,exist_ok=True)
 
 
 #=============== Tuning knobs ============================
-n_gaussians = 5
+n_gaussians = 6
 dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required

@@ -292,13 +292,13 @@ for prior in list_of_prior:
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	p3d.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			optimize=prior["optimize"],
-			prior_predictive=prior["prior_predictive"],
-			chains=chains,
-			cores=cores)
+	# p3d.run(sample_iters=sample_iters,
+	# 		tuning_iters=tuning_iters,
+	# 		target_accept=target_accept,
+	# 		optimize=prior["optimize"],
+	# 		prior_predictive=prior["prior_predictive"],
+	# 		chains=chains,
+	# 		cores=cores)
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
@@ -306,21 +306,21 @@ for prior in list_of_prior:
 	p3d.load_trace()
 
 	# ------- Re-analyse the convergence of the sampler---
-	p3d.convergence()
+	# p3d.convergence()
 
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources. If IDs keyword removed only plots the population parameters.
-	p3d.plot_chains()
+	# p3d.plot_chains()
 
 	#------- Plot model ----------------
 	p3d.plot_model()
 
 	#----- Compute and save the posterior statistics ---------
-	p3d.save_statistics(hdi_prob=hdi_prob)
+	# p3d.save_statistics(hdi_prob=hdi_prob)
 
 	#------- Save the samples into HDF5 file --------------
-	p3d.save_samples()
+	# p3d.save_samples()
 
 	#=============== Evidence computation ==============================================
 	# IMPORTANT. It will increase the computing time!

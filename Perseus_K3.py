@@ -109,7 +109,7 @@ zero_point = [0.,0.,-0.017,0.,0.,0.]  # This is Brrowns+2020 value
 #------- Independent measurements--------
 # In the Gaia astrometric data the measurements of stars are correlated between sources.
 # By default, Kalkayotl will not assume independence amongst sources.
-# Set it to True if you want to assume independence, 
+# Set it to True if you want to assume independence, 	
 # and thus neglect the parallax spatial correlations. 
 indep_measures = False
 
@@ -179,20 +179,20 @@ list_of_prior = [
 		"prior_predictive":False,
 		"optimize":False},
 
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension],
+							"beta":hyper_beta,
+							"gamma":None,
+							"delta":None,
+							"eta":hyper_eta
+							},
+		"parametrization":"non-central",
+		"prior_predictive":False,
+		"optimize":False},
 
 	
 	# {"type":"King",
@@ -228,20 +228,20 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	# {"type":"GMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
-	# 	"parameters":{"location":None,"scale":None,"weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension], 
-	# 						"beta":hyper_beta, 
-	# 						"gamma":None,
-	# 						"delta":np.array([5,5]),
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
+	{"type":"GMM",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],        
+		"parameters":{"location":None,"scale":None,"weights":None},
+		"hyper_parameters":{
+							"alpha":hyper_alpha[:dimension], 
+							"beta":hyper_beta, 
+							"gamma":None,
+							"delta":np.array([5,5]),
+							"eta":hyper_eta
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":False},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
@@ -291,13 +291,13 @@ for prior in list_of_prior:
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	p3d.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			optimize=prior["optimize"],
-			prior_predictive=prior["prior_predictive"],
-			chains=chains,
-			cores=cores)
+	# p3d.run(sample_iters=sample_iters,
+	# 		tuning_iters=tuning_iters,
+	# 		target_accept=target_accept,
+	# 		optimize=prior["optimize"],
+	# 		prior_predictive=prior["prior_predictive"],
+	# 		chains=chains,
+	# 		cores=cores)
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
@@ -305,21 +305,21 @@ for prior in list_of_prior:
 	p3d.load_trace()
 
 	# ------- Re-analyse the convergence of the sampler---
-	p3d.convergence()
+	# p3d.convergence()
 
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources. If IDs keyword removed only plots the population parameters.
-	p3d.plot_chains()
+	# p3d.plot_chains()
 
 	#------- Plot model ----------------
 	p3d.plot_model()
 
 	#----- Compute and save the posterior statistics ---------
-	p3d.save_statistics(hdi_prob=hdi_prob)
+	# p3d.save_statistics(hdi_prob=hdi_prob)
 
 	#------- Save the samples into HDF5 file --------------
-	p3d.save_samples()
+	# p3d.save_samples()
 
 	#=============== Evidence computation ==============================================
 	# IMPORTANT. It will increase the computing time!
