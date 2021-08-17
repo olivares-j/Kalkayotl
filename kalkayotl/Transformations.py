@@ -393,27 +393,78 @@ def astrometryToPhaseSpace(X,reference_system="ICRS"):
 ###################################################### TEST ################################################################################
 
 def test3D():
+	from pygaia.astrometry.vectorastrometry import cartesian_to_spherical,spherical_to_cartesian
 	a = np.array([[10,10,10],
 				  [10,10,10]],dtype="float32")
 	A = theano.shared(a)
 	B = cartesianToSpherical(A)
 	b = np.array(B.eval())
+	r,ra,dec = cartesian_to_spherical(a[:,0],a[:,1],a[:,2])
+	bg = np.column_stack((np.rad2deg(ra),np.rad2deg(dec),1000/r))
+	print("----------------------------------------------")
+	print("---------- Cartesian to spherical ------------")
+	print("Mine:")
+	print(b[0])
+	print("pyGaia:")
+	print(bg[0])
+	assert np.allclose(b[0],bg[0],atol=1e-5), "Should be [10,10,10] but is {0}".format(c[0])
+	print("----------------- OK -------------------------")
+	print("----------------------------------------------")
 	c = sphericalToCartesian(b)
-	assert np.allclose(c[0],a[0],atol=1e-5), "Should be [10,10,10] but is {0}".format(c[0])
+
+	x,y,z = spherical_to_cartesian(r,ra,dec)
+	cg = np.column_stack((x,y,z))
+
+	print("----------------------------------------------")
+	print("---------- Spherical to cartesian ------------")
+	print("Mine:")
+	print(c[0])
+	print("pyGaia:")
+	print(cg[0])
+	assert np.allclose(c[0],cg[0],atol=1e-5), "Should be [10,10,10] but is {0}".format(c[0])
+	print("----------------- OK -------------------------")
+	print("----------------------------------------------")
+
 
 def test6D():
+	from pygaia.astrometry.vectorastrometry import astrometry_to_phase_space,phase_space_to_astrometry
 	a = np.array([[10,10,10,10,10,10],
 				  [10,10,10,10,10,10]],dtype="float32")
 	A = theano.shared(a)
 	B = phaseSpaceToAstrometry_and_RV(A)
 	b = np.array(B.eval())
+
+	ra,dec,varpi,pmra,pmdec,rvel = phase_space_to_astrometry(a[:,0],a[:,1],a[:,2],a[:,3],a[:,4],a[:,5])
+	bg = np.column_stack((np.rad2deg(ra),np.rad2deg(dec),varpi,pmra,pmdec,rvel))
+	print("----------------------------------------------")
+	print("---------- Phase space to astrometry+RV ------------")
+	print("Mine:")
+	print(b[0])
+	print("pyGaia:")
+	print(bg[0])
+	assert np.allclose(b[0],bg[0],atol=1e-5), "Should be [10,10,10] but is {0}".format(c[0])
+	print("----------------- OK -------------------------")
+	print("----------------------------------------------")
+
 	c = astrometryToPhaseSpace(b)
+	x,y,z,vx,vy,vz = astrometry_to_phase_space(ra,dec,varpi,pmra,pmdec,rvel)
+	cg = np.column_stack((x,y,z,vx,vy,vz))
+
+	print("----------------------------------------------")
+	print("---------- Astrometry+RV to phase space ------------")
+	print("Mine:")
+	print(c[0])
+	print("pyGaia:")
+	print(cg[0])
+	assert np.allclose(c[0],cg[0],atol=1e-5), "Should be [10,10,10] but is {0}".format(c[0])
+	print("----------------- OK -------------------------")
+	print("----------------------------------------------")
 	assert np.allclose(c[0],a[0],atol=1e-5), "Should be [10,10,10,10,10,10] but is {0}".format(c[0])
 
 
 if __name__ == "__main__":
-	test3D()
-	print("3D coordinates OK")
+	# test3D()
+	# print("3D coordinates OK")
 	test6D()
 	print("6D coordinates OK")
 
