@@ -31,22 +31,12 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
 #============ Directory and data ===========================================
-# dir_main = "/home/jromero/OCs/Perseus/Runs/eGDR3/Groups_run_5/kalkayotl/K6_g/"
-
-# #----- Directory where chains and plots will be saved ----
-# dir_out  = dir_main + "kal/"
-# #-------------------------------------------------------------------------
-
-# #----------- Data file -----------------------------------------------------
-# file_data = dir_main + "outputs/members.csv"
-# #----------------------------------------------------------------------------
-
 dir_main = "/home/jromero/OCs/Perseus/Kalkayotl/K6/"
-dir_out  = dir_main
+dir_main = "/home/jolivares/Cumulos/Perseus/Data/bins/Groups/K6/"
 file_data = dir_main + "members.csv"
 
 #------- Creates directory if it does not exists -------
-os.makedirs(dir_out,exist_ok=True)
+os.makedirs(dir_main,exist_ok=True)
 #-------------------------------------------------------
 #============================================================================
 
@@ -264,7 +254,7 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_out + str(dimension) + "D_" + prior["type"] + "_" + prior["parametrization"]
+	dir_prior = dir_main + str(dimension) + "D_" + prior["type"] + "_" + prior["parametrization"]
 
 	#---------- Create prior directory -------------
 	os.makedirs(dir_prior,exist_ok=True)
