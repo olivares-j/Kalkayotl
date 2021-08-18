@@ -46,7 +46,7 @@ class Evidence1D():
 		data = np.column_stack((mu_data,np.sqrt(np.diag(sg_data))))
 		
 		#----- Use all data or a random sample of it --------
-		if N_samples is None:
+		if N_samples == None:
 			self.N    = len(mu_data)
 			self.data = data
 		else:
@@ -60,10 +60,10 @@ class Evidence1D():
 
 		#============= Transformations ====================================
 
-		if transformation is "mas":
+		if transformation == "mas":
 			self.Transformation = Iden
 
-		elif transformation is "pc":
+		elif transformation == "pc":
 			self.Transformation = pc2mas
 
 		else:
@@ -78,7 +78,7 @@ class Evidence1D():
 
 		#================= Prior ========================================================
 		#--------- Cluster oriented prior-----------------------------------------------
-		if prior is "Uniform":
+		if prior == "Uniform":
 			self.D = 2
 			self.names = ["loc","scl"]
 
@@ -92,7 +92,7 @@ class Evidence1D():
 				x[1] = hp_scl.ppf(u[1])
 				return x
 
-		elif prior is "Gaussian":
+		elif prior == "Gaussian":
 			self.D = 2
 			self.names = ["loc","scl"]
 
@@ -106,7 +106,7 @@ class Evidence1D():
 				x[1] = hp_scl.ppf(u[1])
 				return x
 
-		elif prior is "GMM":
+		elif prior == "GMM":
 
 			if parameters["weights"] is None:
 
@@ -159,7 +159,7 @@ class Evidence1D():
 					x[G:(2*G)] = hp_scl.ppf(u[G:(2*G)])
 					return x
 
-		elif prior is "EFF":
+		elif prior == "EFF":
 
 			if parameters["gamma"] is None:
 				self.D = 3
@@ -207,7 +207,7 @@ class Evidence1D():
 
 
 
-		elif prior is "King":
+		elif prior == "King":
 			if parameters["rt"] is None:
 				self.D = 3
 				self.names = ["loc","scl","rt"]
@@ -435,7 +435,7 @@ class Evidence3D():
 
 		#================= Prior ========================================================
 		#--------- Cluster oriented prior-----------------------------------------------
-		if prior is "Uniform":
+		if prior == "Uniform":
 			self.D = 2
 			self.names = ["loc","scl"]
 
@@ -449,7 +449,7 @@ class Evidence3D():
 				x[1] = hp_scl.ppf(u[1])
 				return x
 
-		elif prior is "Gaussian":
+		elif prior == "Gaussian":
 			self.D = 2
 			self.names = ["loc","scl"]
 
@@ -463,7 +463,7 @@ class Evidence3D():
 				x[1] = hp_scl.ppf(u[1])
 				return x
 
-		elif prior is "GMM":
+		elif prior == "GMM":
 
 			if parameters["weights"] is None:
 
@@ -516,7 +516,7 @@ class Evidence3D():
 					x[G:(2*G)] = hp_scl.ppf(u[G:(2*G)])
 					return x
 
-		elif prior is "EFF":
+		elif prior == "EFF":
 
 			if parameters["gamma"] is None:
 				self.D = 3
@@ -564,7 +564,7 @@ class Evidence3D():
 
 
 
-		elif prior is "King":
+		elif prior == "King":
 			if parameters["rt"] is None:
 				self.D = 3
 				self.names = ["loc","scl","rt"]

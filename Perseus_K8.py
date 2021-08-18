@@ -32,7 +32,7 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 #============ Directory and data ===========================================
 dir_main = "/home/jromero/OCs/Perseus/Kalkayotl/K8/"
-dir_main = "/home/jolivares/Cumulos/Perseus/Data/bins/Groups/K8/"
+# dir_main = "/home/jolivares/Cumulos/Perseus/Data/bins/Groups/K8/"
 file_data = dir_main + "members.csv"
 
 #------- Creates directory if it does not exists -------
