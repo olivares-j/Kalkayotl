@@ -31,8 +31,10 @@ from scipy.linalg import inv as inverse
 import matplotlib
 matplotlib.use('PDF')
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Ellipse
+from matplotlib.colors import TwoSlopeNorm,Normalize
 from matplotlib import lines as mlines
 #------------------------------------------------------------------
 
@@ -886,32 +888,54 @@ class Inference:
 		srcs_std = np.std(pos_srcs,axis=1)
 		#------------------------------------------------
 
-		#------------------ Sources colour --------------------------------------------
+		#======================== Colors ================================
 		if self.prior in ["GMM","CGMM"]:
-			cmap_pos = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
-			cmap_vel = matplotlib.cm.get_cmap(source_kwargs["cmap_mix"])
+			#-------- Groups ---------------------------
+			groups = self.df_groups["group"].to_numpy()
+			#-------------------------------------------
 
-			norm_pos = None
-			norm_vel = None
+			#------------ Colormaps ------------------------
+			cmap_pos = cm.get_cmap(source_kwargs["cmap_mix"])
+			cmap_vel = cm.get_cmap(source_kwargs["cmap_mix"])
+			#------------------------------------------------
 
-			srcs_clr_pos = self.df_groups["group"].to_numpy()
-			srcs_clr_vel = self.df_groups["group"].to_numpy()
+			#-------- Normalizations --------------------------------
+			norm_pos = Normalize(vmin=groups.min(),vmax=groups.max())
+			norm_vel = Normalize(vmin=groups.min(),vmax=groups.max())
+			#--------------------------------------------------------
+
+			#------- Colors of sources --------------
+			srcs_clr_pos = cmap_pos(norm_pos(groups))
+			srcs_clr_vel = cmap_vel(norm_vel(groups))
+			#----------------------------------------
 
 		else:
-			cmap_pos = matplotlib.cm.get_cmap(source_kwargs["cmap_pos"])
-			cmap_vel = matplotlib.cm.get_cmap(source_kwargs["cmap_vel"])
-
-			norm_pos = matplotlib.colors.TwoSlopeNorm(vcenter=0)
-			norm_vel = None
-
+			#--------- Kinematic indices ------------------------------
 			nrs, exp, rot = self._kinematic_indices(group="posterior")
-			srcs_clr_pos = np.mean(exp,axis=1)
-			srcs_clr_vel = np.mean(nrs,axis=1)
+			print("Expansion: {0:2.1f} +/- {1:2.1f} km/s".format(
+											np.mean(exp),np.std(exp)))
+			print("Rotation:  {0:2.1f} +/- {1:2.1f} km/s".format(
+											np.mean(rot),np.std(rot)))
+			exp = np.mean(exp,axis=1)
+			nrs = np.mean(nrs,axis=1)
+			#----------------------------------------------------------
 
-			print("Expansion: {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(exp),np.std(exp)))
-			print("Rotation:  {0:2.1f} +/- {1:2.1f} km/s".format(np.mean(rot),np.std(rot)))
-			
-		#------------------------------------------------------------------------------
+			#------------ Colormaps --------------------------
+			cmap_pos = cm.get_cmap(source_kwargs["cmap_pos"])
+			cmap_vel = cm.get_cmap(source_kwargs["cmap_vel"])
+			#-------------------------------------------------
+
+			#------------ Normalizations ------------------------
+			norm_pos = TwoSlopeNorm(vcenter=0,
+								vmin=exp.min(),vmax=exp.max())
+			norm_vel = Normalize(vmin=nrs.min(),vmax=nrs.max())
+			#----------------------------------------------------
+
+			#--------- Sources colors ------------
+			srcs_clr_pos = cmap_pos(norm_pos(exp))
+			srcs_clr_vel = cmap_vel(norm_vel(nrs))
+			#-------------------------------------
+		#================================================================
 
 		#=================== Positions ================================================
 		fig, axs = plt.subplots(nrows=2,ncols=2,figsize=figsize)
@@ -925,11 +949,9 @@ class Inference:
 						ecolor=source_kwargs["error_color"],
 						elinewidth=source_kwargs["error_lw"],
 						zorder=1)
-			clr_pos = ax.scatter(x=srcs_loc[:,idx[0]],
+			ax.scatter(x=srcs_loc[:,idx[0]],
 						y=srcs_loc[:,idx[1]],
 						c=srcs_clr_pos,
-						cmap=cmap_pos,
-						norm=norm_pos,
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
 						zorder=1)
@@ -981,11 +1003,12 @@ class Inference:
 
 		#----------- Legend symbols ----------------------------------
 		if self.prior in ["GMM","CGMM"]:
-			source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
-													markerfacecolor=cmap_pos(c), 
-								  					markersize=5,
-													label=source_labels[c]) 
-								for c in np.unique(srcs_clr_pos)] 
+			source_mrkr =  [mlines.Line2D([], [], 
+								marker=source_kwargs["marker"], color="w", 
+								markerfacecolor=cmap_pos(norm_pos(g)), 
+								markersize=5,
+								label=source_labels[g]) 
+								for g in np.unique(groups)] 
 		else:
 			source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
 						  markerfacecolor=source_kwargs["color"], 
@@ -1004,8 +1027,10 @@ class Inference:
 
 		#--------- Colour bar---------------------------------------------------------------------
 		if self.prior not in ["GMM","CGMM"]:
-			fig.colorbar(clr_pos, ax=axs[1,1],fraction=0.3,shrink=0.75,
-										extend="both",label='$||V_r||$ [km/s]')
+			fig.colorbar(cm.ScalarMappable(norm=norm_pos, cmap=cmap_pos),
+								ax=axs[1,1],fraction=0.3,
+								anchor=(0.0,0.0),
+								shrink=0.75,extend="both",label='$||V_r||$ [km/s]')
 		#-----------------------------------------------------------------------------------------
 
 		plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0, hspace=0.0)
@@ -1029,8 +1054,6 @@ class Inference:
 				clr_vel = ax.scatter(x=srcs_loc[:,idx[0]],
 							y=srcs_loc[:,idx[1]],
 							c=srcs_clr_vel,
-							cmap=cmap_vel,
-							norm=norm_vel,
 							marker=source_kwargs["marker"],
 							s=source_kwargs["size"],
 							zorder=1)
@@ -1083,18 +1106,18 @@ class Inference:
 
 			#----------- Legend symbols ----------------------------------
 			if self.prior in ["GMM","CGMM"]:
-				source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], 
-							  color="w", 
-							  markerfacecolor=cmap_vel(g), 
-							  markersize=5,
-							  label=source_labels[g]) 
-								for g in np.unique(srcs_clr_vel)] 
+				source_mrkr = [mlines.Line2D([], [], marker=source_kwargs["marker"], 
+							  	color="w", 
+							  	markerfacecolor=cmap_vel(norm_vel(g)), 
+							  	markersize=5,
+							  	label=source_labels[g]) 
+								for g in np.unique(groups)] 
 			else:
-				source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], 
-							  color="w", 
-							  markerfacecolor=source_kwargs["color"], 
-							  markersize=5,
-							  label=source_kwargs["label"])]
+				source_mrkr = [mlines.Line2D([], [], marker=source_kwargs["marker"], 
+							  	color="w", 
+							  	markerfacecolor=source_kwargs["color"], 
+							  	markersize=5,
+							  	label=source_kwargs["label"])]
 			#---------------------------------------------------------------
 
 			#----------- Handles -------------------------------------------
@@ -1109,8 +1132,9 @@ class Inference:
 
 			#--------- Colour bar-------------------------------------------
 			if self.prior not in ["GMM","CGMM"]:
-				fig.colorbar(clr_vel, ax=axs[1,1],fraction=0.3,
-						anchor=(0.0,0.25),
+				fig.colorbar(cm.ScalarMappable(norm=norm_vel, cmap=cmap_vel),
+						ax=axs[1,1],fraction=0.3,
+						anchor=(0.0,0.0),
 						shrink=0.75,extend="max",label='$||r||$ [pc]')
 			#--------------------------------------------------------------
 
