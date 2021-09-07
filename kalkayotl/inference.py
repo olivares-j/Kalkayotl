@@ -42,17 +42,15 @@ from matplotlib import lines as mlines
 from kalkayotl.Models import Model1D,Model3D,Model6D
 from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM,get_principal,my_mode
 from kalkayotl.Evidence import Evidence1D
+from kalkayotl.Transformations import astrometryToPhaseSpace
 #------------------------------------------------------------------------
 
 class Inference:
 	"""
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
 	"""
-	def __init__(self,dimension,prior,parameters,
-				hyper_parameters,
+	def __init__(self,dimension,
 				dir_out,
-				transformation,
-				parametrization,
 				zero_point,
 				indep_measures=False,
 				reference_system=None,
@@ -76,14 +74,10 @@ class Inference:
 		self.suffixes  = ["_X","_Y","_Z","_U","_V","_W"]
 
 		self.D                = dimension 
-		self.prior            = prior
 		self.zero_point       = zero_point
-		self.parameters       = parameters
-		self.hyper            = hyper_parameters
 		self.dir_out          = dir_out
-		self.transformation   = transformation
 		self.indep_measures   = indep_measures
-		self.parametrization  = parametrization
+		
 		self.reference_system = reference_system
 		self.file_ids         = self.dir_out+"/Identifiers.csv"
 
@@ -162,6 +156,10 @@ class Inference:
 		data.dropna(subset=self.names_nan,inplace=True,
 						thresh=len(self.names_nan))
 		#----------------------------------------------
+
+		#--------- Mean values ---------------------------------
+		self.mean_astrometry = data[self.names_mu].mean().values
+		#-------------------------------------------------------
 
 		#----- Track ID -------------
 		self.ID = data.index.values
@@ -266,10 +264,20 @@ class Inference:
 		print("Data correctly loaded")
 
 
-	def setup(self):
+	def setup(self,prior,
+				parameters,
+				hyper_parameters,
+				parametrization,
+				transformation):
 		'''
 		Set-up the model with the corresponding dimensions and data
 		'''
+
+		self.prior            = prior
+		self.parameters       = parameters
+		self.hyper            = hyper_parameters
+		self.parametrization  = parametrization
+		self.transformation   = transformation
 
 		print("Configuring "+self.prior+" prior")
 
@@ -288,10 +296,43 @@ class Inference:
 			assert self.transformation == "pc", "3D model only works in pc."
 
 		if self.parameters["location"] is None:
-			assert self.hyper["alpha"] is not None, msg_alpha
+			if self.hyper["alpha"] is None:
+	
+				#----- Cluster Cartesian position ---------
+				x,y,z,u,v,w = astrometryToPhaseSpace(self.mean_astrometry[np.newaxis,:],
+							reference_system=self.reference_system)[0]
+
+				#---- Cluster dispersion -------
+				xyz_sd = 10.
+				uvw_sd = 10.
+				#-------------------------------
+
+				self.hyper["alpha"] = [
+							[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],
+							[u,uvw_sd],[v,uvw_sd],[w,uvw_sd]
+							]
+				#=======================================================================
+
+				print("The alpha hyper-parameter has been set to:")
+				names = ["X","Y","Z","U","V","W"]
+				for i,value in enumerate(self.hyper["alpha"]):
+					print("{0}: {1:2.1f} +/- {2:2.1f}".format(names[i],value[0],value[1]))
+		else:
+			print("The location parameter will not be inferred.")
 
 		if self.parameters["scale"] is None:
-			assert self.hyper["beta"] is not None, msg_beta
+			if self.hyper["beta"] is None:
+				self.hyper["beta"] = 10.0
+				print("The beta hyper-parameter has been set to:")
+				print(self.hyper["beta"])
+		else:
+			print("The scale parameter will not be inferred.")
+
+
+		if self.hyper["eta"] is None:
+			self.hyper["eta"] = 10.0
+			print("The eta hyper-parameter has been set to:")
+			print(self.hyper["eta"])
 
 		if self.prior == "EDSD":
 			assert self.D == 1, "EDSD prior is only valid for 1D version."
