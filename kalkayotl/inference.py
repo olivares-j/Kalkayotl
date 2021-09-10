@@ -41,7 +41,7 @@ from matplotlib import lines as mlines
 #------------ Local libraries ------------------------------------------
 from kalkayotl.Models import Model1D,Model3D,Model6D
 from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM,get_principal,my_mode
-from kalkayotl.Evidence import Evidence1D
+# from kalkayotl.Evidence import Evidence1D
 from kalkayotl.Transformations import astrometryToPhaseSpace
 #------------------------------------------------------------------------
 
