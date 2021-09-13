@@ -872,7 +872,7 @@ class Inference:
 		n_samples=100,
 		fontsize_title=16,
 		labels=["X [pc]","Y [pc]","Z [pc]",
-				"U [km/s]","V [kms/s]","W [km/s]"],
+				"U [km/s]","V [km/s]","W [km/s]"],
 		group_kwargs={"label":"Group",
 						"color":"orange",
 						"linewidth":1,
@@ -941,8 +941,8 @@ class Inference:
 			#------------------------------------------------
 
 			#-------- Normalizations --------------------------------
-			norm_pos = Normalize(vmin=groups.min(),vmax=groups.max())
-			norm_vel = Normalize(vmin=groups.min(),vmax=groups.max())
+			norm_pos = lambda x:x
+			norm_vel = lambda x:x
 			#--------------------------------------------------------
 
 			#------- Colors of sources --------------
