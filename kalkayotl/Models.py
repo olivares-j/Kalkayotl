@@ -207,10 +207,10 @@ class Model3D(Model):
 		#----------------- Mixture prior families ----------------------------
 		if prior in ["GMM","CGMM"]:
 			#------------- Shapes -------------------------
-			n_gauss = len(hyper_delta)
+			n_components = len(hyper_delta)
 
-			loc  = theano.shared(np.zeros((n_gauss,3)))
-			chol = theano.shared(np.zeros((n_gauss,3,3)))
+			loc  = theano.shared(np.zeros((n_components,3)))
+			chol = theano.shared(np.zeros((n_components,3,3)))
 			#----------------------------------------------
 
 			#----------- Locations ------------------------------------------
@@ -223,7 +223,7 @@ class Model3D(Model):
 
 					loci = pm.math.stack(location,axis=1)
 
-					for i in range(n_gauss):
+					for i in range(n_components):
 						loc  = tt.set_subtensor(loc[i],loci)
 					#---------------------------------------------------------
 
@@ -232,18 +232,18 @@ class Model3D(Model):
 					location = [ pm.Normal("loc_{0}".format(j),
 								mu=hyper_alpha[j][0],
 								sigma=hyper_alpha[j][1],
-								shape=n_gauss) for j in range(3) ]
+								shape=n_components) for j in range(3) ]
 					
 					loc = pm.math.stack(location,axis=1)
 					#---------------------------------------------------------
 				#-------------------------------------------------------------------
 			else:
-				for i in range(n_gauss):
+				for i in range(n_components):
 					loc  = tt.set_subtensor(loc[i],np.array(parameters["location"][i]))
 
 			#---------- Covariance matrices -----------------------------------
 			if parameters["scale"] is None:
-				for i in range(n_gauss):
+				for i in range(n_components):
 					choli, corri, stdsi = pm.LKJCholeskyCov("scl_{0}".format(i), 
 										n=3, eta=hyper_eta, 
 										sd_dist=pm.Gamma.dist(
@@ -320,7 +320,7 @@ class Model3D(Model):
 		elif prior in ["GMM","CGMM"]:
 			pm.Dirichlet("weights",a=hyper_delta)
 
-			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_gauss)]
+			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_components)]
 
 			#---- Sample from the mixture ----------------------------------
 			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(n_sources,3))
@@ -380,10 +380,10 @@ class Model6D(Model):
 		#----------------- Mixture prior families ----------------------------
 		if prior in ["GMM","CGMM"]:
 			#------------- Shapes -------------------------
-			n_gauss = len(hyper_delta)
+			n_components = len(hyper_delta)
 
-			loc  = theano.shared(np.zeros((n_gauss,6)))
-			chol = theano.shared(np.zeros((n_gauss,6,6)))
+			loc  = theano.shared(np.zeros((n_components,6)))
+			chol = theano.shared(np.zeros((n_components,6,6)))
 			#----------------------------------------------
 
 			#----------- Locations ------------------------------------------
@@ -396,7 +396,7 @@ class Model6D(Model):
 
 					loci = pm.math.stack(location,axis=1)
 
-					for i in range(n_gauss):
+					for i in range(n_components):
 						loc  = tt.set_subtensor(loc[i],loci)
 					#---------------------------------------------------------
 
@@ -405,18 +405,18 @@ class Model6D(Model):
 					location = [ pm.Normal("loc_{0}".format(j),
 								mu=hyper_alpha[j][0],
 								sigma=hyper_alpha[j][1],
-								shape=n_gauss) for j in range(6) ]
+								shape=n_components) for j in range(6) ]
 					
 					loc = pm.math.stack(location,axis=1)
 					#---------------------------------------------------------
 				#-------------------------------------------------------------------
 			else:
-				for i in range(n_gauss):
+				for i in range(n_components):
 					loc  = tt.set_subtensor(loc[i],np.array(parameters["location"][i]))
 
 			#---------- Covariance matrices -----------------------------------
 			if parameters["scale"] is None:
-				for i in range(n_gauss):
+				for i in range(n_components):
 					choli, corri, stdsi = pm.LKJCholeskyCov("scl_{0}".format(i), 
 										n=6, eta=hyper_eta, 
 										sd_dist=pm.Gamma.dist(
@@ -426,8 +426,17 @@ class Model6D(Model):
 					chol = tt.set_subtensor(chol[i],choli)
 
 			else:
-				sys.exit("Not yet implemented.")
+				for i in range(n_components):
+					choli = np.linalg.cholesky(parameters["scale"][i])
+					chol = tt.set_subtensor(chol[i],choli)
 			#--------------------------------------------------------------------
+
+			#------------ Weights -----------------------------
+			if parameters["weights"] is None:
+				weights = pm.Dirichlet("weights",a=hyper_delta)
+			else:
+				weights = parameters["weights"]
+			#---------------------------------------------------
 		#---------------------------------------------------------------------------------
 
 		#-------------- Non-mixture prior families ----------------------------------
@@ -451,7 +460,7 @@ class Model6D(Model):
 						sd_dist=pm.Gamma.dist(alpha=2.0,beta=1.0/hyper_beta),
 						compute_corr=True)
 			else:
-				sys.exit("Not yet implemented.")
+				chol = np.linalg.cholesky(parameters["scale"])
 			#--------------------------------------------------------------
 		#----------------------------------------------------------------------------
 		#==============================================================================
@@ -465,12 +474,10 @@ class Model6D(Model):
 				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
 		elif prior in ["GMM","CGMM"]:
-			pm.Dirichlet("weights",a=hyper_delta)
-
-			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_gauss)]
+			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_components)]
 
 			#---- Sample from the mixture ----------------------------------
-			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(n_sources,6))
+			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,6))
 		
 		else:
 			sys.exit("The specified prior is not supported")

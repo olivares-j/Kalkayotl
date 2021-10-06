@@ -27,18 +27,18 @@ import h5py
 
 #----- Import the module ----------
 from kalkayotl import Inference
-from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
 #============ Directory and data ===========================================
-dir_main = "/home/jromero/OCs/USco/Kalkayotl/Join/"
+dir_main = "/scratch/jolivares/OCs/GroupX/Kalkayotl/"
+dir_main = "/home/jolivares/Cumulos/GroupX/Kalkayotl/g/fully_observed/"
 
 #----- Directory where chains and plots will be saved ----
 dir_out  = dir_main
 #-------------------------------------------------------------------------
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_main + "members.csv"
+file_data = dir_main + "members+rvs.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -48,7 +48,7 @@ os.makedirs(dir_out,exist_ok=True)
 
 
 #=============== Tuning knobs ============================
-n_gaussians = 6
+n_gaussians = 1
 dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
@@ -116,65 +116,22 @@ indep_measures = False
 # for nearby clusters (<500 pc) the latter does it for faraway clusters (>500 pc).
 #==========================================================
 
-#=========== Cluster initial parameters ===========================
-#----- First guess of cluster observational position -------
-astrometry = np.array([[55.65,31.83,3.25,5.17,-7.29,17.31]])
-#----- Cluster Cartesian position ---------
-x,y,z,u,v,w = astrometryToPhaseSpace(astrometry,reference_system=reference_system)[0]
-
-#---- Cluster dispersion -------
-xyz_sd = 10.
-uvw_sd = 10.
-#=======================================================================
-
-#============= Prior and hyper-parameters ================================================
-# parameters is a dictionary with two entries: "location" and "scale".
-# For each of them you can either provide a value or set it to None to infer it.
-# Notice that you can infer one or both.
-# IMPORTANT. In the EDSD prior you must set both. Location to zero and
-# scale to the scale length (in pc).
-
-#----- Hyper-parameters --------------------------------------------
-# hyper_alpha controls the cluster location, which is Gaussian distributed.
-# Therefore you need to specify the median and standard deviation, in that order.
-hyper_alpha = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],[u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
-
-# hyper_beta controls  the cluster scale, which is Gamma distributed.
-# hyper_beta corresponds to the mode of the distribution.
-hyper_beta = 50.
-
-
-# hyper_gamma controls the gamma and tidal radius parameters in 
-# the EFF and King prior families. In both the parameter is distributed as
-# 1+ Gamma(2,2/hyper_gamma) with the mean value at hyper_gamma.
-#Set it to None in other prior families.
-
-# hyper_delta is only used in the GMM prior (use None in the rest of prior families),
-# where it represents the vector of hyper-parameters for the Dirichlet
-# distribution controlling the weights in the mixture.
-# IMPORTANT. The number of Gaussians in the mixture corresponds to the
-# length of this vector. 
-
-# hyper_eta controls the LKJCorr distribution. 
-# The most similar to 1 the most uniform the correlations
-hyper_eta = 10.
-
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":True},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":50.0,
+							"gamma":None,
+							"delta":None,
+							"eta":None
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":True},
 
 	# {"type":"Gaussian",
 	# 	"dimension":dimension,
@@ -225,20 +182,20 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	{"type":"GMM",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],        
-		"parameters":{"location":None,"scale":None,"weights":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension], 
-							"beta":hyper_beta, 
-							"gamma":None,
-							"delta":np.repeat(2,n_gaussians),
-							"eta":hyper_eta
-							},
-		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":True},
+	# {"type":"GMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],        
+	# 	"parameters":{"location":None,"scale":None,"weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":50.0, 
+	# 						"gamma":None,
+	# 						"delta":np.repeat(2,n_gaussians),
+	# 						"eta":None
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":False,
+	# 	"optimize":True},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
@@ -269,14 +226,9 @@ for prior in list_of_prior:
 
 	#--------- Initialize the inference module ----------------------------------------
 	p3d = Inference(dimension=prior["dimension"],     # For now it only works in 3D.
-					prior=prior["type"],
-					parameters=prior["parameters"],
-					hyper_parameters=prior["hyper_parameters"],
 					dir_out=dir_prior,
-					transformation=transformation,
 					zero_point=prior["zero_point"],
 					indep_measures=indep_measures,
-					parametrization=prior["parametrization"],
 					reference_system=reference_system)
 
 	#-------- Load the data set --------------------
@@ -284,7 +236,11 @@ for prior in list_of_prior:
 	p3d.load_data(file_data)
 
 	#------ Prepares the model -------------------
-	p3d.setup()
+	p3d.setup(prior=prior["type"],
+			  parameters=prior["parameters"],
+			  hyper_parameters=prior["hyper_parameters"],
+			  transformation=transformation,
+			  parametrization=prior["parametrization"])
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
@@ -310,72 +266,14 @@ for prior in list_of_prior:
 	p3d.plot_chains()
 
 	#------- Plot model ----------------
-	p3d.plot_model()
+	p3d.plot_model(chain=1)
 
 	#----- Compute and save the posterior statistics ---------
 	p3d.save_statistics(hdi_prob=hdi_prob)
 
 	#------- Save the samples into HDF5 file --------------
 	p3d.save_samples()
-
-	#=============== Evidence computation ==============================================
-	# IMPORTANT. It will increase the computing time!
-
-	# N_samples is the number of sources from the data set that will be used
-	# Set to None to use all sources
-
-	# M_samples is the number of samples to draw from the prior. The larger the better
-	# but it will further increase computing time.
-
-	# dlogz is the tolerance in the evidence computation 
-	# The sampler will stop once this value is attained.
-
-	# nlive is the number of live points used in the computation. The larger the better
-	# but it will further increase the computing time.
-
-	# UNCOMMENT NEXT LINE
-	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100)
-	#----------------------------------------------------------------------------------
-	#===================================================================================
-
-	#=============== Extract Samples =========================================
-	# file_samples = dir_prior + "/Samples.h5"
-	# hf = h5py.File(file_samples,'r')
-
-	# #---------------- Sources -----------------------------------------
-	# srcs = hf.get("Sources")
-
-	# n_samples = 100
-	# samples = np.empty((len(srcs.keys()),dimension,n_samples))
-	# #-------- loop over array and fill it with samples -------
-	# for i,ID in enumerate(srcs.keys()):
-	# 	#--- Extracts a random choice of the samples --------------
-	# 	tmp = np.array(srcs.get(str(ID)))
-	# 	idx = np.random.choice(np.arange(tmp.shape[1]),size=n_samples,
-	# 							replace=False)
-	# 	samples[i] = tmp[:,idx]
-	# 	#----------------------------------------------------------
-
-	# 	distance = np.sqrt(np.sum(samples[i]**2,axis=0))
-	# 	print("Source {0} at {1:3.1f} +/- {2:3.1f} pc.".format(ID,
-	# 										distance.mean(),
-	# 										distance.std()))
-	# #--------------------------------------------------------------------
-
-	# #-------------- Cluster --------------------------------------------
-	# cluster = hf.get("Cluster")
-	# loc = np.empty((3,sample_iters*chains))
-	# for i in range(3):
-	# 	loc[i] = np.array(cluster.get("3D_loc_{0}".format(i))).flatten()
-
-	# distance = np.sqrt(np.sum(loc**2,axis=0))
-
-	# print("The cluster distance is {0:3.1f} +/- {1:3.1f}".format(np.mean(distance),
-	# 															np.std(distance)))
-
-	# #- Close HDF5 file ---
-	# hf.close()
-	# #============================================================================
+	
 #=======================================================================================
 
 
