@@ -252,7 +252,6 @@ for prior in list_of_prior:
 			tuning_iters=tuning_iters,
 			target_accept=target_accept,
 			optimize=prior["optimize"],
-			prior_predictive=prior["prior_predictive"],
 			chains=chains,
 			cores=cores)
 
