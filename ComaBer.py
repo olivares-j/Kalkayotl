@@ -30,8 +30,10 @@ from kalkayotl import Inference
 
 
 #============ Directory and data ===========================================
-dir_main = "/scratch/jolivares/OCs/ComaBer/Kalkayotl/"
-# dir_main = "/home/jolivares/Cumulos/ComaBer/Kalkayotl/"
+# dir_main = "/scratch/jolivares/OCs/ComaBer/Kalkayotl/"
+dir_base = "/home/jolivares/Cumulos/ComaBer/Kalkayotl/Fuernkranz+2019/fully_observed/"
+dir_main = dir_base + "test/"
+# dir_main = "/home/jolivares/Cumulos/ComaBer/Kalkayotl/run_j/"
 
 #----- Directory where chains and plots will be saved ----
 dir_out  = dir_main
@@ -39,6 +41,7 @@ dir_out  = dir_main
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_main + "members+rvs.csv"
+file_parameters = dir_base + "6D_2GMM_central/Cluster_statistics.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -121,6 +124,21 @@ list_of_prior = [
 	# {"type":"Gaussian",
 	# 	"dimension":dimension,
 	# 	"zero_point":zero_point[:dimension],
+	# 	"parameters":{"location":file_parameters,
+	# 					 "scale":file_parameters},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None
+	# 						},
+	# 	"parametrization":"central",
+	# 	"optimize":False},
+
+	# {"type":"Gaussian",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],
 	# 	"parameters":{"location":None,"scale":None},
 	# 	"hyper_parameters":{
 	# 						"alpha":None,
@@ -130,7 +148,6 @@ list_of_prior = [
 	# 						"eta":None
 	# 						},
 	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
 	# 	"optimize":True},
 
 	# {"type":"Gaussian",
@@ -145,7 +162,6 @@ list_of_prior = [
 	# 						"eta":hyper_eta
 	# 						},
 	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
 	# 	"optimize":False},
 
 	
@@ -161,7 +177,6 @@ list_of_prior = [
 	# 						"eta":hyper_eta
 	# 						},
 	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
 	# 	"optimize":False},
 	# # # NOTE: the tidal radius and its parameters are scaled.
 
@@ -178,24 +193,42 @@ list_of_prior = [
 	# 						"eta":hyper_eta
 	# 						},
 	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
+
+		# {"type":"GMM",
+		# "dimension":dimension,
+		# "zero_point":zero_point[:dimension],        
+		# "parameters":{"location":None,
+		# 			  "scale":None,
+		# 			  "weights":None},
+		# "hyper_parameters":{
+		# 					"alpha":None,
+		# 					"beta":50.0, 
+		# 					"gamma":None,
+		# 					"delta":np.repeat(2,n_gaussians),
+		# 					"eta":None,
+		# 					"n_components":n_gaussians
+		# 					},
+		# "parametrization":"central",
+		# "optimize":False},
 
 	{"type":"GMM",
 		"dimension":dimension,
 		"zero_point":zero_point[:dimension],        
-		"parameters":{"location":None,"scale":None,"weights":None},
+		"parameters":{"location":file_parameters,
+					  "scale":file_parameters,
+					  "weights":file_parameters},
 		"hyper_parameters":{
 							"alpha":None,
 							"beta":50.0, 
 							"gamma":None,
 							"delta":np.repeat(2,n_gaussians),
-							"eta":None
+							"eta":None,
+							"n_components":n_gaussians
 							},
 		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":True},
+		"optimize":False},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
@@ -209,7 +242,6 @@ list_of_prior = [
 	# 						"eta":hyper_eta
 	# 						},
 	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
 	# 	"optimize":False}
 	]
 #======================= Inference and Analysis =====================================================
@@ -225,7 +257,7 @@ for prior in list_of_prior:
 	#------------------------------------------------
 
 	#--------- Initialize the inference module ----------------------------------------
-	p3d = Inference(dimension=prior["dimension"],     # For now it only works in 3D.
+	p3d = Inference(dimension=prior["dimension"],
 					dir_out=dir_prior,
 					zero_point=prior["zero_point"],
 					indep_measures=indep_measures,
@@ -244,13 +276,12 @@ for prior in list_of_prior:
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	p3d.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			optimize=prior["optimize"],
-			prior_predictive=prior["prior_predictive"],
-			chains=chains,
-			cores=cores)
+	# p3d.run(sample_iters=sample_iters,
+	# 		tuning_iters=tuning_iters,
+	# 		target_accept=target_accept,
+	# 		optimize=prior["optimize"],
+	# 		chains=chains,
+	# 		cores=cores)
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
@@ -263,7 +294,7 @@ for prior in list_of_prior:
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources. If IDs keyword removed only plots the population parameters.
-	p3d.plot_chains()
+	p3d.plot_chains(IDs=["3960130997064687616"])
 
 	#------- Plot model ----------------
 	p3d.plot_model()

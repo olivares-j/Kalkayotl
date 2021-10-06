@@ -31,6 +31,7 @@ from kalkayotl import Inference
 
 #============ Directory and data ===========================================
 dir_main = "/scratch/jolivares/OCs/GroupX/Kalkayotl/"
+dir_main = "/home/jolivares/Cumulos/GroupX/Kalkayotl/g/fully_observed/"
 
 #----- Directory where chains and plots will be saved ----
 dir_out  = dir_main
@@ -47,7 +48,7 @@ os.makedirs(dir_out,exist_ok=True)
 
 
 #=============== Tuning knobs ============================
-n_gaussians = 2
+n_gaussians = 1
 dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
@@ -117,20 +118,20 @@ indep_measures = False
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":None
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":True},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":50.0,
+							"gamma":None,
+							"delta":None,
+							"eta":None
+							},
+		"parametrization":"central",
+		"prior_predictive":False,
+		"optimize":True},
 
 	# {"type":"Gaussian",
 	# 	"dimension":dimension,
@@ -181,20 +182,20 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	{"type":"GMM",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],        
-		"parameters":{"location":None,"scale":None,"weights":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":50.0, 
-							"gamma":None,
-							"delta":np.repeat(2,n_gaussians),
-							"eta":None
-							},
-		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":True},
+	# {"type":"GMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],        
+	# 	"parameters":{"location":None,"scale":None,"weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":50.0, 
+	# 						"gamma":None,
+	# 						"delta":np.repeat(2,n_gaussians),
+	# 						"eta":None
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":False,
+	# 	"optimize":True},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
@@ -265,7 +266,7 @@ for prior in list_of_prior:
 	p3d.plot_chains()
 
 	#------- Plot model ----------------
-	p3d.plot_model()
+	p3d.plot_model(chain=1)
 
 	#----- Compute and save the posterior statistics ---------
 	p3d.save_statistics(hdi_prob=hdi_prob)

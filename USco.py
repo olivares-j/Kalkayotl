@@ -32,6 +32,7 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 #============ Directory and data ===========================================
 dir_main = "/home/jromero/OCs/USco/Kalkayotl/Join/"
+dir_main = "/home/jolivares/Cumulos/USco/Kalkayotl/"
 
 #----- Directory where chains and plots will be saved ----
 dir_out  = dir_main
@@ -39,6 +40,7 @@ dir_out  = dir_main
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_main + "members.csv"
+file_parameters = dir_main + "Cluster_seven_pop.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -48,7 +50,7 @@ os.makedirs(dir_out,exist_ok=True)
 
 
 #=============== Tuning knobs ============================
-n_gaussians = 6
+n_gaussians = 7
 dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
@@ -115,49 +117,6 @@ indep_measures = False
 # Kalkayotl comes with two options: central and non-central. While the former works better
 # for nearby clusters (<500 pc) the latter does it for faraway clusters (>500 pc).
 #==========================================================
-
-#=========== Cluster initial parameters ===========================
-#----- First guess of cluster observational position -------
-astrometry = np.array([[55.65,31.83,3.25,5.17,-7.29,17.31]])
-#----- Cluster Cartesian position ---------
-x,y,z,u,v,w = astrometryToPhaseSpace(astrometry,reference_system=reference_system)[0]
-
-#---- Cluster dispersion -------
-xyz_sd = 10.
-uvw_sd = 10.
-#=======================================================================
-
-#============= Prior and hyper-parameters ================================================
-# parameters is a dictionary with two entries: "location" and "scale".
-# For each of them you can either provide a value or set it to None to infer it.
-# Notice that you can infer one or both.
-# IMPORTANT. In the EDSD prior you must set both. Location to zero and
-# scale to the scale length (in pc).
-
-#----- Hyper-parameters --------------------------------------------
-# hyper_alpha controls the cluster location, which is Gaussian distributed.
-# Therefore you need to specify the median and standard deviation, in that order.
-hyper_alpha = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],[u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
-
-# hyper_beta controls  the cluster scale, which is Gamma distributed.
-# hyper_beta corresponds to the mode of the distribution.
-hyper_beta = 50.
-
-
-# hyper_gamma controls the gamma and tidal radius parameters in 
-# the EFF and King prior families. In both the parameter is distributed as
-# 1+ Gamma(2,2/hyper_gamma) with the mean value at hyper_gamma.
-#Set it to None in other prior families.
-
-# hyper_delta is only used in the GMM prior (use None in the rest of prior families),
-# where it represents the vector of hyper-parameters for the Dirichlet
-# distribution controlling the weights in the mixture.
-# IMPORTANT. The number of Gaussians in the mixture corresponds to the
-# length of this vector. 
-
-# hyper_eta controls the LKJCorr distribution. 
-# The most similar to 1 the most uniform the correlations
-hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
@@ -228,17 +187,19 @@ list_of_prior = [
 	{"type":"GMM",
 		"dimension":dimension,
 		"zero_point":zero_point[:dimension],        
-		"parameters":{"location":None,"scale":None,"weights":None},
+		"parameters":{"location":file_parameters,
+					  "scale":file_parameters,
+					  "weights":None},
 		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension], 
-							"beta":hyper_beta, 
+							"alpha":None,
+							"beta":50.0, 
 							"gamma":None,
 							"delta":np.repeat(2,n_gaussians),
-							"eta":hyper_eta
+							"eta":None,
+							"n_components":n_gaussians
 							},
 		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":True},
+		"optimize":False},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
@@ -268,15 +229,10 @@ for prior in list_of_prior:
 	#------------------------------------------------
 
 	#--------- Initialize the inference module ----------------------------------------
-	p3d = Inference(dimension=prior["dimension"],     # For now it only works in 3D.
-					prior=prior["type"],
-					parameters=prior["parameters"],
-					hyper_parameters=prior["hyper_parameters"],
+	p3d = Inference(dimension=prior["dimension"],
 					dir_out=dir_prior,
-					transformation=transformation,
 					zero_point=prior["zero_point"],
 					indep_measures=indep_measures,
-					parametrization=prior["parametrization"],
 					reference_system=reference_system)
 
 	#-------- Load the data set --------------------
@@ -284,7 +240,11 @@ for prior in list_of_prior:
 	p3d.load_data(file_data)
 
 	#------ Prepares the model -------------------
-	p3d.setup()
+	p3d.setup(prior=prior["type"],
+			  parameters=prior["parameters"],
+			  hyper_parameters=prior["hyper_parameters"],
+			  transformation=transformation,
+			  parametrization=prior["parametrization"])
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
