@@ -26,6 +26,7 @@ import arviz as az
 import h5py
 import scipy.stats as st
 from scipy.linalg import inv as inverse
+from string import ascii_uppercase
 
 #---------------- Matplotlib -------------------------------------
 import matplotlib
@@ -55,6 +56,7 @@ class Inference:
 				indep_measures=False,
 				reference_system=None,
 				id_name='source_id',
+				precision=2,
 				**kwargs):
 		"""
 		Arguments:
@@ -65,6 +67,7 @@ class Inference:
 		hyper_beta (list)     Hyper-parameters of scale
 		hyper_gamma (vector)  Hyper-parameters of weights (only for GMM prior)    
 		"""
+		np.set_printoptions(precision=precision,suppress=True)
 		gaia_observables = ["ra","dec","parallax","pmra","pmdec","radial_velocity",
 					"ra_error","dec_error","parallax_error","pmra_error","pmdec_error","radial_velocity_error",
 					"ra_dec_corr","ra_parallax_corr","ra_pmra_corr","ra_pmdec_corr",
@@ -279,7 +282,8 @@ class Inference:
 		self.parametrization  = parametrization
 		self.transformation   = transformation
 
-		print("Configuring "+self.prior+" prior")
+		print(15*"+", " Prior setup ", 15*"+")
+		print("Type of prior: ",self.prior)
 
 		msg_alpha = "hyper_alpha must be specified."
 		msg_beta  = "hyper_beta must be specified."
@@ -295,41 +299,195 @@ class Inference:
 		if self.D in [3,6]:
 			assert self.transformation == "pc", "3D model only works in pc."
 
+		#============== Mixtures =====================================================
+		if self.prior in ["GMM","CGMM","GUM"]:
+
+			n_components = self.hyper["n_components"]
+
+			if self.parameters["weights"] is None:
+				assert self.hyper["delta"] is not None, msg_delta
+			else:
+				#-------------- Read from input file ----------------------
+				if isinstance(self.parameters["weights"],str):
+					#---- Extract scale parameters ------------
+					wgh = pn.read_csv(self.parameters["weights"],
+								usecols=["Parameter","mode"])
+					wgh = wgh[wgh["Parameter"].str.contains("weights")]
+					#------------------------------------------
+
+					#---- Set weights ----------------------------
+					self.parameters["weights"] = wgh["mode"].values
+					#-----------------------------------------------
+				#-----------------------------------------------------------
+
+				#--------- Verify weights ---------------------------------
+				print("The weights parameter is fixed to:")
+				print(self.parameters["weights"])
+				assert len(self.parameters["weights"]) == n_components, \
+					"The size of the weights parameter is incorrect!"
+				assert np.min(self.parameters["weights"])> 0.05, msg_weights
+				#-----------------------------------------------------------
+
+			assert self.parametrization == "central", msg_central
+
+			if self.prior in ["CGMM","GUM"]:
+				assert self.D in [3,6], "This prior is not valid for 1D version."
+		#============================================================================
+
+		#====================== Location ==========================================================
 		if self.parameters["location"] is None:
+			#---------------- Alpha ---------------------------------------------------------
 			if self.hyper["alpha"] is None:
 	
 				#----- Cluster Cartesian position ---------
 				x,y,z,u,v,w = astrometryToPhaseSpace(self.mean_astrometry[np.newaxis,:],
 							reference_system=self.reference_system)[0]
 
-				#---- Cluster dispersion -------
+				# Cluster dispersion
 				xyz_sd = 10.
 				uvw_sd = 10.
-				#-------------------------------
+				#
 
-				self.hyper["alpha"] = [
-							[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],
-							[u,uvw_sd],[v,uvw_sd],[w,uvw_sd]
-							]
-				#=======================================================================
+				self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],
+									   [u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
 
 				print("The alpha hyper-parameter has been set to:")
 				names = ["X","Y","Z","U","V","W"]
 				for i,value in enumerate(self.hyper["alpha"]):
 					print("{0}: {1:2.1f} +/- {2:2.1f}".format(names[i],value[0],value[1]))
-		else:
-			print("The location parameter will not be inferred.")
+			#---------------------------------------------------------------------------------
 
+		#-------------- Read from input file ----------------------------------
+		else:
+			if isinstance(self.parameters["location"],str):
+				#---- Extract parameters ----------------------
+				loc = pn.read_csv(self.parameters["location"],
+							usecols=["Parameter","mode"])
+				loc = loc[loc["Parameter"].str.contains("loc")]
+				#----------------------------------------------
+
+				#-------- Extraction is prior dependent ----------------
+				if self.prior in ["GMM","CGMM","GUM"]:
+					assert int(loc.shape[0]/self.D) == n_components,\
+					"Mismatch in the number of components"
+
+					values = []
+					for i in range(n_components):
+						selection = loc["Parameter"].str.contains(
+									"[{0}]".format(i),regex=False)
+						values.append(loc.loc[selection,"mode"].values)
+
+					self.parameters["location"] = values
+
+				else:
+					#---- Set location  ----------------------------
+					self.parameters["location"] = loc["mode"].values
+					#-----------------------------------------------
+				#----------------------------------------------------------
+
+			#--------- Verify location ---------------------------------
+			print("The location parameter is fixed to:")
+			if self.prior in ["GMM","CGMM","GUM"]:
+				for i,loc in enumerate(self.parameters["location"]):
+					print(i,loc)
+					assert len(loc) == self.D, \
+						"The location parameter's size is incorrect!"
+			else:
+				print(self.parameters["location"])
+				assert len(self.parameters["location"]) == self.D, \
+					"The location parameter's size is incorrect!"
+			#-----------------------------------------------------------
+		#-----------------------------------------------------------------------
+		#==============================================================================================
+		
+		#============================= Scale ===========================================================
 		if self.parameters["scale"] is None:
 			if self.hyper["beta"] is None:
 				self.hyper["beta"] = 10.0
 				print("The beta hyper-parameter has been set to:")
 				print(self.hyper["beta"])
 		else:
-			print("The scale parameter will not be inferred.")
+			#-------------- Read from input file -----------------------------
+			if isinstance(self.parameters["scale"],str):
+				#---- Extract scale parameters ------------
+				scl = pn.read_csv(self.parameters["scale"],
+							usecols=["Parameter","mode"])
+				scl.fillna(value=1.0,inplace=True)
+				#------------------------------------------
 
+				#-------- Extraction is prior dependent ----------------
+				if self.prior in ["GMM","CGMM","GUM"]:
+					stds = []
+					cors = []
+					covs = []
+					for i in range(n_components):
+						#---------- Select component parameters --------
+						mask_std = scl["Parameter"].str.contains(
+									"{0}_stds".format(i),regex=False)
+						mask_cor = scl["Parameter"].str.contains(
+									"{0}_corr".format(i),regex=False)
+						#-----------------------------------------------
 
-		if self.hyper["eta"] is None:
+						#------Extract parameters -------------------
+						std = scl.loc[mask_std,"mode"].values
+						cor = scl.loc[mask_cor,"mode"].values
+						#--------------------------------------------
+
+						stds.append(std)
+
+						#---- Construct covariance --------------
+						std = np.diag(std)
+						cor = np.reshape(cor,(self.D,self.D))
+						cov = np.dot(std,cor.dot(std))
+						#-----------------------------------------
+
+						#--- Append -------
+						cors.append(cor)
+						covs.append(cov)
+						#------------------
+			
+					self.parameters["stds"] = stds
+					self.parameters["corr"] = cors
+					self.parameters["scale"] = covs
+
+				else:
+					#---------- Select component parameters ---------
+					mask_stds = scl["Parameter"].str.contains('stds')
+					mask_corr = scl["Parameter"].str.contains('corr')
+					#-------------------------------------------------
+
+					#---- Extract parameters ----------------------
+					stds = scl.loc[mask_stds,"mode"].values
+					corr = scl.loc[mask_corr,"mode"].values
+					#----------------------------------------------
+
+					#---- Construct covariance --------------
+					stds = np.diag(stds)
+					corr = np.reshape(corr,(self.D,self.D))
+					cov = np.dot(stds,corr.dot(stds))
+					#-----------------------------------------
+
+					self.parameters["scale"] = cov
+				#-----------------------------------------------------
+			#---------------------------------------------------------------------
+
+			#--------- Verify scale ----------------------------------------
+			print("The scale parameter is fixed to:")
+			if self.prior in ["GMM","CGMM","GUM"]:
+				for i,scl in enumerate(self.parameters["scale"]):
+					print(i,scl)
+					assert scl.shape == (self.D,self.D), \
+						"The scale parameter's shape is incorrect!"
+			else:
+				print(self.parameters["scale"])
+				assert self.parameters["scale"].shape == (self.D,self.D), \
+					"The scale parameter's shape is incorrect!"
+			#----------------------------------------------------------------
+		#==============================================================================================
+
+		
+
+		if self.parameters["scale"] is None and self.hyper["eta"] is None:
 			self.hyper["eta"] = 10.0
 			print("The eta hyper-parameter has been set to:")
 			print(self.hyper["eta"])
@@ -339,17 +497,6 @@ class Inference:
 
 		if self.prior == "Uniform":
 			assert self.D == 1, "Uniform prior is only valid for 1D version."
-
-		if self.prior in ["GMM","CGMM","GUM"]:
-			if self.parameters["weights"] is None:
-				assert self.hyper["delta"] is not None, msg_delta
-			else:
-				assert np.min(self.parameters["weights"])> 0.05, msg_weights
-
-			assert self.parametrization == "central", msg_central
-
-			if self.prior in ["CGMM","GUM"]:
-				assert self.D in [3,6], "This prior is not valid for 1D version."
 
 		if self.prior == "King":
 			if self.parameters["rt"] is None:
@@ -406,6 +553,8 @@ class Inference:
 		else:
 			sys.exit("Dimension not valid!")
 
+		print((30+13)*"+")
+
 
 
 
@@ -422,7 +571,7 @@ class Inference:
 				"tolerance_type":"relative",
 				"plot":True
 				},
-		prior_predictive=True,
+		prior_predictive=False,
 		posterior_predictive=False,
 		progressbar=True,
 		*args,**kwargs):
@@ -635,10 +784,13 @@ class Inference:
 		"""
 		This function plots the trace. Parameters are the same as in pymc3
 		"""
+		if IDs is None and len(self.cluster_variables) == 0:
+			return
 
 		print("Plotting traces ...")
 
 		file_plots = self.dir_out+"/Traces.pdf" if (file_plots is None) else file_plots
+
 
 		pdf = PdfPages(filename=file_plots)
 
@@ -647,7 +799,7 @@ class Inference:
 			for i,ID in enumerate(IDs):
 				id_in_IDs = np.isin(self.ID,ID)
 				if not np.any(id_in_IDs) :
-					sys.exit("{0} {1} is not valid".format(self.id_name,ID))
+					sys.exit("{0} {1} is not valid. Use strings".format(self.id_name,ID))
 				idx = np.where(id_in_IDs)[0]
 				coords = {str(self.D)+"D_source_dim_0" : idx}
 				plt.figure(0)
@@ -708,7 +860,6 @@ class Inference:
 			pdf.savefig(bbox_inches='tight')
 			plt.close(1)
 
-		
 		pdf.close()
 
 	def _extract(self,group="posterior",n_samples=None,chain=None):
@@ -719,17 +870,83 @@ class Inference:
 		else:
 			sys.exit("Group not recognized")
 
-		#------------ Extract variables -----------------------------------
-		locs = np.array([data[var].values for var in self.loc_variables])
-		stds = np.array([data[var].values for var in self.std_variables])
-		cors = np.array([data[var].values for var in self.cor_variables])
+		#================ Sources ============================================
+		#------------ Extract sources ---------------------------------------
 		srcs = np.array([data[var].values for var in self.source_variables])
+		#--------------------------------------------------------------------
+
+		#------ Organize sources ---
+		srcs = srcs.squeeze(axis=0)
+		srcs = np.moveaxis(srcs,2,0)
+		#---------------------------
+
+		#------ Dimensions -----
+		n,nc,ns,nd = srcs.shape
+		#-----------------------
+
+		#--- One or multiple chains -----------
+		if chain is None:
+			#-------- Merge chains ----------
+			srcs = srcs.reshape((n,nc*ns,nd))
+			#--------------------------------
+
+		else:
+			#--- Extract chain -------
+			srcs = srcs[:,chain]
+			#-------------------------
+		#--------------------------------------
+
+		#------- Sample --------------------
+		if n_samples is not None:
+			idx = np.random.choice(
+				  np.arange(srcs.shape[1]),
+						replace=False,
+						size=n_samples)
+			srcs = srcs[:,idx]
+		#------------------------------------
+		#=====================================================================
+
+
+		#============== Parameters ===========================================
+		#----------- Extract location ---------------------------------------
+		if len(self.loc_variables) == 0:
+			locs = np.array(self.parameters["location"])
+			locs = np.swapaxes(locs,0,1)[:,np.newaxis,np.newaxis,:]
+			locs = np.tile(locs,(1,nc,ns,1))
+
+		else:
+			locs = np.array([data[var].values for var in self.loc_variables])
+		#--------------------------------------------------------------------
+
+		#----------- Extract stds -------------------------------------------
+		if len(self.std_variables) == 0:
+			stds = np.array(self.parameters["stds"])
+			stds = stds[:,np.newaxis,np.newaxis,:]
+			stds = np.tile(stds,(1,nc,ns,1))
+		else:
+			stds = np.array([data[var].values for var in self.std_variables])
+		#--------------------------------------------------------------------
+
+		#----------- Extract correlations -------------------------------
+		if len(self.std_variables) == 0:
+			cors = np.array(self.parameters["corr"])
+			cors = cors[:,np.newaxis,np.newaxis,:]
+			cors = np.tile(cors,(1,nc,ns,1,1))
+		else:
+			cors = np.array([data[var].values for var in self.cor_variables])
 		#------------------------------------------------------------------
+
 		
 		#--------- Reorder indices ----------------------
 		if self.prior in ["GMM","CGMM"]:
-			amps = np.array(data[str(self.D)+"D_weights"].values)
-			amps = np.moveaxis(amps,2,0)
+			if "weights" in self.cluster_variables:
+				amps = np.array(data[str(self.D)+"D_weights"].values)
+				amps = np.moveaxis(amps,2,0)
+			else:
+				amps = np.array(self.parameters["weights"])
+				amps = amps[:,np.newaxis,np.newaxis]
+				amps = np.tile(amps,(1,nc,ns))
+
 			if self.prior == "GMM":
 				locs = np.swapaxes(locs,0,3)
 			else:
@@ -742,11 +959,6 @@ class Inference:
 		#-------------------------------------------------
 
 		
-		# Organize sources ----------
-		srcs = srcs.squeeze(axis=0)
-		srcs = np.moveaxis(srcs,2,0)
-		#---------------------------
-
 		#---------- One or multiple chains -------
 		if chain is None:
 			#-------- Merge chains --------------
@@ -755,31 +967,28 @@ class Inference:
 			locs = locs.reshape((ng,nc*ns,nd))
 			stds = stds.reshape((ng,nc*ns,nd))
 			cors = cors.reshape((ng,nc*ns,nd,nd))
-			
-			n,_,_,nd = srcs.shape
-			srcs = srcs.reshape((n,nc*ns,nd))
 			#------------------------------------
 
 		else:
-			#--- Extract chain -------
+			#--- Extract chain --
 			amps = amps[:,chain]
 			locs = locs[:,chain]
 			stds = stds[:,chain]
 			cors = cors[:,chain]
-			srcs = srcs[:,chain]
-			#-------------------------
+			#--------------------
 		#-------------------------------------------
 
 		#------- Take sample ---------------
 		if n_samples is not None:
-			idx = np.random.choice(np.arange(locs.shape[1]),
-									replace=False,
-									size=n_samples)
+			idx = np.random.choice(
+				  np.arange(locs.shape[1]),
+						replace=False,
+						size=n_samples)
+
 			amps = amps[:,idx]
 			locs = locs[:,idx]
 			stds = stds[:,idx]
 			cors = cors[:,idx]
-			srcs = srcs[:,idx]
 		#------------------------------------
 
 		#------- Construct covariances ---------------
@@ -789,35 +998,30 @@ class Inference:
 				covs[i,j] = np.diag(st).dot(
 							co.dot(np.diag(st)))
 		#----------------------------------------------
+		#===========================================================================
 
 		return srcs,amps,locs,covs
 
-	def _classify(self,chain=0,n_samples=100):
+	def _classify(self,srcs,amps,locs,covs):
 		'''
 		Obtain the class of each source at each chain step
 		'''
 		print("Classifying sources ...")
 
 		if self.prior in ["GMM","CGMM"]:
-			#------- Extract GMM parameters ----------------------------------
-			pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
-										n_samples=n_samples,
-										chain=chain)
-			#-----------------------------------------------------------------------
-
 			#------- Swap axes -----------------
-			pos_amps = np.swapaxes(pos_amps,0,1)
-			pos_locs = np.swapaxes(pos_locs,0,1)
-			pos_covs = np.swapaxes(pos_covs,0,1)
+			pos_amps = np.swapaxes(amps,0,1)
+			pos_locs = np.swapaxes(locs,0,1)
+			pos_covs = np.swapaxes(covs,0,1)
 			#-----------------------------------
 
 			#------ Loop over sources ----------------------------------
-			log_lk = np.zeros((pos_srcs.shape[0],pos_amps.shape[0],pos_amps.shape[1]))
-			for i,pos_src in enumerate(pos_srcs):
-				for j,(dt,amps,locs,covs) in enumerate(zip(pos_src,pos_amps,pos_locs,pos_covs)):
+			log_lk = np.zeros((srcs.shape[0],pos_amps.shape[0],pos_amps.shape[1]))
+			for i,src in enumerate(srcs):
+				for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
 					for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
-						log_lk[i,j,k] = st.multivariate_normal(
-											mean=loc,cov=cov).logpdf(dt)
+						log_lk[i,j,k] = st.multivariate_normal(mean=loc,cov=cov,
+											allow_singular=True).logpdf(dt)
 
 			grps = st.mode(log_lk.argmax(axis=2),axis=1)[0].flatten()
 
@@ -870,6 +1074,7 @@ class Inference:
 		file_plots=None,
 		figsize=None,
 		n_samples=100,
+		chain=None,
 		fontsize_title=16,
 		labels=["X [pc]","Y [pc]","Z [pc]",
 				"U [km/s]","V [km/s]","W [km/s]"],
@@ -892,7 +1097,7 @@ class Inference:
 						"cmap_mix":"tab10",
 						"cmap_pos":"coolwarm",
 						"cmap_vel":"summer"},
-		source_labels={0:"A",1:"B",2:"C",3:"D",4:"E",5:"F"},
+		source_labels={i:v for i,v in enumerate(ascii_uppercase)},
 		legend_bbox_to_anchor=(0.25, 0., 0.5, 0.5)
 		):
 		"""
@@ -908,21 +1113,25 @@ class Inference:
 
 		file_plots = self.dir_out+"/Model.pdf" if (file_plots is None) else file_plots
 
+		#------------ Chain ----------------------
+		if self.prior in ["GMM","CGMM"]:
+			chain = 0 if chain is None else chain
+		#-----------------------------------------
+
 		pdf = PdfPages(filename=file_plots)
-		
-		#---------- Classify sources -------------------
-		if not hasattr(self,"df_groups"):
-			self._classify(n_samples=n_samples)
-		#------------------------------------------------
 
 		#---------- Extract prior and posterior --------------------------------------------
-		pos_srcs,_,pos_locs,pos_covs = self._extract(group="posterior",
+		pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
 													n_samples=n_samples,
-													chain=0 if self.prior in ["GMM","CGMM"]
-													else None)
+													chain=chain)
 		if self.ds_prior is not None:
 			_,_,pri_locs,pri_covs = self._extract(group="prior",n_samples=n_samples)
 		#-----------------------------------------------------------------------------------
+
+		#---------- Classify sources -------------------
+		if not hasattr(self,"df_groups"):
+			self._classify(pos_srcs,pos_amps,pos_locs,pos_covs)
+		#------------------------------------------------
 
 		#-- Sources mean and standard deviation ---------
 		srcs_loc = np.mean(pos_srcs,axis=1)
@@ -1236,7 +1445,13 @@ class Inference:
 				n_samples = 100
 			else:
 				n_samples = self.ds_posterior.sizes["draw"]
-			self._classify(n_samples=n_samples)
+
+			#------- Extract GMM parameters ----------------------------------
+			pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
+										n_samples=n_samples,
+										chain=chain_gmm)
+			#-----------------------------------------------------------------
+			self._classify(pos_srcs,pos_amps,pos_locs,pos_covs)
 		#------------------------------------------------
 
 		if self.D in [3,6] :
