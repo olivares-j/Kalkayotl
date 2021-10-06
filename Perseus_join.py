@@ -310,10 +310,10 @@ for prior in list_of_prior:
 	# p3d.plot_chains()
 
 	#------- Plot model ----------------
-	p3d.plot_model(source_labels={0:"IC348 Core",
-								1:"IC348 Corona",
+	p3d.plot_model(source_labels={0:"IC348 core",
+								1:"IC348 halo",
 								2:"Alcaeus",
-								3:"K6",
+								3:"Gorgophone",
 								4:"NGC1333+",
 								5:"Heleus"})
 

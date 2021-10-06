@@ -56,7 +56,7 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 5000
+tuning_iters = 10000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
@@ -134,7 +134,7 @@ hyper_alpha = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],[u,uvw_sd],[v,uvw_sd],[w,uvw_sd]
 
 # hyper_beta controls  the cluster scale, which is Gamma distributed.
 # hyper_beta corresponds to the mode of the distribution.
-hyper_beta = 50.
+hyper_beta = 10.
 
 
 # hyper_gamma controls the gamma and tidal radius parameters in 
@@ -154,20 +154,20 @@ hyper_eta = 10.
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	{"type":"Gaussian",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension],
-							"beta":hyper_beta,
-							"gamma":None,
-							"delta":None,
-							"eta":hyper_eta
-							},
-		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":False},
+	# {"type":"Gaussian",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension],
+	# 						"beta":hyper_beta,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":False,
+	# 	"optimize":True},
 
 	{"type":"Gaussian",
 		"dimension":dimension,
@@ -218,20 +218,20 @@ list_of_prior = [
 	# 	"optimize":False},
 	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
 
-	{"type":"GMM",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],        
-		"parameters":{"location":None,"scale":None,"weights":None},
-		"hyper_parameters":{
-							"alpha":hyper_alpha[:dimension], 
-							"beta":hyper_beta, 
-							"gamma":None,
-							"delta":np.array([5,5]),
-							"eta":hyper_eta
-							},
-		"parametrization":"central",
-		"prior_predictive":False,
-		"optimize":False},
+	# {"type":"GMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],        
+	# 	"parameters":{"location":None,"scale":None,"weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":hyper_alpha[:dimension], 
+	# 						"beta":hyper_beta, 
+	# 						"gamma":None,
+	# 						"delta":np.array([5,5]),
+	# 						"eta":hyper_eta
+	# 						},
+	# 	"parametrization":"central",
+	# 	"prior_predictive":False,
+	# 	"optimize":False},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
