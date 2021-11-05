@@ -30,17 +30,17 @@ from kalkayotl import Inference
 from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
+part = 5
 #============ Directory and data ===========================================
-dir_main = "/home/jromero/OCs/USco/Kalkayotl/Join/"
-dir_main = "/home/jolivares/Cumulos/USco/Kalkayotl/"
+dir_main = "/home/jromero/OCs/USco/Kalkayotl/Classification/"
 
 #----- Directory where chains and plots will be saved ----
-dir_out  = dir_main
+dir_out  = dir_main + "part_{0}/".format(part)
 #-------------------------------------------------------------------------
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_main + "members.csv"
-file_parameters = dir_main + "Cluster_seven_pop.csv"
+file_data = dir_out + "members_{0}.csv".format(part)
+file_parameters = dir_main + "Cluster_eight_pop.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -50,7 +50,7 @@ os.makedirs(dir_out,exist_ok=True)
 
 
 #=============== Tuning knobs ============================
-n_gaussians = 7
+n_gaussians = 8
 dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
@@ -65,12 +65,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 3000
+tuning_iters = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 3000
+sample_iters = 1000
 
 
 #----- Target_accept-------
@@ -199,7 +199,7 @@ list_of_prior = [
 							"n_components":n_gaussians
 							},
 		"parametrization":"central",
-		"optimize":False},
+		"optimize":True},
 
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
@@ -248,12 +248,12 @@ for prior in list_of_prior:
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	p3d.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			optimize=prior["optimize"],
-			chains=chains,
-			cores=cores)
+	# p3d.run(sample_iters=sample_iters,
+	# 		tuning_iters=tuning_iters,
+	# 		target_accept=target_accept,
+	# 		optimize=prior["optimize"],
+	# 		chains=chains,
+	# 		cores=cores)
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
@@ -261,7 +261,7 @@ for prior in list_of_prior:
 	p3d.load_trace()
 
 	# ------- Re-analyse the convergence of the sampler---
-	p3d.convergence()
+	# p3d.convergence()
 
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces

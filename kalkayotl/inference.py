@@ -565,8 +565,8 @@ class Inference:
 		file_chains=None,
 		optimize=True,
 		opt_args={
-				"trials":2,
-				"iterations":1000000,
+				"trials":1,
+				"iterations":2000000,
 				"tolerance":1e-2,
 				"tolerance_type":"relative",
 				"plot":True
@@ -939,7 +939,7 @@ class Inference:
 		
 		#--------- Reorder indices ----------------------
 		if self.prior in ["GMM","CGMM"]:
-			if "weights" in self.cluster_variables:
+			if str(self.D)+"D_weights" in self.cluster_variables:
 				amps = np.array(data[str(self.D)+"D_weights"].values)
 				amps = np.moveaxis(amps,2,0)
 			else:
