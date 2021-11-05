@@ -338,18 +338,31 @@ class Inference:
 		if self.parameters["location"] is None:
 			#---------------- Alpha ---------------------------------------------------------
 			if self.hyper["alpha"] is None:
-	
-				#----- Cluster Cartesian position ---------
-				x,y,z,u,v,w = astrometryToPhaseSpace(self.mean_astrometry[np.newaxis,:],
-							reference_system=self.reference_system)[0]
 
-				# Cluster dispersion
-				xyz_sd = 10.
-				uvw_sd = 10.
-				#
+				#-- Cluster dispersion ----
+				xyz_sd,uvw_sd = 10.,10.
+				#-------------------------
 
-				self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],
-									   [u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
+				#------------------------ Cluster mean value ------------------------
+				if self.D == 6:
+					#------------ Cluster mean coordinates -------------------
+					x,y,z,u,v,w = astrometryToPhaseSpace(
+									self.mean_astrometry[np.newaxis,:],
+									reference_system=self.reference_system)[0]
+					#----------------------------------------------------------
+
+					self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],
+										   [u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
+				elif self.D == 3:
+					#------------ Cluster mean coordinates -------------------
+					x,y,z,_,_,_ = astrometryToPhaseSpace(np.append(
+									self.mean_astrometry,[0.0,0.0,0.0])[np.newaxis,:],
+									reference_system=self.reference_system)[0]
+					#----------------------------------------------------------
+
+					self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd]]
+				#----------------------------------------------------------------------
+
 
 				print("The alpha hyper-parameter has been set to:")
 				names = ["X","Y","Z","U","V","W"]
@@ -566,7 +579,7 @@ class Inference:
 		optimize=True,
 		opt_args={
 				"trials":1,
-				"iterations":2000000,
+				"iterations":100000
 				"tolerance":1e-2,
 				"tolerance_type":"relative",
 				"plot":True
@@ -1139,7 +1152,7 @@ class Inference:
 		#------------------------------------------------
 
 		#======================== Colors ================================
-		if self.prior in ["GMM","CGMM"]:
+		if self.prior in ["GMM","CGMM"] or self.D == 3:
 			#-------- Groups ---------------------------
 			groups = self.df_groups["group"].to_numpy()
 			#-------------------------------------------
@@ -1276,7 +1289,7 @@ class Inference:
 		#-------------------------------------------------------------------------------
 
 		#--------- Colour bar---------------------------------------------------------------------
-		if self.prior not in ["GMM","CGMM"]:
+		if self.prior not in ["GMM","CGMM"] and self.D == 6:
 			fig.colorbar(cm.ScalarMappable(norm=norm_pos, cmap=cmap_pos),
 								ax=axs[1,1],fraction=0.3,
 								anchor=(0.0,0.0),
