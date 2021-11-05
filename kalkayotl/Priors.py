@@ -12,7 +12,7 @@ from pymc3.distributions.distribution import draw_values, generate_samples
 from pymc3.distributions.multivariate import _QuadFormBase
 from pymc3.theanof import floatX
 
-from .distributions import edsd,eff,king,mveff,mvking
+from .distributions import edsd #,eff,king,mveff,mvking
 
 #====================== 1D ===============================================================
 class EDSD(PositiveContinuous):
@@ -454,31 +454,62 @@ class MvKing(_QuadFormBase):
 		return bound(log_d,quaddist < self.rt**2,ok)
 
 ###################################################### TEST ################################################################################
+import pandas as pd
 import matplotlib
 matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import scipy.stats as st
 
-def test_MvEFF(n=10000):
-	loc = np.array([0.,0.0,0.0])
-	scl = np.array([[2.0,0.0,0.0],
-					[0.0,2.0,0.0],
-					[0.0,0.0,2.0]])
+def test_MvEFF(n=1000,mc_file=None):
+	if mc_file is not None:
+		mc = pd.read_csv(mc_file,sep="\t",header=None,skiprows=1,
+					names=["Mass","X","Y","Z","U","V","W"])
+
+		pos = mc[["X","Y","Z"]].to_numpy()
+
+		r_mc = np.sqrt(np.sum(pos**2,axis=1))
+		z_mc = eff.logpdf(r_mc,gamma=5.0)
+
+	loc = np.array([0.0,0.0,0.0])
+	scl = np.array([[1.0,0.0,0.0],
+					[0.0,1.0,0.0],
+					[0.0,0.0,1.0]])
 
 	chol = np.linalg.cholesky(scl)
 
 	mveff = MvEFF.dist(location=loc,chol=chol,gamma=5.0)
 	samples = mveff.random(size=n)
 
-	z = mveff.logp(samples).eval()
+	r = np.sqrt(np.sum(samples**2,axis=1))
+
+	z = eff.logpdf(r,gamma=5.0)
+
 	
 	pdf = PdfPages(filename="Prior_MvEFF.pdf")
+	# plt.figure(0)
+	# plt.scatter(samples[:,0],samples[:,1],c=z,label="Samples")
+	# plt.legend()
+	# plt.xlabel("X")
+	# plt.ylabel("Y")
+	# pdf.savefig(bbox_inches='tight')
+	# plt.close(0)
+
 	plt.figure(0)
-	plt.scatter(samples[:,0],samples[:,1],c=z,label="Samples")
+	plt.hist(r,range=[0,5],bins=20,histtype="step",density=True,label="Samples")
+	plt.hist(r_mc,range=[0,5],bins=20,histtype="step",density=True,label="McCluster")
 	plt.legend()
-	plt.xlabel("X")
-	plt.ylabel("Y")
+	plt.xlabel("R [pc]")
+	plt.yscale("log")
+	pdf.savefig(bbox_inches='tight')
+	plt.close(0)
+
+	plt.figure(0)
+	plt.scatter(r,z,label="Samples")
+	plt.scatter(r_mc,z_mc,label="McCluster")
+	plt.legend()
+	plt.xlabel("R [pc]")
+	plt.ylabel("Log Likelihood")
 	pdf.savefig(bbox_inches='tight')
 	plt.close(0)
 	
@@ -533,6 +564,6 @@ def test_MvKing(n=10000,rt=20.0):
 
 if __name__ == "__main__":
 
-	# test_MvEFF()
+	test_MvEFF(mc_file="/home/jolivares/Repos/Amasijo/Data/EFF_n1000_r1_g5.txt")
 
-	test_MvKing()
+	# test_MvKing()

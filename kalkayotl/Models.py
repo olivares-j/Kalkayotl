@@ -24,7 +24,7 @@ import theano
 from theano import tensor as tt, printing
 
 from kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
-from kalkayotl.Priors import EDSD,EFF,King,MvEFF,MvKing
+from kalkayotl.Priors import EDSD #,EFF,King,MvEFF,MvKing
 
 ################################## Model 1D ####################################
 class Model1D(Model):

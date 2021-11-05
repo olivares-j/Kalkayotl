@@ -31,26 +31,14 @@ from kalkayotl.Transformations import astrometryToPhaseSpace
 
 
 #============ Directory and data ===========================================
-dir_main = "/home/jromero/OCs/USco/Kalkayotl/Classification/"
-
-#----- Directory where chains and plots will be saved ----
-dir_out  = dir_main
-#-------------------------------------------------------------------------
-
-#----------- Data file -----------------------------------------------------
-file_data = dir_main + "members.csv"
-file_parameters = dir_main + "Cluster_seven_pop.csv"
-#----------------------------------------------------------------------------
-
-#------- Creates directory if it does not exists -------
-os.makedirs(dir_out,exist_ok=True)
-#-------------------------------------------------------
+dir_out = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Validation/Gaussian/"
+seeds = [1,2,3,4,5,6,7,8,9]
+n_stars = 300
 #============================================================================
 
 
 #=============== Tuning knobs ============================
-n_gaussians = 7
-dimension = 6
+dimension = 3
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -64,12 +52,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 3000
+tuning_iters = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 3000
+sample_iters = 1000
 
 
 #----- Target_accept-------
@@ -101,7 +89,7 @@ reference_system = "ICRS"
 # The zero point of the parallax measurements
 # You can provide either a scalar or a vector of the same dimension
 # as the valid sources in your data set.
-zero_point = [0.,0.,-0.017,0.,0.,0.]  # This is Brrowns+2020 value
+zero_point = [0.,0.,0.,0.,0.,0.]  # This is Brrowns+2020 value
 #---------------------------------------------------------------------
 
 #------- Independent measurements--------
@@ -118,110 +106,32 @@ indep_measures = False
 #==========================================================
 
 #========================= PRIORS ===========================================
-list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":True},
-
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
-
-	
-	# {"type":"King",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],     
-	# 	"parameters":{"location":None,"scale":None,"rt":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension], 
-	# 						"beta":hyper_beta, 
-	# 						"gamma":10.0,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
-	# # # NOTE: the tidal radius and its parameters are scaled.
-
-	
-	# {"type":"EFF",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],      
-	# 	"parameters":{"location":None,"scale":None,"gamma":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension],
-	# 						"beta":hyper_beta, 
-	# 						"gamma":2.0,
-	# 						"delta":None,
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"non-central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False},
-	# # NOTE: the mode of the Gamma parameter will be at 3.0 + hyper_gamma
-
-	{"type":"GMM",
+prior = {"type":"Gaussian",
 		"dimension":dimension,
-		"zero_point":zero_point[:dimension],        
-		"parameters":{"location":file_parameters,
-					  "scale":file_parameters,
-					  "weights":None},
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
 		"hyper_parameters":{
 							"alpha":None,
-							"beta":50.0, 
+							"beta":50.0,
 							"gamma":None,
-							"delta":np.repeat(2,n_gaussians),
-							"eta":None,
-							"n_components":n_gaussians
+							"delta":None,
+							"eta":10.0
 							},
 		"parametrization":"central",
-		"optimize":False},
+		# "parametrization":"non-central"
+		"optimize":True}
 
-	# {"type":"CGMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],       
-	# 	"parameters":{"location":None,"scale":None,"weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":hyper_alpha[:dimension], 
-	# 						"beta":hyper_beta, 
-	# 						"gamma":None,
-	# 						"delta":np.array([5,5]),
-	# 						"eta":hyper_eta
-	# 						},
-	# 	"parametrization":"central",
-	# 	"prior_predictive":False,
-	# 	"optimize":False}
-	]
 #======================= Inference and Analysis =====================================================
 
 #--------------------- Loop over prior types ------------------------------------
-for prior in list_of_prior:
+for seed in seeds:
+	#----------- Data file -----------------------------------------------------
+	file_data = dir_out + "Gaussian_s{0}_n{1}_loc100_scl10.csv".format(seed,n_stars)
+	#----------------------------------------------------------------------------
 
-	#------ Output directories for each prior -------------------
-	dir_prior = dir_out + str(dimension) + "D_" + str(n_gaussians) + prior["type"] + "_" + prior["parametrization"]
+	#------ Output directories for each prior --------------------------------------
+	dir_prior = dir_out + "Gaussian_{0}_s{1}".format(prior["parametrization"],seed)
+	#-------------------------------------------------------------------------------
 
 	#---------- Create prior directory -------------
 	os.makedirs(dir_prior,exist_ok=True)
@@ -245,7 +155,7 @@ for prior in list_of_prior:
 			  transformation=transformation,
 			  parametrization=prior["parametrization"])
 
-	#============ Sampling with HMC ======================================
+	#============ Sampling with HMC ===============
 	#------- Run the sampler ---------------------
 	p3d.run(sample_iters=sample_iters,
 			tuning_iters=tuning_iters,
@@ -253,6 +163,7 @@ for prior in list_of_prior:
 			optimize=prior["optimize"],
 			chains=chains,
 			cores=cores)
+	#=============================================
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
@@ -274,66 +185,5 @@ for prior in list_of_prior:
 	p3d.save_statistics(hdi_prob=hdi_prob)
 
 	#------- Save the samples into HDF5 file --------------
-	p3d.save_samples()
-
-	#=============== Evidence computation ==============================================
-	# IMPORTANT. It will increase the computing time!
-
-	# N_samples is the number of sources from the data set that will be used
-	# Set to None to use all sources
-
-	# M_samples is the number of samples to draw from the prior. The larger the better
-	# but it will further increase computing time.
-
-	# dlogz is the tolerance in the evidence computation 
-	# The sampler will stop once this value is attained.
-
-	# nlive is the number of live points used in the computation. The larger the better
-	# but it will further increase the computing time.
-
-	# UNCOMMENT NEXT LINE
-	# p1d.evidence(M_samples=1000,dlogz=1.0,nlive=100)
-	#----------------------------------------------------------------------------------
-	#===================================================================================
-
-	#=============== Extract Samples =========================================
-	# file_samples = dir_prior + "/Samples.h5"
-	# hf = h5py.File(file_samples,'r')
-
-	# #---------------- Sources -----------------------------------------
-	# srcs = hf.get("Sources")
-
-	# n_samples = 100
-	# samples = np.empty((len(srcs.keys()),dimension,n_samples))
-	# #-------- loop over array and fill it with samples -------
-	# for i,ID in enumerate(srcs.keys()):
-	# 	#--- Extracts a random choice of the samples --------------
-	# 	tmp = np.array(srcs.get(str(ID)))
-	# 	idx = np.random.choice(np.arange(tmp.shape[1]),size=n_samples,
-	# 							replace=False)
-	# 	samples[i] = tmp[:,idx]
-	# 	#----------------------------------------------------------
-
-	# 	distance = np.sqrt(np.sum(samples[i]**2,axis=0))
-	# 	print("Source {0} at {1:3.1f} +/- {2:3.1f} pc.".format(ID,
-	# 										distance.mean(),
-	# 										distance.std()))
-	# #--------------------------------------------------------------------
-
-	# #-------------- Cluster --------------------------------------------
-	# cluster = hf.get("Cluster")
-	# loc = np.empty((3,sample_iters*chains))
-	# for i in range(3):
-	# 	loc[i] = np.array(cluster.get("3D_loc_{0}".format(i))).flatten()
-
-	# distance = np.sqrt(np.sum(loc**2,axis=0))
-
-	# print("The cluster distance is {0:3.1f} +/- {1:3.1f}".format(np.mean(distance),
-	# 															np.std(distance)))
-
-	# #- Close HDF5 file ---
-	# hf.close()
-	# #============================================================================
-#=======================================================================================
-
-
+	# p3d.save_samples()
+#=================================================================================================
