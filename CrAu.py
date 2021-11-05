@@ -44,7 +44,7 @@ os.makedirs(dir_out,exist_ok=True)
 
 
 #=============== Tuning knobs ============================
-n_gaussians = 1
+n_gaussians = 2
 dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
@@ -114,19 +114,19 @@ indep_measures = False
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":50.0,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":None
-	# 						},
-	# 	"parametrization":"central",
-	# 	"optimize":True},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":50.0,
+							"gamma":None,
+							"delta":None,
+							"eta":None
+							},
+		"parametrization":"central",
+		"optimize":True},
 
 	{"type":"GMM",
 		"dimension":dimension,
@@ -137,7 +137,8 @@ list_of_prior = [
 							"beta":50.0, 
 							"gamma":None,
 							"delta":np.repeat(2,n_gaussians),
-							"eta":None
+							"eta":None,
+							"n_components":n_gaussians
 							},
 		"parametrization":"central",
 		"optimize":True},

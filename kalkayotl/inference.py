@@ -579,7 +579,7 @@ class Inference:
 		optimize=True,
 		opt_args={
 				"trials":1,
-				"iterations":100000
+				"iterations":100000,
 				"tolerance":1e-2,
 				"tolerance_type":"relative",
 				"plot":True
