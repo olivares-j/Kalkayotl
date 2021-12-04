@@ -340,7 +340,8 @@ class Inference:
 			if self.hyper["alpha"] is None:
 
 				#-- Cluster dispersion ----
-				xyz_sd,uvw_sd = 10.,10.
+				uvw_sd = 10.
+				xyz_fc = 0.2
 				#-------------------------
 
 				#------------------------ Cluster mean value ------------------------
@@ -351,6 +352,10 @@ class Inference:
 									reference_system=self.reference_system)[0]
 					#----------------------------------------------------------
 
+					#---------- Dispersion -----------------
+					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
+					#---------------------------------------
+
 					self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],
 										   [u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
 				elif self.D == 3:
@@ -359,6 +364,10 @@ class Inference:
 									self.mean_astrometry,[0.0,0.0,0.0])[np.newaxis,:],
 									reference_system=self.reference_system)[0]
 					#----------------------------------------------------------
+
+					#---------- Dispersion -----------------
+					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
+					#---------------------------------------
 
 					self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd]]
 				#----------------------------------------------------------------------
