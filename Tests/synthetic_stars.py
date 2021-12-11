@@ -32,7 +32,7 @@ corr = param.loc[param["Parameter"].str.contains('corr'),"mode"].values
 #---- Construct covariance --------------
 stds = np.diag(stds)
 corr = np.reshape(corr,(6,6))
-cov = np.dot(stds,corr.dot(stds))
+cov  = np.dot(stds,corr.dot(stds))
 #-----------------------------------------
 
 #--------- Generate synthetic samples ----------------------
