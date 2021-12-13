@@ -13,7 +13,7 @@ from pymc3.distributions.multivariate import _QuadFormBase
 from pymc3.theanof import floatX
 
 from .distributions import edsd #,eff,kingmvking
-from EFF import mveff
+from .EFF import mveff
 
 #====================== 1D ===============================================================
 class EDSD(PositiveContinuous):
