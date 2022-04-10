@@ -510,7 +510,7 @@ class Inference:
 		
 
 		if self.parameters["scale"] is None and self.hyper["eta"] is None:
-			self.hyper["eta"] = 10.0
+			self.hyper["eta"] = 1.0
 			print("The eta hyper-parameter has been set to:")
 			print(self.hyper["eta"])
 
@@ -588,7 +588,7 @@ class Inference:
 		optimize=True,
 		opt_args={
 				"trials":1,
-				"iterations":100000,
+				"iterations":1000000,
 				"tolerance":1e-2,
 				"tolerance_type":"relative",
 				"plot":True
