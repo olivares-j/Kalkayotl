@@ -37,6 +37,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Ellipse
 from matplotlib.colors import TwoSlopeNorm,Normalize
 from matplotlib import lines as mlines
+import matplotlib.ticker as ticker
 #------------------------------------------------------------------
 
 #------------ Local libraries ------------------------------------------
@@ -1100,7 +1101,7 @@ class Inference:
 		fontsize_title=16,
 		labels=["X [pc]","Y [pc]","Z [pc]",
 				"U [km/s]","V [km/s]","W [km/s]"],
-		group_kwargs={"label":"Group",
+		group_kwargs={"label":"Model",
 						"color":"orange",
 						"linewidth":1,
 						"alpha":0.1},
@@ -1116,10 +1117,11 @@ class Inference:
 						"size":2,
 						"error_color":"grey",
 						"error_lw":0.5,
-						"cmap_mix":"tab10",
+						"cmap_mix":"tab10_r",
 						"cmap_pos":"coolwarm",
 						"cmap_vel":"summer"},
 		source_labels={i:v for i,v in enumerate(ascii_uppercase)},
+		ticks={"minor":16,"major":8},
 		legend_bbox_to_anchor=(0.25, 0., 0.5, 0.5)
 		):
 		"""
@@ -1259,9 +1261,17 @@ class Inference:
 							ax.add_artist(ell)
 			#-----------------------------------------------------------------------------
 
-			#------------- Titles -------------------------------------
+			#------------- Titles -------------
 			ax.set_xlabel(labels[idx[0]])
 			ax.set_ylabel(labels[idx[1]])
+			#-----------------------------------
+
+			#----------------- Ticks ----------------------------------------
+			ax.xaxis.set_major_locator(ticker.MaxNLocator(ticks["major"]))
+			# ax.xaxis.set_minor_locator(ticker.MaxNLocator(ticks["minor"]))
+			ax.yaxis.set_major_locator(ticker.MaxNLocator(ticks["major"]))
+			# ax.yaxis.set_minor_locator(ticker.MaxNLocator(ticks["minor"]))
+			#----------------------------------------------------------------
 
 		axs[0,0].axes.xaxis.set_visible(False)
 		axs[0,1].axes.yaxis.set_visible(False)
@@ -1365,6 +1375,13 @@ class Inference:
 				ax.set_xlabel(labels[idx[0]])
 				ax.set_ylabel(labels[idx[1]])
 				#----------------------------
+
+				#----------------- Ticks ----------------------------------------
+				ax.xaxis.set_major_locator(ticker.MaxNLocator(ticks["major"]))
+				# ax.xaxis.set_minor_locator(ticker.MaxNLocator(ticks["minor"]))
+				ax.yaxis.set_major_locator(ticker.MaxNLocator(ticks["major"]))
+				# ax.yaxis.set_minor_locator(ticker.MaxNLocator(ticks["minor"]))
+				#----------------------------------------------------------------
 
 			axs[0,0].axes.xaxis.set_visible(False)
 			axs[0,1].axes.yaxis.set_visible(False)
