@@ -14,15 +14,15 @@ https://www.aanda.org/articles/aa/pdf/2020/12/aa37846-20.pdf).**
 
 ## Installation
 
-1. Get the code from https://github.com/olivares-j/Kalkayotl, you can fork, clone, or download. Remember to use the master branch which contains the already tested 1D version.
+1. Get the code from https://github.com/olivares-j/Kalkayotl, you can fork, clone, or download. For the 1D version (1.0 and 1.1 releases) use the master branch. For the 3D and 6D versions use the dev branch.
 
 
-2. I strongly recommend creating an independent conda environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.6.
+2. I strongly recommend creating an independent conda environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.9.
 You can do this by Anaconda with the following command:
 
 **Linux users**
 ```
-conda create -n kalkayotl -c conda-forge python pymc3 matplotlib dynesty arviz h5py
+conda create -n kalkayotl -c conda-forge python=3.9 pymc3 matplotlib arviz h5py scipy
 ```
 **Mac OS users**
 ```
