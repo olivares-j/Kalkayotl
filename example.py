@@ -26,13 +26,13 @@ import numpy as np
 import h5py
 
 #----- Import the module -------------------------------
-dir_kalkayotl  = "/home/jromero/Repos/Kalkayotl/" 
+dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
 sys.path.append(dir_kalkayotl)
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jromero/OCs/Perseus/Kalkayotl/K2/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/"
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
@@ -177,7 +177,7 @@ for prior in list_of_prior:
 
 	#--------- Initialize the inference module -------
 	p3d = Inference(dimension=prior["dimension"],
-					dir_base=dir_prior,
+					dir_out=dir_prior,
 					zero_point=prior["zero_point"],
 					indep_measures=indep_measures,
 					reference_system=reference_system)
