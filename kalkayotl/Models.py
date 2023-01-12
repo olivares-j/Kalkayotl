@@ -23,7 +23,10 @@ from pymc3 import Model
 import theano
 from theano import tensor as tt, printing
 
-from kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
+from kalkayotl.Transformations import Iden,pc2mas # 1D
+from kalkayotl.Transformations import icrs_xyz_to_radecplx,galactic_xyz_to_radecplx #3D
+from kalkayotl.Transformations import icrs_xyzuvw_to_astrometry_and_rv
+from kalkayotl.Transformations import galactic_xyzuvw_to_astrometry_and_rv #6D
 from kalkayotl.Priors import EDSD,MvEFF #,EFF,King,MvEFF,MvKing
 
 ################################## Model 1D ####################################
@@ -196,9 +199,9 @@ class Model3D(Model):
 		assert transformation == "pc","3D model only works with 'pc' transformation"
 
 		if reference_system == "ICRS":
-				Transformation = cartesianToSpherical
+				Transformation = icrs_xyz_to_radecplx
 		elif reference_system == "Galactic":
-				Transformation = GalacticToSpherical
+				Transformation = galactic_xyz_to_radecplx
 		else:
 			sys.exit("Reference system not accepted")
 		#==================================================================
@@ -371,7 +374,9 @@ class Model6D(Model):
 		assert transformation == "pc","6D model only works with 'pc' transformation"
 
 		if reference_system == "ICRS":
-				Transformation = phaseSpaceToAstrometry_and_RV
+			Transformation = icrs_xyzuvw_to_astrometry_and_rv
+		elif reference_system == "Galactic":
+			Transformation = galactic_xyzuvw_to_astrometry_and_rv
 		else:
 			sys.exit("Reference system not accepted")
 		#===========================================================================

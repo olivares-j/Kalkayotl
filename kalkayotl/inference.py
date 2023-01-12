@@ -44,7 +44,7 @@ import matplotlib.ticker as ticker
 from kalkayotl.Models import Model1D,Model3D,Model6D
 from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM,get_principal,my_mode
 # from kalkayotl.Evidence import Evidence1D
-from kalkayotl.Transformations import astrometryToPhaseSpace
+from kalkayotl.Transformations import astrometry_and_rv_to_phase_space
 #------------------------------------------------------------------------
 
 class Inference:
@@ -347,10 +347,11 @@ class Inference:
 
 				#------------------------ Cluster mean value ------------------------
 				if self.D == 6:
+					print(self.mean_astrometry[np.newaxis,:].shape)
 					#------------ Cluster mean coordinates -------------------
-					x,y,z,u,v,w = astrometryToPhaseSpace(
+					x,y,z,u,v,w = astrometry_and_rv_to_phase_space(
 									self.mean_astrometry[np.newaxis,:],
-									reference_system=self.reference_system)[0]
+									reference_system=self.reference_system).flatten()
 					#----------------------------------------------------------
 
 					#---------- Dispersion -----------------
@@ -361,9 +362,9 @@ class Inference:
 										   [u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
 				elif self.D == 3:
 					#------------ Cluster mean coordinates -------------------
-					x,y,z,_,_,_ = astrometryToPhaseSpace(np.append(
+					x,y,z,_,_,_ = astrometry_and_rv_to_phase_space(np.append(
 									self.mean_astrometry,[0.0,0.0,0.0])[np.newaxis,:],
-									reference_system=self.reference_system)[0]
+									reference_system=self.reference_system).flatten()
 					#----------------------------------------------------------
 
 					#---------- Dispersion -----------------

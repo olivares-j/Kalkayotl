@@ -32,7 +32,7 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
@@ -91,8 +91,7 @@ transformation = "pc"
 #------------- Reference system -----------
 # Coordinate system in which parameters will be inferred
 # Either "ICRS" or "Galactic"
-# Galactic not yet implemented
-reference_system = "ICRS"
+reference_system = "Galactic"
 
 #--------- Zero point -----------------------------------------------
 # The zero point of the parallax measurements
@@ -169,7 +168,9 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  prior["type"] + "_" + prior["parametrization"]
+	dir_prior = dir_base +  "{0}_{1}_{2}".format(
+		prior["type"],reference_system,prior["parametrization"])
+	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
 	os.makedirs(dir_prior,exist_ok=True)
