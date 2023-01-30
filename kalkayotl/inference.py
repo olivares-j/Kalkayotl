@@ -347,7 +347,6 @@ class Inference:
 
 				#------------------------ Cluster mean value ------------------------
 				if self.D == 6:
-					print(self.mean_astrometry[np.newaxis,:].shape)
 					#------------ Cluster mean coordinates -------------------
 					x,y,z,u,v,w = astrometry_and_rv_to_phase_space(
 									self.mean_astrometry[np.newaxis,:],
