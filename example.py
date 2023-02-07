@@ -111,7 +111,17 @@ indep_measures = False
 # The performance of the HMC sampler can be improved by non-central parametrizations.
 # Kalkayotl comes with two options: central and non-central. While the former works better
 # for nearby clusters (<500 pc) the latter does it for faraway clusters (>500 pc).
-#==========================================================
+#-----------------------------------------------------------------------------------------
+
+#----------- Velocity model --------------------------
+# Different types of velocity models are implemented:
+# "join": this is the most general which results in a joint model in position+velocity
+# "independent": independently models positions and velocities.
+# "constant": models the velocity as expanding or contracting field
+# "linear": models the velocity field as a linear function of position.
+velocity_model = "constant"
+#----------------------------------------------------------------------------------------
+#=========================================================================================
 
 #========================= PRIORS ===========================================
 list_of_prior = [
@@ -168,8 +178,11 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}_{1}_{2}".format(
-		prior["type"],reference_system,prior["parametrization"])
+	dir_prior = dir_base +  "{0}_{1}_{2}_{3}".format(
+		prior["type"],
+		reference_system,
+		prior["parametrization"],
+		velocity_model)
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -192,7 +205,8 @@ for prior in list_of_prior:
 			  parameters=prior["parameters"],
 			  hyper_parameters=prior["hyper_parameters"],
 			  transformation=transformation,
-			  parametrization=prior["parametrization"])
+			  parametrization=prior["parametrization"],
+			  velocity_model=velocity_model)
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------

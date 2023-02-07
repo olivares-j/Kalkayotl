@@ -272,7 +272,8 @@ class Inference:
 				parameters,
 				hyper_parameters,
 				parametrization,
-				transformation):
+				transformation,
+				velocity_model="joint"):
 		'''
 		Set-up the model with the corresponding dimensions and data
 		'''
@@ -282,6 +283,7 @@ class Inference:
 		self.hyper            = hyper_parameters
 		self.parametrization  = parametrization
 		self.transformation   = transformation
+		self.velocity_model   = velocity_model
 
 		print(15*"+", " Prior setup ", 15*"+")
 		print("Type of prior: ",self.prior)
@@ -572,7 +574,8 @@ class Inference:
 								hyper_eta=self.hyper["eta"],
 								transformation=self.transformation,
 								reference_system=self.reference_system,
-								parametrization=self.parametrization)
+								parametrization=self.parametrization,
+								velocity_model=self.velocity_model)
 		else:
 			sys.exit("Dimension not valid!")
 
@@ -731,15 +734,20 @@ class Inference:
 											or ("weights" in x)
 											or ("beta" in x)
 											or ("gamma" in x)
-											or ("rt" in x)),self.ds_posterior.data_vars))
+											or ("rt" in x)
+											or ("kappa" in x)
+											or ("omega" in x)),
+											self.ds_posterior.data_vars))
 	
-		plots_variables = cluster_variables.copy()
+		trace_variables = cluster_variables.copy()
 		stats_variables = cluster_variables.copy()
+		tensor_variables= cluster_variables.copy()
 		cluster_loc_var = cluster_variables.copy()
 		cluster_std_var = cluster_variables.copy()
 		cluster_cor_var = cluster_variables.copy()
 
 		#----------- Case specific variables -------------
+		tmp_srces = source_variables.copy()
 		tmp_plots = cluster_variables.copy()
 		tmp_stats = cluster_variables.copy()
 		tmp_loc   = cluster_variables.copy()
@@ -747,12 +755,21 @@ class Inference:
 		tmp_corr  = cluster_variables.copy()
 
 		if self.D in [3,6]:
+			for var in tmp_srces:
+				if "_pos" in var or "_vel" in var:
+					source_variables.remove(var)
+
 			for var in tmp_plots:
 				if "scl" in var and "stds" not in var:
-					plots_variables.remove(var)
+					trace_variables.remove(var)
+				if "lnv" in var and "stds" not in var:
+					trace_variables.remove(var)
 
 			for var in tmp_stats:
 				if "scl" in var:
+					if not ("stds" in var or "corr" in var or "unif" in var):
+						stats_variables.remove(var)
+				if "lnv" in var:
 					if not ("stds" in var or "corr" in var or "unif" in var):
 						stats_variables.remove(var)
 
@@ -761,21 +778,30 @@ class Inference:
 					cluster_loc_var.remove(var)
 
 			for var in tmp_stds:
-				if "stds" not in var:
+				if "stds" not in var or "lnv" in var:
 					cluster_std_var.remove(var)
 
 			for var in tmp_corr:
-				if "corr" not in var:
+				if "corr" not in var or "lnv" in var:
 					cluster_cor_var.remove(var)
 		#----------------------------------------------------
 
 		self.source_variables  = source_variables
 		self.cluster_variables = cluster_variables
-		self.plots_variables   = plots_variables
+		self.trace_variables   = trace_variables
 		self.stats_variables   = stats_variables
 		self.loc_variables     = cluster_loc_var
 		self.std_variables     = cluster_std_var
 		self.cor_variables     = cluster_cor_var
+
+		# print(self.source_variables)
+		# print(self.cluster_variables)
+		# print(self.trace_variables )
+		# print(self.stats_variables  )
+		# print(self.loc_variables    )
+		# print(self.std_variables     )
+		# print(self.cor_variables     )
+		# sys.exit()
 
 	def convergence(self):
 		"""
@@ -858,7 +884,7 @@ class Inference:
 		if len(self.cluster_variables) > 0:
 			plt.figure(1)
 			axes = az.plot_trace(self.ds_posterior,
-					var_names=self.plots_variables,
+					var_names=self.trace_variables,
 					figsize=figsize,
 					lines=lines, 
 					combined=combined,
@@ -871,9 +897,24 @@ class Inference:
 				title = ax[0].get_title()
 				if ("loc" in title) or ("scl" in title):
 					if self.transformation == "pc":
-						ax[0].set_xlabel("pc")
+						if "pos" in title:
+							ax[0].set_xlabel("$pc$")
+						if "vel" in title:
+							ax[0].set_xlabel("$km\\,s^{-1}$")
+						if "loc" in title and \
+							"0" in title or \
+							"1" in title or \
+							"2" in title:
+							ax[0].set_xlabel("$pc$")
+						if "loc" in title and \
+							"3" in title or \
+							"4" in title or \
+							"5" in title:
+							ax[0].set_xlabel("$km\\,s^{-1}$")
 					else:
 						ax[0].set_xlabel("mas")
+				if "kappa" in title or "omega" in title:
+					ax[0].set_xlabel("$km\\,s^{-1}\\, pc^{-1}$")
 					#-----------------------------------------------------------
 				ax[1].set_xlabel("Iteration")
 
@@ -914,9 +955,9 @@ class Inference:
 			#--------------------------------
 
 		else:
-			#--- Extract chain -------
-			srcs = srcs[:,chain]
-			#-------------------------
+			#--- Extract chain --------------------
+			srcs = srcs[:,chain].reshape((n,ns,nd))
+			#--------------------------------------
 		#--------------------------------------
 
 		#------- Sample --------------------
@@ -946,8 +987,26 @@ class Inference:
 			stds = np.array(self.parameters["stds"])
 			stds = stds[:,np.newaxis,np.newaxis,:]
 			stds = np.tile(stds,(1,nc,ns,1))
-		else:
+
+		elif len(self.std_variables) == 1:
 			stds = np.array([data[var].values for var in self.std_variables])
+
+		elif len(self.std_variables) == 2:
+			for var in self.std_variables:
+				if "pos" in var:
+					stds_pos = np.array([data[var].values])
+				elif "vel" in var:
+					stds_vel = np.array([data[var].values])
+				else:
+					sys.exit("Neither pos nor vel in variables")
+			stds = np.zeros((
+						stds_pos.shape[0],
+						stds_pos.shape[1],
+						stds_pos.shape[2],6))
+			stds[:,:,:,:3] = stds_pos
+			stds[:,:,:,3:] = stds_vel
+		else:
+			sys.exit("Error in length of stds variables")
 		#--------------------------------------------------------------------
 
 		#----------- Extract correlations -------------------------------
@@ -955,11 +1014,27 @@ class Inference:
 			cors = np.array(self.parameters["corr"])
 			cors = cors[:,np.newaxis,np.newaxis,:]
 			cors = np.tile(cors,(1,nc,ns,1,1))
-		else:
+
+		elif len(self.cor_variables) == 1:
 			cors = np.array([data[var].values for var in self.cor_variables])
+		elif len(self.cor_variables) == 2:
+			for var in self.cor_variables:
+				if "pos" in var:
+					cors_pos = np.array([data[var].values])
+				elif "vel" in var:
+					cors_vel = np.array([data[var].values])
+				else:
+					sys.exit("Neither pos nor vel in variables")
+			cors = np.zeros((
+						cors_pos.shape[0],
+						cors_pos.shape[1],
+						cors_pos.shape[2],6,6))
+			cors[:,:,:,:3,:3] = cors_pos
+			cors[:,:,:,3:,3:] = cors_vel
+		else:
+			sys.exit("Error in length of correlation variables")
 		#------------------------------------------------------------------
 
-		
 		#--------- Reorder indices ----------------------
 		if self.prior in ["GMM","CGMM"]:
 			if str(self.D)+"D_weights" in self.cluster_variables:
@@ -983,9 +1058,9 @@ class Inference:
 
 		
 		#---------- One or multiple chains -------
+		ng,nc,ns,nd = locs.shape
 		if chain is None:
 			#-------- Merge chains --------------
-			ng,nc,ns,nd = locs.shape
 			amps = amps.reshape((ng,nc*ns))
 			locs = locs.reshape((ng,nc*ns,nd))
 			stds = stds.reshape((ng,nc*ns,nd))
@@ -993,12 +1068,12 @@ class Inference:
 			#------------------------------------
 
 		else:
-			#--- Extract chain --
-			amps = amps[:,chain]
-			locs = locs[:,chain]
-			stds = stds[:,chain]
-			cors = cors[:,chain]
-			#--------------------
+			#--- Extract chain --------------------------
+			amps = amps[:,chain].reshape((ng,ns))
+			locs = locs[:,chain].reshape((ng,ns,nd))
+			stds = stds[:,chain].reshape((ng,ns,nd))
+			cors = cors[:,chain].reshape((ng,ns,nd,nd))
+			#--------------------------------------------
 		#-------------------------------------------
 
 		#------- Take sample ---------------
@@ -1065,7 +1140,7 @@ class Inference:
 		if self.prior in ["GMM","CGMM"]:
 			sys.exit("Kinematic indices are not available for mixture models!")
 
-
+		#=============== Sources =====================================
 		#-- Extract positions and velocities-----
 		srcs_pos = srcs[:,:,:3]
 		srcs_vel = srcs[:,:,3:]
@@ -1079,19 +1154,92 @@ class Inference:
 		vs = np.subtract(srcs_vel,locs_vel)
 		#-----------------------------------------
 
-		#---- Normalized position -----------------------
+		#---- Normalized position ----------------------
 		nrs = np.linalg.norm(rs,axis=2,keepdims=True)
 		ers = rs/nrs
 		#-----------------------------------------------
 
-		#------- Products ---------------
-		exp = np.empty((ers.shape[0],ers.shape[1]))
-		rot = np.empty((ers.shape[0],ers.shape[1]))
+		#------- Products --------------------------------
+		srcs_exp = np.empty((ers.shape[0],ers.shape[1]))
+		srcs_rot = np.empty((ers.shape[0],ers.shape[1]))
 		for i,(er, v) in enumerate(zip(ers,vs)):
-			exp[i] = np.diag(np.inner(er,v))
-			rot[i] = np.linalg.norm(np.cross(er,v),axis=1)
-		
-		return nrs.squeeze(),exp,rot
+			srcs_exp[i] = np.diag(np.inner(er,v))
+			srcs_rot[i] = np.linalg.norm(np.cross(er,v),axis=1)
+		#------------------------------------------------------
+
+		mean_speed = np.mean(srcs_exp,axis=1)
+		norm_radii = np.mean(nrs.squeeze(),axis=1)
+		#===========================================================
+
+		#============== Clusters ===================================
+		if self.velocity_model in ["constant","linear"]:
+			if group == "posterior":
+				data = self.ds_posterior.data_vars
+			elif group == "prior":
+				data = self.ds_prior.data_vars
+			else:
+				sys.exit("Group not recognized")
+
+			#------------ Extract values -------------
+			kappa = np.array(data["6D_kappa"].values)
+
+			if self.velocity_model == "linear":
+				omega = np.array(data["6D_omega"].values)
+			#-----------------------------------------
+
+			#----------------- Merge --------------------
+			if chain is None:
+				nc,ns,nd = kappa.shape
+				kappa = kappa.reshape((nc*ns,nd))
+
+				if self.velocity_model == "linear":
+					nc,ns,nv,nd = omega.shape
+					omega = omega.reshape((nc*ns,nv,nd))
+			else:
+				nc,ns,nd = kappa.shape
+				kappa = kappa[chain].reshape((ns,nd))
+
+				if self.velocity_model == "linear":
+					nc,ns,nv,nd = omega.shape
+					omega = omega[chain].reshape((ns,nv,nd))
+			#--------------------------------------------
+
+			#----------- Tensor----------------
+			T = np.zeros((kappa.shape[0],3,3))
+			T[:,0,0] = kappa[:,0]
+			T[:,1,1] = kappa[:,1]
+			T[:,2,2] = kappa[:,2]
+			
+			if self.velocity_model == "linear":
+				T[:,0,1] = omega[:,0,0]
+				T[:,0,2] = omega[:,0,1]
+				T[:,1,2] = omega[:,0,2]
+				T[:,1,0] = omega[:,1,0]
+				T[:,2,0] = omega[:,1,1]
+				T[:,2,1] = omega[:,1,2]
+			#----------------------------------
+
+			#--------- Indicators ------------
+			exp = kappa.mean(axis=1)
+			if self.velocity_model == "linear":
+				omega = np.column_stack([
+						0.5*(T[:,2,1]-T[:,1,2]),
+						0.5*(T[:,0,2]-T[:,2,0]),
+						0.5*(T[:,1,0]-T[:,0,1])])
+				rot = np.linalg.norm(omega,axis=1)
+			else:
+				rot = np.zeros_like(exp)
+			#----------------------------------
+
+		else:
+			print(
+		"WARNING: the expansion and rotation indicators are computed from the dot and cross-product \
+		of the positions and velocities. Instead use the linear velocity model")
+			exp = srcs_exp
+			rot = srcs_rot
+			T = None
+
+		return norm_radii,mean_speed,exp,rot,T
 
 	def plot_model(self,
 		file_plots=None,
@@ -1185,13 +1333,11 @@ class Inference:
 
 		else:
 			#--------- Kinematic indices ------------------------------
-			nrs, exp, rot = self._kinematic_indices(group="posterior")
-			print("Expansion: {0:2.1f} +/- {1:2.1f} km/s".format(
+			nrs,nvr,exp,rot,tensor = self._kinematic_indices(group="posterior")
+			print("Expansion: {0:2.2f} +/- {1:2.2f} km/s".format(
 											np.mean(exp),np.std(exp)))
-			print("Rotation:  {0:2.1f} +/- {1:2.1f} km/s".format(
+			print("Rotation:  {0:2.2f} +/- {1:2.2f} km/(s pc)".format(
 											np.mean(rot),np.std(rot)))
-			exp = np.mean(exp,axis=1)
-			nrs = np.mean(nrs,axis=1)
 			#----------------------------------------------------------
 
 			#------------ Colormaps --------------------------
@@ -1201,12 +1347,12 @@ class Inference:
 
 			#------------ Normalizations ------------------------
 			norm_pos = TwoSlopeNorm(vcenter=0,
-								vmin=exp.min(),vmax=exp.max())
+								vmin=nvr.min(),vmax=nvr.max())
 			norm_vel = Normalize(vmin=nrs.min(),vmax=nrs.max())
 			#----------------------------------------------------
 
 			#--------- Sources colors ------------
-			srcs_clr_pos = cmap_pos(norm_pos(exp))
+			srcs_clr_pos = cmap_pos(norm_pos(nvr))
 			srcs_clr_vel = cmap_vel(norm_vel(nrs))
 			#-------------------------------------
 		#================================================================
@@ -1526,7 +1672,7 @@ class Inference:
 		#---------- Save source data frame ----------------------
 		df_source.to_csv(path_or_buf=source_csv,index_label=self.id_name)
 
-		#-------------- Global statistics ------------------------
+		#-------------- Global statistics ----------------------------------
 		if len(self.cluster_variables) > 0:
 			global_csv = self.dir_out +"/Cluster_statistics.csv"
 			df_global = az.summary(data,var_names=self.stats_variables,
@@ -1535,6 +1681,26 @@ class Inference:
 							extend=True)
 
 			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
+		#-------------------------------------------------------------------
+
+		#--------------- Velocity field ----------------------------------
+		if "6D_kappa" in self.cluster_variables:
+			field_csv = self.dir_out +"/Linear_velocity_statistics.csv"
+			_,_,exp,rot,T = self._kinematic_indices(group="posterior")
+
+			df_field = az.summary(data={
+				"Exp":exp,"Rot":rot,
+				"Txx":T[:,0,0],"Txy":T[:,0,1],"Txz":T[:,0,2],
+				"Tyx":T[:,1,0],"Tyy":T[:,1,1],"Tyz":T[:,1,2],
+				"Tzx":T[:,2,0],"Tzy":T[:,2,1],"Tzz":T[:,2,2],
+				},
+							stat_funcs=stat_funcs,
+							hdi_prob=hdi_prob,
+							kind="stats",
+							extend=True)
+
+			df_field.to_csv(path_or_buf=field_csv,index_label="Parameter")
+		#-------------------------------------------------------------------
 
 	def save_samples(self,merge=True):
 		'''

@@ -29,6 +29,8 @@ from kalkayotl.Transformations import icrs_xyzuvw_to_astrometry_and_rv
 from kalkayotl.Transformations import galactic_xyzuvw_to_astrometry_and_rv #6D
 from kalkayotl.Priors import EDSD,MvEFF #,EFF,King,MvEFF,MvKing
 
+PRINT = printing.Print('Theano shape: ', attrs=['shape'])
+
 ################################## Model 1D ####################################
 class Model1D(Model):
 	'''
@@ -357,9 +359,12 @@ class Model6D(Model):
 		hyper_gamma=None,
 		hyper_delta=None,
 		hyper_eta=None,
+		hyper_kappa=None,
+		hyper_omega=None,
 		transformation=None,
 		reference_system="ICRS",
 		parametrization="non-central",
+		velocity_model="joint",
 		name="6D", model=None):
 		super().__init__(name, model)
 
@@ -381,115 +386,488 @@ class Model6D(Model):
 			sys.exit("Reference system not accepted")
 		#===========================================================================
 
-		#================ Hyper-parameters =====================================
-		#----------------- Mixture prior families ----------------------------
-		if prior in ["GMM","CGMM"]:
-			#------------- Shapes -------------------------
-			n_components = len(hyper_delta)
+		######################### JOIN MODEL #########################################
+		if velocity_model == "joint":
+			print("Working with the joint velocity model.")
+			#================ Hyper-parameters =====================================
+			#----------------- Mixture prior families ----------------------------
+			if prior in ["GMM","CGMM"]:
+				#------------- Shapes -------------------------
+				n_components = len(hyper_delta)
 
-			loc  = theano.shared(np.zeros((n_components,6)))
-			chol = theano.shared(np.zeros((n_components,6,6)))
-			#----------------------------------------------
+				loc  = theano.shared(np.zeros((n_components,6)))
+				chol = theano.shared(np.zeros((n_components,6,6)))
+				#----------------------------------------------
 
-			#----------- Locations ------------------------------------------
-			if parameters["location"] is None:
-				if prior in ["CGMM"]:
-					#----------------- Concentric prior --------------------
-					location = [ pm.Normal("loc_{0}".format(j),
-								mu=hyper_alpha[j][0],
-								sigma=hyper_alpha[j][1]) for j in range(6) ]
+				#----------- Locations ------------------------------------------
+				if parameters["location"] is None:
+					if prior in ["CGMM"]:
+						#----------------- Concentric prior --------------------
+						location = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1]) for j in range(6) ]
 
-					loci = pm.math.stack(location,axis=1)
+						loci = pm.math.stack(location,axis=1)
 
+						for i in range(n_components):
+							loc  = tt.set_subtensor(loc[i],loci)
+						#---------------------------------------------------------
+
+					else:
+						#----------- Non-concentric prior ----------------------------
+						location = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1],
+									shape=n_components) for j in range(6) ]
+						
+						loc = pm.math.stack(location,axis=1)
+						#---------------------------------------------------------
+					#-------------------------------------------------------------------
+				else:
 					for i in range(n_components):
-						loc  = tt.set_subtensor(loc[i],loci)
-					#---------------------------------------------------------
+						loc  = tt.set_subtensor(loc[i],np.array(parameters["location"][i]))
+
+				#---------- Covariance matrices -----------------------------------
+				if parameters["scale"] is None:
+					for i in range(n_components):
+						choli, corri, stdsi = pm.LKJCholeskyCov("scl_{0}".format(i), 
+											n=6, eta=hyper_eta, 
+											sd_dist=pm.Gamma.dist(
+											alpha=2.0,beta=1.0/hyper_beta),
+											compute_corr=True)
+					
+						chol = tt.set_subtensor(chol[i],choli)
 
 				else:
-					#----------- Non-concentric prior ----------------------------
-					location = [ pm.Normal("loc_{0}".format(j),
-								mu=hyper_alpha[j][0],
-								sigma=hyper_alpha[j][1],
-								shape=n_components) for j in range(6) ]
-					
+					for i in range(n_components):
+						choli = np.linalg.cholesky(parameters["scale"][i])
+						chol = tt.set_subtensor(chol[i],choli)
+				#--------------------------------------------------------------------
+
+				#------------ Weights -----------------------------
+				if parameters["weights"] is None:
+					weights = pm.Dirichlet("weights",a=hyper_delta)
+				else:
+					weights = parameters["weights"]
+				#---------------------------------------------------
+			#---------------------------------------------------------------------------------
+
+			#-------------- Non-mixture prior families ----------------------------------
+			else:
+				#--------- Location ----------------------------------
+				if parameters["location"] is None:
+					location = [ pm.Normal("loc_{0}".format(i),
+								mu=hyper_alpha[i][0],
+								sigma=hyper_alpha[i][1]) for i in range(6) ]
+
+					#--------- Join variables --------------
 					loc = pm.math.stack(location,axis=1)
-					#---------------------------------------------------------
-				#-------------------------------------------------------------------
-			else:
-				for i in range(n_components):
-					loc  = tt.set_subtensor(loc[i],np.array(parameters["location"][i]))
 
-			#---------- Covariance matrices -----------------------------------
-			if parameters["scale"] is None:
-				for i in range(n_components):
-					choli, corri, stdsi = pm.LKJCholeskyCov("scl_{0}".format(i), 
-										n=6, eta=hyper_eta, 
+				else:
+					loc = parameters["location"]
+				#------------------------------------------------------
+
+				#---------- Covariance matrix ------------------------------------
+				if parameters["scale"] is None:
+					chol, corr, stds = pm.LKJCholeskyCov("scl", n=6, eta=hyper_eta, 
+							sd_dist=pm.Gamma.dist(alpha=2.0,beta=1.0/hyper_beta),
+							compute_corr=True)
+				else:
+					chol = np.linalg.cholesky(parameters["scale"])
+				#--------------------------------------------------------------
+			#----------------------------------------------------------------------------
+			#==============================================================================
+
+			#===================== True values ============================================		
+			if prior == "Gaussian":
+				if parametrization == "central":
+					source = pm.MvNormal("source",mu=loc,chol=chol,shape=(n_sources,6))
+				else:
+					offset = pm.Normal("offset",mu=0,sigma=1,shape=(n_sources,6))
+					source = pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(offset,chol))
+
+			elif prior in ["GMM","CGMM"]:
+				comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_components)]
+
+				#---- Sample from the mixture ----------------------------------
+				source = pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,6))
+			
+			else:
+				sys.exit("The specified prior is not supported")
+			#=================================================================================
+		#############################################################################################
+
+		##################### INDEPENDENT MODEL #####################################################
+		elif velocity_model == "independent":
+			print("Working with the independent velocity model")
+
+			#================ Hyper-parameters =====================================
+			#----------------- Mixture prior families ----------------------------
+			if prior in ["GMM","CGMM"]:
+				#------------- Shapes -------------------------
+				n_components = len(hyper_delta)
+
+				loc_pos  = theano.shared(np.zeros((n_components,3)))
+				loc_vel  = theano.shared(np.zeros((n_components,3)))
+				chol_pos = theano.shared(np.zeros((n_components,3,3)))
+				chol_vel = theano.shared(np.zeros((n_components,3,3)))
+				#----------------------------------------------
+
+				#----------- Locations ------------------------------------------
+				if parameters["location"] is None:
+					if prior in ["CGMM"]:
+						#----------------- Concentric prior --------------------
+						location_pos = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1]) for j in range(3) ]
+
+						location_vel = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1]) for j in range(3,6) ]
+
+						loci_pos = pm.math.stack(location_pos,axis=1)
+						loci_vel = pm.math.stack(location_vel,axis=1)
+
+						for i in range(n_components):
+							loc_pos  = tt.set_subtensor(loc_pos[i],loci_pos)
+							loc_vel  = tt.set_subtensor(loc_vel[i],loci_vel)
+						#---------------------------------------------------------
+
+					else:
+						#----------- Non-concentric prior ----------------------------
+						location_pos = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1],
+									shape=n_components) for j in range(3) ]
+
+						location_vel = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1],
+									shape=n_components) for j in range(3,6) ]
+						
+						loc_pos = pm.math.stack(location_pos,axis=1)
+						loc_vel = pm.math.stack(location_vel,axis=1)
+						#---------------------------------------------------------
+					#-------------------------------------------------------------------
+				else:
+					for i in range(n_components):
+						loc_pos  = tt.set_subtensor(loc_pos[i],
+									np.array(parameters["location"][i][:3]))
+						loc_vel  = tt.set_subtensor(loc_vel[i],
+									np.array(parameters["location"][i][3:]))
+
+				#---------- Covariance matrices -----------------------------------
+				if parameters["scale"] is None:
+					for i in range(n_components):
+						choli_pos, corri_pos, stdsi_pos = pm.LKJCholeskyCov(
+											"scl_pos_{0}".format(i), 
+											n=3, eta=hyper_eta, 
+											sd_dist=pm.Gamma.dist(
+											alpha=2.0,beta=1.0/hyper_beta),
+											compute_corr=True)
+					
+						chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
+
+						choli_vel, corri_vel, stdsi_vel = pm.LKJCholeskyCov(
+											"scl_vel_{0}".format(i), 
+											n=3, eta=hyper_eta, 
+											sd_dist=pm.Gamma.dist(
+												alpha=2.0,
+												beta=1.0/hyper_beta),
+											compute_corr=True)
+					
+						chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
+
+				else:
+					for i in range(n_components):
+						choli_pos = np.linalg.cholesky(parameters["scale"][i][:3])
+						choli_vel = np.linalg.cholesky(parameters["scale"][i][3:])
+						chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
+						chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
+				#--------------------------------------------------------------------
+
+				#------------ Weights -----------------------------
+				if parameters["weights"] is None:
+					weights = pm.Dirichlet("weights",a=hyper_delta)
+				else:
+					weights = parameters["weights"]
+				#---------------------------------------------------
+			#---------------------------------------------------------------------------------
+
+			#-------------- Non-mixture prior families ----------------------------------
+			else:
+				#--------- Location ----------------------------------
+				if parameters["location"] is None:
+					location_pos = [ pm.Normal("loc_{0}".format(i),
+								mu=hyper_alpha[i][0],
+								sigma=hyper_alpha[i][1]) for i in range(3) ]
+
+					location_vel = [ pm.Normal("loc_{0}".format(i),
+								mu=hyper_alpha[i][0],
+								sigma=hyper_alpha[i][1]) for i in range(3,6) ]
+
+					#--------- Join variables --------------
+					loc_pos = pm.math.stack(location_pos,axis=1)
+					loc_vel = pm.math.stack(location_vel,axis=1)
+
+				else:
+					loc_pos = parameters["location"][:3]
+					loc_vel = parameters["location"][3:]
+				#------------------------------------------------------
+
+				#---------- Covariance matrix ------------------------------------
+				if parameters["scale"] is None:
+					chol_pos, corr_pos, stds_pos = pm.LKJCholeskyCov(
+										"scl_pos", 
+										n=3, 
+										eta=hyper_eta, 
 										sd_dist=pm.Gamma.dist(
-										alpha=2.0,beta=1.0/hyper_beta),
+											alpha=2.0,
+											beta=1.0/hyper_beta),
 										compute_corr=True)
-				
-					chol = tt.set_subtensor(chol[i],choli)
+
+					chol_vel, corr_vel, stds_vel = pm.LKJCholeskyCov(
+										"scl_vel", 
+										n=3, 
+										eta=hyper_eta, 
+										sd_dist=pm.Gamma.dist(
+											alpha=2.0,
+											beta=1.0/hyper_beta),
+										compute_corr=True)
+
+				else:
+					chol_pos = np.linalg.cholesky(parameters["scale"][:3])
+					chol_vel = np.linalg.cholesky(parameters["scale"][3:])
+				#--------------------------------------------------------------
+			#----------------------------------------------------------------------------
+			#==============================================================================
+
+			#===================== True values ============================================		
+			if prior == "Gaussian":
+				if parametrization == "central":
+					source_pos = pm.MvNormal("source_pos",mu=loc_pos,chol=chol_vel,shape=(n_sources,3))
+					source_vel = pm.MvNormal("source_vel",mu=loc_vel,chol=chol_vel,shape=(n_sources,3))
+				else:
+					tau_pos = pm.Normal("tau_pos",mu=0,sigma=1,shape=(n_sources,3))
+					tau_vel = pm.Normal("tau_vel",mu=0,sigma=1,shape=(n_sources,3))
+
+					source_pos = pm.Deterministic("source_pos",
+									loc_pos + tt.nlinalg.matrix_dot(tau_pos,chol_pos))
+					source_vel = pm.Deterministic("source_vel",
+									loc_vel + tt.nlinalg.matrix_dot(tau_vel,chol_vel))
+
+			elif prior in ["GMM","CGMM"]:
+				comps_pos = [pm.MvNormal.dist(mu=loc_vel[i],chol=chol_vel[i]) for i in range(n_components)]
+				comps_vel = [pm.MvNormal.dist(mu=loc_vel[i],chol=chol_vel[i]) for i in range(n_components)]
+
+				#---- Sample from the mixture ----------------------------------
+				source_pos = pm.Mixture("source_pos",w=weights,comp_dists=comps_pos,shape=(n_sources,3))
+				source_vel = pm.Mixture("source_vel",w=weights,comp_dists=comps_vel,shape=(n_sources,3))
+			
+			else:
+				sys.exit("The specified prior is not supported")
+
+			source = pm.Deterministic("source",tt.concatenate([source_pos,source_vel],axis=1))
+			#=================================================================================
+
+		#############################################################################################
+
+		##################### LINEAR MODEL ###########################################
+		elif velocity_model in ["linear","constant"]: 
+
+			#================ Hyper-parameters =====================================
+			#----------------- Mixture prior families ----------------------------
+			if prior in ["GMM","CGMM"]:
+				#------------- Shapes -------------------------
+				n_components = len(hyper_delta)
+
+				loc_pos  = theano.shared(np.zeros((n_components,3)))
+				loc_vel  = theano.shared(np.zeros((n_components,3)))
+				chol_pos = theano.shared(np.zeros((n_components,3,3)))
+				chol_vel = theano.shared(np.zeros((n_components,3,3)))
+				#----------------------------------------------
+
+				#----------- Locations ------------------------------------------
+				if parameters["location"] is None:
+					if prior in ["CGMM"]:
+						#----------------- Concentric prior --------------------
+						location_pos = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1]) for j in range(3) ]
+
+						location_vel = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1]) for j in range(3,6) ]
+
+						loci_pos = pm.math.stack(location_pos,axis=1)
+						loci_vel = pm.math.stack(location_vel,axis=1)
+
+						for i in range(n_components):
+							loc_pos  = tt.set_subtensor(loc_pos[i],loci_pos)
+							loc_vel  = tt.set_subtensor(loc_vel[i],loci_vel)
+						#---------------------------------------------------------
+
+					else:
+						#----------- Non-concentric prior ----------------------------
+						location_pos = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1],
+									shape=n_components) for j in range(3) ]
+
+						location_vel = [ pm.Normal("loc_{0}".format(j),
+									mu=hyper_alpha[j][0],
+									sigma=hyper_alpha[j][1],
+									shape=n_components) for j in range(3,6) ]
+						
+						loc_pos = pm.math.stack(location_pos,axis=1)
+						loc_vel = pm.math.stack(location_vel,axis=1)
+						#---------------------------------------------------------
+					#-------------------------------------------------------------------
+				else:
+					for i in range(n_components):
+						loc_pos  = tt.set_subtensor(loc_pos[i],
+									np.array(parameters["location"][i][:3]))
+						loc_vel  = tt.set_subtensor(loc_vel[i],
+									np.array(parameters["location"][i][3:]))
+
+				#---------- Covariance matrices -----------------------------------
+				if parameters["scale"] is None:
+					for i in range(n_components):
+						choli_pos, corri_pos, stdsi_pos = pm.LKJCholeskyCov(
+											"scl_pos_{0}".format(i), 
+											n=3, eta=hyper_eta, 
+											sd_dist=pm.Gamma.dist(
+											alpha=2.0,beta=1.0/hyper_beta),
+											compute_corr=True)
+					
+						chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
+
+						choli_vel, corri_vel, stdsi_vel = pm.LKJCholeskyCov(
+											"scl_vel_{0}".format(i), 
+											n=3, eta=hyper_eta, 
+											sd_dist=pm.Gamma.dist(
+												alpha=2.0,
+												beta=1.0/hyper_beta),
+											compute_corr=True)
+					
+						chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
+
+				else:
+					for i in range(n_components):
+						choli_pos = np.linalg.cholesky(parameters["scale"][i][:3])
+						choli_vel = np.linalg.cholesky(parameters["scale"][i][3:])
+						chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
+						chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
+				#--------------------------------------------------------------------
+
+				#------------ Weights -----------------------------
+				if parameters["weights"] is None:
+					weights = pm.Dirichlet("weights",a=hyper_delta)
+				else:
+					weights = parameters["weights"]
+				#---------------------------------------------------
+			#---------------------------------------------------------------------------------
+
+			#-------------- Non-mixture prior families ----------------------------------
+			else:
+				#--------- Location ----------------------------------
+				if parameters["location"] is None:
+					location_pos = [ pm.Normal("loc_{0}".format(i),
+								mu=hyper_alpha[i][0],
+								sigma=hyper_alpha[i][1]) for i in range(3) ]
+
+					location_vel = [ pm.Normal("loc_{0}".format(i),
+								mu=hyper_alpha[i][0],
+								sigma=hyper_alpha[i][1]) for i in range(3,6) ]
+
+					#--------- Join variables --------------
+					loc_pos = pm.math.stack(location_pos,axis=1)
+					loc_vel = pm.math.stack(location_vel,axis=1)
+
+				else:
+					loc_pos = parameters["location"][:3]
+					loc_vel = parameters["location"][3:]
+				#------------------------------------------------------
+
+				#---------- Covariance matrix ------------------------------------
+				if parameters["scale"] is None:
+					chol_pos, corr_pos, stds_pos = pm.LKJCholeskyCov(
+										"scl_pos", 
+										n=3, 
+										eta=hyper_eta, 
+										sd_dist=pm.Gamma.dist(
+											alpha=2.0,
+											beta=1.0/hyper_beta),
+										compute_corr=True)
+
+					chol_vel, corr_vel, stds_vel = pm.LKJCholeskyCov(
+										"scl_vel", 
+										n=3, 
+										eta=hyper_eta, 
+										sd_dist=pm.Gamma.dist(
+											alpha=2.0,
+											beta=1.0/hyper_beta),
+										compute_corr=True)
+
+				else:
+					chol_pos = np.linalg.cholesky(parameters["scale"][:3])
+					chol_vel = np.linalg.cholesky(parameters["scale"][3:])
+				#--------------------------------------------------------------
+			#----------------------------------------------------------------------------
+			#==============================================================================
+
+			#=================== Velocity field ==============================
+			if velocity_model == "constant":
+				print("Working with the constant velocity model")
+				kappa = pm.Normal("kappa",mu=0.0,sigma=hyper_kappa,shape=3)
+				lnv = tt.nlinalg.diag(kappa)
 
 			else:
-				for i in range(n_components):
-					choli = np.linalg.cholesky(parameters["scale"][i])
-					chol = tt.set_subtensor(chol[i],choli)
-			#--------------------------------------------------------------------
+				print("Working with the linear velocity model")
+				kappa = pm.Normal("kappa",mu=0.0,sigma=hyper_kappa,shape=3)
+				omega = pm.Normal("omega",mu=0.0,sigma=hyper_omega,shape=(2,3))
 
-			#------------ Weights -----------------------------
-			if parameters["weights"] is None:
-				weights = pm.Dirichlet("weights",a=hyper_delta)
+				lnv = tt.nlinalg.diag(kappa)
+				lnv = tt.set_subtensor(lnv[np.triu_indices(3,1)],omega[0])
+				lnv = tt.set_subtensor(lnv[np.tril_indices(3,-1)],omega[1])
+			#=================================================================
+
+			#===================== True values ============================================		
+			if prior == "Gaussian":
+				if parametrization == "central":
+					offset_pos = pm.MvNormal("offset_pos",mu=0.0,chol=chol_pos,shape=(n_sources,3))
+					offset_vel = pm.MvNormal("offset_vel",mu=0.0,chol=chol_vel,shape=(n_sources,3))
+					offset_lnv = pm.Deterministic("offset_lnv",tt.nlinalg.matrix_dot(offset_pos,lnv))
+
+					source_pos = pm.Deterministic("source_pos",loc_pos + offset_pos)
+					source_vel = pm.Deterministic("source_vel",loc_vel + offset_lnv + offset_vel)
+
+				else:
+					tau_pos = pm.Normal("tau_pos",mu=0,sigma=1,shape=(n_sources,3))
+					tau_vel = pm.Normal("tau_vel",mu=0,sigma=1,shape=(n_sources,3))
+
+					offset_pos = pm.Deterministic("offset_pos",
+									tt.nlinalg.matrix_dot(tau_pos,chol_pos))
+					offset_vel = pm.Deterministic("offset_vel",
+									tt.nlinalg.matrix_dot(tau_vel,chol_vel))
+					offset_lnv = pm.Deterministic("offset_lnv",
+									tt.nlinalg.matrix_dot(offset_pos,lnv))
+
+					source_pos = pm.Deterministic("source_pos",loc_pos + offset_pos)
+					source_vel = pm.Deterministic("source_vel",loc_vel + offset_lnv + offset_vel)
+			
 			else:
-				weights = parameters["weights"]
-			#---------------------------------------------------
-		#---------------------------------------------------------------------------------
+				sys.exit("The specified prior is not supported")
 
-		#-------------- Non-mixture prior families ----------------------------------
+			source     = pm.Deterministic("source",tt.concatenate([source_pos,source_vel],axis=1))
+			#=================================================================================
+		###############################################################################################
 		else:
-			#--------- Location ----------------------------------
-			if parameters["location"] is None:
-				location = [ pm.Normal("loc_{0}".format(i),
-							mu=hyper_alpha[i][0],
-							sigma=hyper_alpha[i][1]) for i in range(6) ]
+			sys.exit("Velocity model not recognized!")
 
-				#--------- Join variables --------------
-				loc = pm.math.stack(location,axis=1)
-
-			else:
-				loc = parameters["location"]
-			#------------------------------------------------------
-
-			#---------- Covariance matrix ------------------------------------
-			if parameters["scale"] is None:
-				chol, corr, stds = pm.LKJCholeskyCov("scl", n=6, eta=hyper_eta, 
-						sd_dist=pm.Gamma.dist(alpha=2.0,beta=1.0/hyper_beta),
-						compute_corr=True)
-			else:
-				chol = np.linalg.cholesky(parameters["scale"])
-			#--------------------------------------------------------------
-		#----------------------------------------------------------------------------
-		#==============================================================================
-
-		#===================== True values ============================================		
-		if prior == "Gaussian":
-			if parametrization == "central":
-				pm.MvNormal("source",mu=loc,chol=chol,shape=(n_sources,6))
-			else:
-				pm.Normal("offset",mu=0,sigma=1,shape=(n_sources,6))
-				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
-
-		elif prior in ["GMM","CGMM"]:
-			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_components)]
-
-			#---- Sample from the mixture ----------------------------------
-			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,6))
-		
-		else:
-			sys.exit("The specified prior is not supported")
-		#=================================================================================
 
 		#----------------------- Transformation---------------------------------------
-		transformed = Transformation(self.source)
+		transformed = Transformation(source)
 		#-----------------------------------------------------------------------------
 
 		#------------ Flatten --------------------------------------------------------
