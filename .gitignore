@@ -7,3 +7,4 @@ Example/
 *.csv
 *.pkl
 .ipynb_checkpoints/
+.DS_Store
