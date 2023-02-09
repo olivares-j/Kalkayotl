@@ -225,7 +225,7 @@ class GGD(PositiveContinuous):
 		self.scale = scale = tt.as_tensor_variable(scale)
 		self.alpha = alpha = tt.as_tensor_variable(alpha)
 		self.beta = beta = tt.as_tensor_variable(beta)
-		zero = tt.as_tensor_variable(0.0)
+		zero = tt.as_tensor_variable(np.float64(0.0))
 		self.mode = ifelse(tt.le(beta,zero), zero, self.scale * tt.pow(self.beta/self.alpha, 1.0/self.alpha))
 
 	def random(self, point=None, size=None):
