@@ -5,7 +5,6 @@ This file contains the non-standard prior
 
 import numpy as np
 import theano.tensor as tt
-from theano.ifelse import ifelse
 
 from pymc3.util import get_variable_name
 from pymc3.distributions.dist_math import bound
@@ -14,7 +13,7 @@ from pymc3.distributions.distribution import draw_values, generate_samples
 
 from scipy.stats import rv_continuous
 from scipy.optimize import root_scalar
-from scipy.special import gamma as gamma_function
+from scipy.special import gamma as gamma_function, gammainc as gamma_incomplete
 import scipy.integrate as integrate
 from scipy.special import hyp2f1
 
@@ -156,14 +155,14 @@ class EDSD(PositiveContinuous):
 class ggd_gen(rv_continuous):
 	"GGD distribution"
 	def _pdf(self, x,L,alpha,beta):
-		fac1 = 1.0 / gamma((beta+1.0)/alpha)
+		fac1 = 1.0 / gamma_function((beta+1.0)/alpha)
 		fac2 = alpha / np.power(L, beta+1.0)
 		fac3 = np.power(r, beta)
 		fac4 = np.exp(-np.power(r/L, alpha))
 		return fac1*fac2*fac3*fac4
 
 	def _cdf(self, x,L,alpha,beta):
-		result = gammainc((beta+1.0)/alpha,np.power(r/L,alpha))
+		result = gamma_incomplete((beta+1.0)/alpha,np.power(r/L,alpha))
 		return result
 
 	def _rvs(self,L,alpha,beta):
@@ -225,8 +224,7 @@ class GGD(PositiveContinuous):
 		self.scale = scale = tt.as_tensor_variable(scale)
 		self.alpha = alpha = tt.as_tensor_variable(alpha)
 		self.beta = beta = tt.as_tensor_variable(beta)
-		zero = tt.as_tensor_variable(np.float64(0.0))
-		self.mode = ifelse(tt.le(beta,zero), zero, self.scale * tt.pow(self.beta/self.alpha, 1.0/self.alpha))
+		self.mean = self.scale * tt.gamma((beta+2.0)/alpha) / tt.gamma((beta+1.0)/alpha)
 
 	def random(self, point=None, size=None):
 		"""
@@ -297,7 +295,7 @@ class GGD(PositiveContinuous):
 		scale  = self.scale
 		alpha = self.alpha
 		beta = self.beta
-		result = tt.log(gammainc((beta+1.0)/alpha,tt.pow(r/L,alpha)))
+		result = tt.log(gamma_inc((beta+1.0)/alpha,tt.pow(r/L,alpha)))
 		return result
 ################################################################################################################
 
