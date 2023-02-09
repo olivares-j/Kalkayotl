@@ -7,7 +7,7 @@ import theano
 from theano import tensor as tt, printing
 
 from kalkayotl.Transformations import Iden,pc2mas,cartesianToSpherical,phaseSpaceToAstrometry,phaseSpaceToAstrometry_and_RV
-from kalkayotl.Priors import EDSD,EFF,King
+from kalkayotl.Priors import EDSD,GGD,EFF,King
 
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -134,10 +134,14 @@ class Model1D(Model):
 				King("offset",location=0.0,scale=1.0,rt=self.rt,shape=self.N)
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 			
-		#---------- Galactic oriented prior ---------------------------------------------
+		#---------- Galactic oriented priors ---------------------------------------------
 		elif prior is "EDSD":
 			EDSD("source",scale=self.scl,shape=self.N)
-		
+		elif prior is "GGD":
+			alpha = pm.HalfFlat('alpha',testval=1.0)
+			betap1 = pm.HalfFlat('beta_plus_1', testval=2.0)
+			beta = pm.Deterministic('beta', betap1-1.0)
+			GGD("source",scale=self.scl,alpha=alpha,beta=beta,shape=self.N)
 		else:
 			sys.exit("The specified prior is not implemented")
 		#-----------------------------------------------------------------------------
