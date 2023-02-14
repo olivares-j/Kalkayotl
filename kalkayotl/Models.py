@@ -58,9 +58,10 @@ class Model1D(Model):
 			shape = len(hyper_delta)
 
 		#------------------------ Location ----------------------------------
-		if parameters["location"] is None:
+		if (parameters["location"] is None) & (prior is not "GGD"):
 			pm.Normal("loc",mu=hyper_alpha[0],sigma=hyper_alpha[1],shape=shape)
-
+		elif prior is "GGD": # ignore loc for GGD
+            continue
 		else:
 			self.loc = parameters["location"]
 
