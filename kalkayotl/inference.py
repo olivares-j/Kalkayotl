@@ -129,6 +129,8 @@ class Inference:
 
 		if prior is "Gaussian":
 			assert hyper_delta is None, "Parameter hyper_delta is only valid for GMM prior."
+		if prior is "GGD":
+			assert (hyper_alpha is None)&(hyper_gamma is None)&(hyper_delta is None), "GGD prior only needs hyper_beta parameter."
 
 
 	def load_data(self,file_data,id_name='source_id',radec_inflation=10.0,id_length=10,corr_func="Lindegren+2020",*args,**kwargs):
@@ -269,7 +271,7 @@ class Inference:
 
 		print("Configuring "+self.prior+" prior")
 
-		if self.parameters["location"] is None:
+		if (self.parameters["location"] is None)&(self.prior is not 'GGD'):
 			assert self.hyper_alpha is not None, "hyper_alpha must be specified."
 
 		if self.parameters["scale"] is None:
