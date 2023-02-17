@@ -61,7 +61,7 @@ class Model1D(Model):
 		if (parameters["location"] is None) & (prior is not "GGD"):
 			pm.Normal("loc",mu=hyper_alpha[0],sigma=hyper_alpha[1],shape=shape)
 		elif prior is "GGD": # ignore loc for GGD
-            continue
+			pass
 		else:
 			self.loc = parameters["location"]
 

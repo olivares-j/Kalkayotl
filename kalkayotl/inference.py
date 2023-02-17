@@ -272,6 +272,7 @@ class Inference:
 		print("Configuring "+self.prior+" prior")
 
 		if (self.parameters["location"] is None)&(self.prior is not 'GGD'):
+			print(self.prior)
 			assert self.hyper_alpha is not None, "hyper_alpha must be specified."
 
 		if self.parameters["scale"] is None:
