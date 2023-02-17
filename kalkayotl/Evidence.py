@@ -72,8 +72,7 @@ class Evidence1D():
 
 
 		#================ Hyper-prior =====================================
-		if prior is "GGD": # We need a big wide uniform distribution; GGD has no loc
-			hp_loc = st.uniform(loc=0.0,scale=1e10) 
+		if prior is "GGD": 
 			hp_alpha = st.uniform(loc=0.0,scale=1e10) #alpha > 0
 			hp_beta = st.uniform(loc=-1.0,scale=1e10) #beta > -1
 		else:
