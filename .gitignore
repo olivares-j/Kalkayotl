@@ -8,3 +8,4 @@ Validation/
 *.csv
 *.pkl
 .ipynb_checkpoints/
+article/
