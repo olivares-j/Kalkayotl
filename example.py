@@ -119,7 +119,6 @@ indep_measures = False
 # "independent": independently models positions and velocities.
 # "constant": models the velocity as expanding or contracting field
 # "linear": models the velocity field as a linear function of position.
-velocity_model = "constant"
 #----------------------------------------------------------------------------------------
 #=========================================================================================
 
@@ -136,8 +135,41 @@ list_of_prior = [
 							"delta":None,
 							"eta":None
 							},
+		"field_sd":None,
 		"parametrization":"central",
+		"velocity_model":"independent",
 		"optimize":True},
+	# {"type":"StudentT",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						"nu":None,
+	# 						},
+	# 	"parametrization":"central",
+	#   "velocity_model":"independent",
+	# 	"optimize":True},
+	# {"type":"FGMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],        
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"delta":[1,1], # Field in the second entry
+	# 						"eta":None,
+	# 						},
+	# 	"field_sd":{"position":50.0,"velocity":10.0},
+	# 	"parametrization":"central",
+	#   "velocity_model":"independent",
+	# 	"optimize":True},
 	# {"type":"CGMM",
 	# 	"dimension":dimension,
 	# 	"zero_point":zero_point[:dimension],        
@@ -153,6 +185,7 @@ list_of_prior = [
 	# 						"n_components":2
 	# 						},
 	# 	"parametrization":"central",
+	#   "velocity_model":"independent",
 	# 	"optimize":True},
 
 	# {"type":"GMM",
@@ -170,6 +203,7 @@ list_of_prior = [
 	# 						"n_components":2
 	# 						},
 	# 	"parametrization":"central",
+	#   "velocity_model":"independent",
 	# 	"optimize":True}
 	]
 #======================= Inference and Analysis =====================================================
@@ -178,11 +212,12 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}_{1}_{2}_{3}".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}".format(
+		dimension,
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
-		velocity_model)
+		prior["velocity_model"])
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -206,7 +241,8 @@ for prior in list_of_prior:
 			  hyper_parameters=prior["hyper_parameters"],
 			  transformation=transformation,
 			  parametrization=prior["parametrization"],
-			  velocity_model=velocity_model)
+			  field_sd=prior["field_sd"],
+			  velocity_model=prior["velocity_model"])
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
@@ -216,6 +252,7 @@ for prior in list_of_prior:
 			optimize=prior["optimize"],
 			chains=chains,
 			cores=cores)
+	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains

@@ -273,6 +273,7 @@ class Inference:
 				hyper_parameters,
 				parametrization,
 				transformation,
+				field_sd=None,
 				velocity_model="joint"):
 		'''
 		Set-up the model with the corresponding dimensions and data
@@ -293,6 +294,7 @@ class Inference:
 		msg_trans = "Transformation must be either pc or mas."
 		msg_delta = "hyper_delta must be specified."
 		msg_gamma = "hyper_gamma must be specified."
+		msg_nu    = "hyper_nu must be specified."
 		msg_central = "Only the central parametrization is valid for this configuration."
 		msg_non_central = "Only the non-central parametrization is valid for this configuration."
 		msg_weights = "weights must be greater than 5%."
@@ -303,9 +305,12 @@ class Inference:
 			assert self.transformation == "pc", "3D model only works in pc."
 
 		#============== Mixtures =====================================================
-		if self.prior in ["GMM","CGMM","GUM"]:
+		if self.prior in ["GMM","CGMM","FGMM"]:
 
-			n_components = self.hyper["n_components"]
+			if self.prior == "FGMM":
+				n_components = 2
+			else:
+				n_components = self.hyper["n_components"]
 
 			if self.parameters["weights"] is None:
 				assert self.hyper["delta"] is not None, msg_delta
@@ -333,7 +338,11 @@ class Inference:
 
 			assert self.parametrization == "central", msg_central
 
-			if self.prior in ["CGMM","GUM"]:
+			if self.prior == "FGMM":
+				msg_fgmm = "In FGMM there are only two components"
+				assert len(self.hyper["delta"]) == 2, msg_fgmm
+
+			if self.prior in ["CGMM","FGMM"]:
 				assert self.D in [3,6], "This prior is not valid for 1D version."
 		#============================================================================
 
@@ -341,6 +350,7 @@ class Inference:
 		if self.parameters["location"] is None:
 			#---------------- Alpha ---------------------------------------------------------
 			if self.hyper["alpha"] is None:
+				print("The alpha hyper-parameter has been set to:")
 
 				#-- Cluster dispersion ----
 				uvw_sd = 10.
@@ -348,19 +358,19 @@ class Inference:
 				#-------------------------
 
 				#------------------------ Cluster mean value ------------------------
-				if self.D == 6:
-					#------------ Cluster mean coordinates -------------------
-					x,y,z,u,v,w = astrometry_and_rv_to_phase_space(
-									self.mean_astrometry[np.newaxis,:],
-									reference_system=self.reference_system).flatten()
-					#----------------------------------------------------------
+				if self.D == 1:
+					#---------- Mean distance ------------
+					d = 1000./self.mean_astrometry[0]
+					#------------------------------------
 
 					#---------- Dispersion -----------------
-					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
+					d_sd = xyz_fc*d
 					#---------------------------------------
 
-					self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],
-										   [u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
+					self.hyper["alpha"] = [d,d_sd]
+					print("D: {0:2.1f} +/- {1:2.1f}".format(d,d_sd))
+
+				
 				elif self.D == 3:
 					#------------ Cluster mean coordinates -------------------
 					x,y,z,_,_,_ = astrometry_and_rv_to_phase_space(np.append(
@@ -373,13 +383,30 @@ class Inference:
 					#---------------------------------------
 
 					self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd]]
+
+					names = ["X","Y","Z"]
+					for i,value in enumerate(self.hyper["alpha"]):
+						print("{0}: {1:2.1f} +/- {2:2.1f}".format(names[i],value[0],value[1]))
+
+				elif self.D == 6:
+					#------------ Cluster mean coordinates -------------------
+					x,y,z,u,v,w = astrometry_and_rv_to_phase_space(
+									self.mean_astrometry[np.newaxis,:],
+									reference_system=self.reference_system).flatten()
+					#----------------------------------------------------------
+
+					#---------- Dispersion -----------------
+					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
+					#---------------------------------------
+
+					self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],
+										   [u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
+
+					names = ["X","Y","Z","U","V","W"]
+					for i,value in enumerate(self.hyper["alpha"]):
+						print("{0}: {1:2.1f} +/- {2:2.1f}".format(names[i],value[0],value[1]))
 				#----------------------------------------------------------------------
-
-
-				print("The alpha hyper-parameter has been set to:")
-				names = ["X","Y","Z","U","V","W"]
-				for i,value in enumerate(self.hyper["alpha"]):
-					print("{0}: {1:2.1f} +/- {2:2.1f}".format(names[i],value[0],value[1]))
+				
 			#---------------------------------------------------------------------------------
 
 		#-------------- Read from input file ----------------------------------
@@ -523,14 +550,34 @@ class Inference:
 		if self.prior == "Uniform":
 			assert self.D == 1, "Uniform prior is only valid for 1D version."
 
-		if self.prior == "King":
-			if self.parameters["rt"] is None:
-				assert self.hyper["gamma"] is not None, msg_gamma
+		if self.prior == "StudentT":
+			assert "nu" in self.hyper, msg_nu
+			if self.hyper["nu"] is None:
+				self.hyper["nu"] = {"alpha":1.0,"beta":10}
+			else:
+				assert "alpha" in self.hyper["nu"], "Error in hyper_nu"
+				assert "beta" in self.hyper["nu"], "Error in hyper_nu"
 
+			print("The nu hyper parameter has been set to:")
+			print("alpha: {0:2.1f}, beta: {1:2.1f}".format(
+					self.hyper["nu"]["alpha"],self.hyper["nu"]["beta"]))
+		else:
+			self.hyper["nu"] = None
 
-		if self.prior == "EFF":
-			if self.parameters["gamma"] is None:
+		if self.prior == "FGMM":
+			assert field_sd is not None, "Must specify the typical size of the field"
+			assert isinstance(field_sd,dict), "Field typical size must be a dictionary"
+			assert "position" in field_sd, "Field size in position not found"
+			if self.D == 6:
+				assert "velocity" in field_sd, "Field size in velocity not found"
+
+		if self.prior in ["King","EFF"]:
+			if self.prior == "KING" and self.parameters["rt"] is None:
 				assert self.hyper["gamma"] is not None, msg_gamma
+			if self.prior == "EFF" and self.parameters["gamma"] is None:
+				assert self.hyper["gamma"] is not None, msg_gamma
+		else:
+			self.hyper["gamma"] = None
 
 
 		if self.D == 1:
@@ -543,6 +590,7 @@ class Inference:
 								hyper_beta=self.hyper["beta"],
 								hyper_gamma=self.hyper["gamma"],
 								hyper_delta=self.hyper["delta"],
+								hyper_nu=self.hyper["nu"],
 								transformation=self.transformation,
 								parametrization=self.parametrization)
 
@@ -557,6 +605,8 @@ class Inference:
 								hyper_gamma=self.hyper["gamma"],
 								hyper_delta=self.hyper["delta"],
 								hyper_eta=self.hyper["eta"],
+								hyper_nu=self.hyper["nu"],
+								field_sd=field_sd,
 								transformation=self.transformation,
 								reference_system=self.reference_system,
 								parametrization=self.parametrization)
@@ -572,6 +622,8 @@ class Inference:
 								hyper_gamma=self.hyper["gamma"],
 								hyper_delta=self.hyper["delta"],
 								hyper_eta=self.hyper["eta"],
+								hyper_nu=self.hyper["nu"],
+								field_sd=field_sd,
 								transformation=self.transformation,
 								reference_system=self.reference_system,
 								parametrization=self.parametrization,
@@ -736,7 +788,8 @@ class Inference:
 											or ("gamma" in x)
 											or ("rt" in x)
 											or ("kappa" in x)
-											or ("omega" in x)),
+											or ("omega" in x)
+											or ("nu" in x)),
 											self.ds_posterior.data_vars))
 	
 		trace_variables = cluster_variables.copy()
@@ -754,18 +807,19 @@ class Inference:
 		tmp_stds  = cluster_variables.copy()
 		tmp_corr  = cluster_variables.copy()
 
-		if self.D in [3,6]:
-			for var in tmp_srces:
-				if "_pos" in var or "_vel" in var:
-					source_variables.remove(var)
+		for var in tmp_srces:
+			if "_pos" in var or "_vel" in var:
+				source_variables.remove(var)
 
-			for var in tmp_plots:
+		for var in tmp_plots:
+			if self.D in [3,6]:
 				if "scl" in var and "stds" not in var:
 					trace_variables.remove(var)
 				if "lnv" in var and "stds" not in var:
 					trace_variables.remove(var)
 
-			for var in tmp_stats:
+		for var in tmp_stats:
+			if self.D in [3,6]:
 				if "scl" in var:
 					if not ("stds" in var or "corr" in var or "unif" in var):
 						stats_variables.remove(var)
@@ -773,17 +827,17 @@ class Inference:
 					if not ("stds" in var or "corr" in var or "unif" in var):
 						stats_variables.remove(var)
 
-			for var in tmp_loc:
-				if "loc" not in var:
-					cluster_loc_var.remove(var)
+		for var in tmp_loc:
+			if "loc" not in var:
+				cluster_loc_var.remove(var)
 
-			for var in tmp_stds:
-				if "stds" not in var or "lnv" in var:
-					cluster_std_var.remove(var)
+		for var in tmp_stds:
+			if "stds" not in var or "lnv" in var:
+				cluster_std_var.remove(var)
 
-			for var in tmp_corr:
-				if "corr" not in var or "lnv" in var:
-					cluster_cor_var.remove(var)
+		for var in tmp_corr:
+			if "corr" not in var or "lnv" in var:
+				cluster_cor_var.remove(var)
 		#----------------------------------------------------
 
 		self.source_variables  = source_variables
@@ -901,15 +955,13 @@ class Inference:
 							ax[0].set_xlabel("$pc$")
 						if "vel" in title:
 							ax[0].set_xlabel("$km\\,s^{-1}$")
-						if "loc" in title and \
-							"0" in title or \
-							"1" in title or \
-							"2" in title:
+						if "loc_0" in title or \
+							"loc_1" in title or \
+							"loc_2" in title:
 							ax[0].set_xlabel("$pc$")
-						if "loc" in title and \
-							"3" in title or \
-							"4" in title or \
-							"5" in title:
+						if "loc_3" in title or \
+							"loc_4" in title or \
+							"loc_5" in title:
 							ax[0].set_xlabel("$km\\,s^{-1}$")
 					else:
 						ax[0].set_xlabel("mas")
@@ -938,11 +990,14 @@ class Inference:
 		#------------ Extract sources ---------------------------------------
 		srcs = np.array([data[var].values for var in self.source_variables])
 		#--------------------------------------------------------------------
+		
 
-		#------ Organize sources ---
+		#------ Organize sources ---------
 		srcs = srcs.squeeze(axis=0)
 		srcs = np.moveaxis(srcs,2,0)
-		#---------------------------
+		if self.D == 1:
+			srcs = np.expand_dims(srcs,3)
+		#----------------------------------
 
 		#------ Dimensions -----
 		n,nc,ns,nd = srcs.shape
@@ -987,26 +1042,21 @@ class Inference:
 			stds = np.array(self.parameters["stds"])
 			stds = stds[:,np.newaxis,np.newaxis,:]
 			stds = np.tile(stds,(1,nc,ns,1))
-
-		elif len(self.std_variables) == 1:
-			stds = np.array([data[var].values for var in self.std_variables])
-
-		elif len(self.std_variables) == 2:
-			for var in self.std_variables:
-				if "pos" in var:
-					stds_pos = np.array([data[var].values])
-				elif "vel" in var:
-					stds_vel = np.array([data[var].values])
-				else:
-					sys.exit("Neither pos nor vel in variables")
-			stds = np.zeros((
-						stds_pos.shape[0],
-						stds_pos.shape[1],
-						stds_pos.shape[2],6))
-			stds[:,:,:,:3] = stds_pos
-			stds[:,:,:,3:] = stds_vel
 		else:
-			sys.exit("Error in length of stds variables")
+			if any(["pos" in var or "vel" in var for var in self.std_variables]):
+				for var in self.std_variables:
+					if "pos" in var:
+						stds_pos = np.array([data[var].values])
+					if "vel" in var:
+						stds_vel = np.array([data[var].values])
+				stds = np.zeros((
+							stds_pos.shape[0],
+							stds_pos.shape[1],
+							stds_pos.shape[2],6))
+				stds[:,:,:,:3] = stds_pos
+				stds[:,:,:,3:] = stds_vel
+			else:
+				stds = np.array([data[var].values for var in self.std_variables])
 		#--------------------------------------------------------------------
 
 		#----------- Extract correlations -------------------------------
@@ -1014,25 +1064,23 @@ class Inference:
 			cors = np.array(self.parameters["corr"])
 			cors = cors[:,np.newaxis,np.newaxis,:]
 			cors = np.tile(cors,(1,nc,ns,1,1))
-
-		elif len(self.cor_variables) == 1:
-			cors = np.array([data[var].values for var in self.cor_variables])
-		elif len(self.cor_variables) == 2:
-			for var in self.cor_variables:
-				if "pos" in var:
-					cors_pos = np.array([data[var].values])
-				elif "vel" in var:
-					cors_vel = np.array([data[var].values])
-				else:
-					sys.exit("Neither pos nor vel in variables")
-			cors = np.zeros((
-						cors_pos.shape[0],
-						cors_pos.shape[1],
-						cors_pos.shape[2],6,6))
-			cors[:,:,:,:3,:3] = cors_pos
-			cors[:,:,:,3:,3:] = cors_vel
 		else:
-			sys.exit("Error in length of correlation variables")
+			if any(["pos" in var or "vel" in var for var in self.cor_variables]):
+				for var in self.cor_variables:
+					if "pos" in var:
+						cors_pos = np.array([data[var].values])
+					elif "vel" in var:
+						cors_vel = np.array([data[var].values])
+					else:
+						sys.exit("Neither pos nor vel in variables")
+				cors = np.zeros((
+							cors_pos.shape[0],
+							cors_pos.shape[1],
+							cors_pos.shape[2],6,6))
+				cors[:,:,:,:3,:3] = cors_pos
+				cors[:,:,:,3:,3:] = cors_vel
+			else:
+				cors = np.array([data[var].values for var in self.cor_variables])
 		#------------------------------------------------------------------
 
 		#--------- Reorder indices ----------------------
@@ -1624,22 +1672,23 @@ class Inference:
 		df_source.insert(loc=0,column="parameter",value=idx)
 		#---------------------------------------------------------------
 
-		#---------- Classify sources -------------------
-		if not hasattr(self,"df_groups"):
-			if self.ds_posterior.sizes["draw"] > 100:
-				n_samples = 100
-			else:
-				n_samples = self.ds_posterior.sizes["draw"]
-
-			#------- Extract GMM parameters ----------------------------------
-			pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
-										n_samples=n_samples,
-										chain=chain_gmm)
-			#-----------------------------------------------------------------
-			self._classify(pos_srcs,pos_amps,pos_locs,pos_covs)
-		#------------------------------------------------
-
 		if self.D in [3,6] :
+			#---------- Classify sources -------------------
+			if not hasattr(self,"df_groups"):
+				if self.ds_posterior.sizes["draw"] > 100:
+					n_samples = 100
+				else:
+					n_samples = self.ds_posterior.sizes["draw"]
+
+				#------- Extract GMM parameters ----------------------------------
+				pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
+											n_samples=n_samples,
+											chain=chain_gmm)
+				#-----------------------------------------------------------------
+				self._classify(pos_srcs,pos_amps,pos_locs,pos_covs)
+			#------------------------------------------------
+
+		
 			# ------ Parameters into columns ------------------------
 			dfs = []
 			for i in range(self.D):
@@ -1654,20 +1703,20 @@ class Inference:
 					how="inner",lsuffix="",rsuffix=self.suffixes[i])
 			#---------------------------------------------------------------------
 
-		#---------- Add group -----------------------------------
-		df_source = df_source.join(self.df_groups)
-		#----------------------------------------------
+			#---------- Add group -----------------------------------
+			df_source = df_source.join(self.df_groups)
+			#----------------------------------------------
 
-		#------ Add distance ---------------------------------------------------------
-		df_source["mode_distance"] = df_source[["mode_X","mode_Y","mode_Z"]].apply(
-			lambda x: distance(*x),axis=1)
+			#------ Add distance ---------------------------------------------------------
+			df_source["mode_distance"] = df_source[["mode_X","mode_Y","mode_Z"]].apply(
+				lambda x: distance(*x),axis=1)
 
-		df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
-			lambda x: distance(*x),axis=1)
+			df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
+				lambda x: distance(*x),axis=1)
 
-		df_source["median_distance"] = df_source[["median_X","median_Y","median_Z"]].apply(
-			lambda x: distance(*x),axis=1)
-		#----------------------------------------------------------------------------
+			df_source["median_distance"] = df_source[["median_X","median_Y","median_Z"]].apply(
+				lambda x: distance(*x),axis=1)
+			#----------------------------------------------------------------------------
 
 		#---------- Save source data frame ----------------------
 		df_source.to_csv(path_or_buf=source_csv,index_label=self.id_name)

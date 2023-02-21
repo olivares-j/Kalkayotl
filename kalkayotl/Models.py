@@ -36,13 +36,14 @@ class Model1D(Model):
 	'''
 	Model to infer the distance of a series of stars
 	'''
-	def __init__(self,mu_data,tau_data,
+	def __init__(self,n_sources,mu_data,tau_data,
 		prior="Gaussian",
 		parameters={"location":None,"scale": None},
 		hyper_alpha=[100,10],
 		hyper_beta=[10],
 		hyper_gamma=None,
 		hyper_delta=None,
+		hyper_nu=None,
 		transformation="mas",
 		parametrization="non-central",
 		name="1D", model=None):
@@ -105,6 +106,14 @@ class Model1D(Model):
 				pm.Normal("source",mu=self.loc,sd=self.scl,shape=n_sources)
 			else:
 				pm.Normal("offset",mu=0.0,sd=1.0,shape=n_sources)
+				pm.Deterministic("source",self.loc + self.scl*self.offset)
+
+		elif prior == "StudentT":
+			pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"])
+			if parametrization == "central":
+				pm.StudentT("source",nu=self.nu,mu=self.loc,sd=self.scl,shape=n_sources)
+			else:
+				pm.StudentT("offset",nu=self.nu,mu=0.0,sd=1.0,shape=n_sources)
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior == "GMM":
@@ -184,6 +193,8 @@ class Model3D(Model):
 		hyper_gamma=None,
 		hyper_delta=None,
 		hyper_eta=None,
+		hyper_nu=None,
+		field_sd=None,
 		transformation=None,
 		reference_system="ICRS",
 		parametrization="non-central",
@@ -286,6 +297,14 @@ class Model3D(Model):
 				sys.exit("Not yet implemented.")
 			#--------------------------------------------------------------
 		#----------------------------------------------------------------------------
+
+		#------------ Weights -----------------------------
+		if "GMM" in prior:
+			if parameters["weights"] is None:
+				weights = pm.Dirichlet("weights",a=hyper_delta)
+			else:
+				weights = parameters["weights"]
+		#---------------------------------------------------
 		#==============================================================================
 
 		#===================== True values ============================================		
@@ -294,6 +313,14 @@ class Model3D(Model):
 				pm.MvNormal("source",mu=loc,chol=chol,shape=(n_sources,3))
 			else:
 				pm.Normal("offset",mu=0,sigma=1,shape=(n_sources,3))
+				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
+
+		elif prior == "StudentT":
+			pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"])
+			if parametrization == "central":
+				pm.MvStudentT("source",nu=self.nu,mu=loc,chol=chol,shape=(n_sources,3))
+			else:
+				pm.StudentT("offset",nu=self.nu,mu=0,sigma=1,shape=(n_sources,3))
 				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
 		elif prior == "King":
@@ -323,12 +350,18 @@ class Model3D(Model):
 				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
 
 		elif prior in ["GMM","CGMM"]:
-			pm.Dirichlet("weights",a=hyper_delta)
-
 			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_components)]
 
 			#---- Sample from the mixture ----------------------------------
-			pm.Mixture("source",w=self.weights,comp_dists=comps,shape=(n_sources,3))
+			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,3))
+
+		elif prior == "FGMM":
+			chol_field = np.diag(np.repeat(field_sd["position"],3))
+
+			comps = [pm.MvNormal.dist(mu=loc,chol=chol),pm.MvNormal.dist(mu=loc,chol=chol_field)]
+
+			#---- Sample from the mixture ----------------------------------
+			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,3))
 		
 		else:
 			sys.exit("The specified prior is not supported")
@@ -361,6 +394,8 @@ class Model6D(Model):
 		hyper_eta=None,
 		hyper_kappa=None,
 		hyper_omega=None,
+		hyper_nu=None,
+		field_sd=None,
 		transformation=None,
 		reference_system="ICRS",
 		parametrization="non-central",
@@ -443,13 +478,6 @@ class Model6D(Model):
 						choli = np.linalg.cholesky(parameters["scale"][i])
 						chol = tt.set_subtensor(chol[i],choli)
 				#--------------------------------------------------------------------
-
-				#------------ Weights -----------------------------
-				if parameters["weights"] is None:
-					weights = pm.Dirichlet("weights",a=hyper_delta)
-				else:
-					weights = parameters["weights"]
-				#---------------------------------------------------
 			#---------------------------------------------------------------------------------
 
 			#-------------- Non-mixture prior families ----------------------------------
@@ -476,6 +504,14 @@ class Model6D(Model):
 					chol = np.linalg.cholesky(parameters["scale"])
 				#--------------------------------------------------------------
 			#----------------------------------------------------------------------------
+
+			#------------ Weights -----------------------------
+			if "GMM" in prior:
+				if parameters["weights"] is None:
+					weights = pm.Dirichlet("weights",a=hyper_delta)
+				else:
+					weights = parameters["weights"]
+			#---------------------------------------------------
 			#==============================================================================
 
 			#===================== True values ============================================		
@@ -486,8 +522,27 @@ class Model6D(Model):
 					offset = pm.Normal("offset",mu=0,sigma=1,shape=(n_sources,6))
 					source = pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(offset,chol))
 
+			elif prior == "StudentT":
+				nu = pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"])
+				if parametrization == "central":
+					source = pm.MvStudentT("source",nu=nu,mu=loc,chol=chol,shape=(n_sources,6))
+				else:
+					offset = pm.StudentT("offset",nu=nu,mu=0,sigma=1,shape=(n_sources,6))
+					source = pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
+
 			elif prior in ["GMM","CGMM"]:
 				comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_components)]
+
+				#---- Sample from the mixture ----------------------------------
+				source = pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,6))
+
+			elif prior == "FGMM":
+				chol_field = np.diag(np.concatenate([
+					np.repeat(field_sd["position"],3),
+					np.repeat(field_sd["velocity"],3)]
+					))
+
+				comps = [pm.MvNormal.dist(mu=loc,chol=chol),pm.MvNormal.dist(mu=loc,chol=chol_field)]
 
 				#---- Sample from the mixture ----------------------------------
 				source = pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,6))
@@ -585,13 +640,6 @@ class Model6D(Model):
 						chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
 						chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
 				#--------------------------------------------------------------------
-
-				#------------ Weights -----------------------------
-				if parameters["weights"] is None:
-					weights = pm.Dirichlet("weights",a=hyper_delta)
-				else:
-					weights = parameters["weights"]
-				#---------------------------------------------------
 			#---------------------------------------------------------------------------------
 
 			#-------------- Non-mixture prior families ----------------------------------
@@ -656,9 +704,37 @@ class Model6D(Model):
 					source_vel = pm.Deterministic("source_vel",
 									loc_vel + tt.nlinalg.matrix_dot(tau_vel,chol_vel))
 
+			elif prior == "StudentT":
+				nu = pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"],shape=2)
+				if parametrization == "central":
+					source_pos = pm.MvStudentT("source_pos",nu=nu[0],mu=loc_pos,chol=chol_vel,shape=(n_sources,3))
+					source_vel = pm.MvStudentT("source_vel",nu=nu[1],mu=loc_vel,chol=chol_vel,shape=(n_sources,3))
+				else:
+					tau_pos = pm.StudentT("tau_pos",nu=nu[0],mu=0,sigma=1,shape=(n_sources,3))
+					tau_vel = pm.StudentT("tau_vel",nu=nu[1],mu=0,sigma=1,shape=(n_sources,3))
+
+					source_pos = pm.Deterministic("source_pos",
+									loc_pos + tt.nlinalg.matrix_dot(tau_pos,chol_pos))
+					source_vel = pm.Deterministic("source_vel",
+									loc_vel + tt.nlinalg.matrix_dot(tau_vel,chol_vel))
+
 			elif prior in ["GMM","CGMM"]:
-				comps_pos = [pm.MvNormal.dist(mu=loc_vel[i],chol=chol_vel[i]) for i in range(n_components)]
+				comps_pos = [pm.MvNormal.dist(mu=loc_pos[i],chol=chol_pos[i]) for i in range(n_components)]
 				comps_vel = [pm.MvNormal.dist(mu=loc_vel[i],chol=chol_vel[i]) for i in range(n_components)]
+
+				#---- Sample from the mixture ----------------------------------
+				source_pos = pm.Mixture("source_pos",w=weights,comp_dists=comps_pos,shape=(n_sources,3))
+				source_vel = pm.Mixture("source_vel",w=weights,comp_dists=comps_vel,shape=(n_sources,3))
+
+			elif prior == "FGMM":
+				chol_field_pos = np.diag(np.repeat(field_sd["position"],3))
+				chol_field_vel = np.diag(np.repeat(field_sd["velocity"],3))
+
+				comps_pos = [pm.MvNormal.dist(mu=loc_pos,chol=chol_pos),
+							pm.MvNormal.dist(mu=loc_pos,chol=chol_field_pos)]
+
+				comps_vel = [pm.MvNormal.dist(mu=loc_vel,chol=chol_vel),
+							pm.MvNormal.dist(mu=loc_vel,chol=chol_field_vel)]
 
 				#---- Sample from the mixture ----------------------------------
 				source_pos = pm.Mixture("source_pos",w=weights,comp_dists=comps_pos,shape=(n_sources,3))

@@ -16,7 +16,7 @@ This file is part of Kalkayotl.
 	You should have received a copy of the GNU General Public License
 	along with Kalkayotl.  If not, see <http://www.gnu.org/licenses/>.
 '''
-
+#Afeter integrating the EFF kernel with r2dr -> (r^3 Hypergeometric2F1[3/2, g, 5/2, -r^2])/3
 import sys
 import numpy as np
 import pandas as pd
