@@ -27,6 +27,8 @@ import h5py
 import scipy.stats as st
 from scipy.linalg import inv as inverse
 from string import ascii_uppercase
+from astropy.stats import circmean
+from astropy import units as u
 
 #---------------- Matplotlib -------------------------------------
 import matplotlib
@@ -161,9 +163,12 @@ class Inference:
 						thresh=len(self.names_nan))
 		#----------------------------------------------
 
-		#--------- Mean values ---------------------------------
-		self.mean_astrometry = data[self.names_mu].mean().values
-		#-------------------------------------------------------
+		#--------- Mean values ---------------------------------------
+		mean_observed = data[self.names_mu].mean()
+		if "ra" in self.names_mu:
+			mean_observed["ra"] = circmean(data["ra"]*u.deg).to(u.deg)
+		self.mean_observed = mean_observed.values
+		#-------------------------------------------------------------
 
 		#----- Track ID -------------
 		self.ID = data.index.values
@@ -360,7 +365,7 @@ class Inference:
 				#------------------------ Cluster mean value ------------------------
 				if self.D == 1:
 					#---------- Mean distance ------------
-					d = 1000./self.mean_astrometry[0]
+					d = 1000./self.mean_observed[0]
 					#------------------------------------
 
 					#---------- Dispersion -----------------
@@ -374,7 +379,7 @@ class Inference:
 				elif self.D == 3:
 					#------------ Cluster mean coordinates -------------------
 					x,y,z,_,_,_ = astrometry_and_rv_to_phase_space(np.append(
-									self.mean_astrometry,[0.0,0.0,0.0])[np.newaxis,:],
+									self.mean_observed,[0.0,0.0,0.0])[np.newaxis,:],
 									reference_system=self.reference_system).flatten()
 					#----------------------------------------------------------
 
@@ -391,7 +396,7 @@ class Inference:
 				elif self.D == 6:
 					#------------ Cluster mean coordinates -------------------
 					x,y,z,u,v,w = astrometry_and_rv_to_phase_space(
-									self.mean_astrometry[np.newaxis,:],
+									self.mean_observed[np.newaxis,:],
 									reference_system=self.reference_system).flatten()
 					#----------------------------------------------------------
 
