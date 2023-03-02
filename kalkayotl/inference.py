@@ -166,7 +166,7 @@ class Inference:
 		#--------- Mean values ---------------------------------------
 		mean_observed = data[self.names_mu].mean()
 		if "ra" in self.names_mu:
-			mean_observed["ra"] = circmean(data["ra"]*u.deg).to(u.deg)
+			mean_observed["ra"] = circmean(np.array(data["ra"])*u.deg).to(u.deg).value
 		self.mean_observed = mean_observed.values
 		#-------------------------------------------------------------
 

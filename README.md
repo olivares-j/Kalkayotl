@@ -22,7 +22,7 @@ You can do this by Anaconda with the following command:
 
 **Linux users**
 ```
-conda create -n kalkayotl -c conda-forge python=3.9 pymc3 matplotlib arviz h5py scipy
+conda create -n kalkayotl -c conda-forge python==3.9.13 pymc3==3.11.5 h5py==3.7.0 arviz==0.13.0 astropy==5.2.1 pandas==1.5.3
 ```
 **Mac OS users**
 ```

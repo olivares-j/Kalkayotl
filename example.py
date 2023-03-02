@@ -32,10 +32,10 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Blanco1/"
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members+rvs.csv"
+file_data = dir_base + "members_Meingast+2021_GDR3.csv"
 file_parameters = None
 #----------------------------------------------------------------------------
 
@@ -124,21 +124,21 @@ indep_measures = False
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	{"type":"Gaussian",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
-							"eta":None
-							},
-		"field_sd":None,
-		"parametrization":"central",
-		"velocity_model":"independent",
-		"optimize":True},
+	# {"type":"Gaussian",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None
+	# 						},
+	# 	"field_sd":None,
+	# 	"parametrization":"central",
+	# 	"velocity_model":"independent",
+	# 	"optimize":True},
 	# {"type":"StudentT",
 	# 	"dimension":dimension,
 	# 	"zero_point":zero_point[:dimension],
@@ -170,23 +170,24 @@ list_of_prior = [
 	# 	"parametrization":"central",
 	#   "velocity_model":"independent",
 	# 	"optimize":True},
-	# {"type":"CGMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(2,2),
-	# 						"eta":1.0,
-	# 						"n_components":2
-	# 						},
-	# 	"parametrization":"central",
-	#   "velocity_model":"independent",
-	# 	"optimize":True},
+	{"type":"CGMM",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],        
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"gamma":None,
+							"delta":np.repeat(2,2),
+							"eta":None,
+							"n_components":2
+							},
+		"field_sd":None,
+		"parametrization":"central",
+		"velocity_model":"joint",
+		"optimize":True},
 
 	# {"type":"GMM",
 	# 	"dimension":dimension,
@@ -234,6 +235,7 @@ for prior in list_of_prior:
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
 	p3d.load_data(file_data)
+	sys.exit()
 
 	#------ Prepares the model -------------------
 	p3d.setup(prior=prior["type"],
