@@ -73,8 +73,8 @@ class Evidence1D():
 
 		#================ Hyper-prior =====================================
 		if prior is "GGD": 
-			hp_alpha = st.uniform(loc=0.0,scale=1e10) #alpha > 0
-			hp_beta = st.uniform(loc=-1.0,scale=1e10) #beta > -1
+			hp_alpha = st.uniform(loc=0.0,scale=100) #alpha > 0
+			hp_beta = st.uniform(loc=-1.0,scale=100) #beta > -1
 		else:
 			hp_loc = st.norm(loc=hyper_alpha[0],scale=hyper_alpha[1])
 		hp_scl = st.gamma(a=2.0,scale=hyper_beta[0]/2.0)
