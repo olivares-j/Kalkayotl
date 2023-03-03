@@ -646,14 +646,8 @@ class Inference:
 		chains=None,cores=None,
 		step=None,
 		file_chains=None,
-		optimize=True,
-		opt_args={
-				"trials":1,
-				"iterations":1000000,
-				"tolerance":1e-2,
-				"tolerance_type":"relative",
-				"plot":True
-				},
+		init_method="advi+adapt_diag",
+		init_iters=int(1e6),
 		prior_predictive=False,
 		posterior_predictive=False,
 		progressbar=True,
@@ -667,59 +661,11 @@ class Inference:
 
 		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
 
-		#-------------- ADVI+ADAPT_DIAG ----------------------------------------------------------
-		if optimize:
-			print("Using advi+adapt_diag to optimize the initial solution ...")
-			trials = []
-			min_trials = []
-
-			for i in range(opt_args["trials"]):
-				print("Trial {0}".format(i+1))
-				approx = pm.fit(
-					random_seed=None,
-					n=opt_args["iterations"],
-					method="advi",
-					model=self.Model,
-					callbacks=[pm.callbacks.CheckParametersConvergence(
-								tolerance=opt_args["tolerance"], 
-								diff=opt_args["tolerance_type"])],
-					progressbar=True,
-					obj_optimizer=pm.adagrad_window)
-				trials.append(approx)
-				min_trials.append(np.min(approx.hist))
-
-			#-------- Best one -----------------
-			best = trials[np.argmin(min_trials)]
-			#-----------------------------------
-			
-			#------------- Plot trials ----------------------------------
-			if opt_args["plot"]:
-				plt.figure()
-				for i,app in enumerate(trials):
-					plt.plot(app.hist,label="Trial {0}".format(i+1))
-				plt.plot(best.hist,label="Best one")
-				plt.legend()
-				plt.xlabel("Iterations")
-				plt.ylabel("Average Loss")
-				plt.savefig(self.dir_out+"/Initializations.png")
-				plt.close()
-			#-----------------------------------------------------------
-
-			#----------- Mean field approximation ------------------------------------
-			start = best.sample(draws=chains)
-			start = list(start)
-			stds = best.bij.rmap(best.std.eval())
-			cov = self.Model.dict_to_array(stds) ** 2
-			mean = best.bij.rmap(best.mean.get_value())
-			mean = self.Model.dict_to_array(mean)
-			weight = 50
-			potential = pm.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
-												self.Model.ndim, mean, cov, weight)
-			step = pm.NUTS(potential=potential, model=self.Model, **kwargs)
-			#------------------------------------------------------------------------
-		else:
-			start = None
-			step = None
+		#----------------------- ADVI+ADAPT_DIAG ------------------------------
+		print("Finding initial solution ...")
+		initvals,step = pm.init_nuts(init=init_method, chains=chains, 
+									n_init=init_iters, model=self.Model)
+		#---------------------------------------------------------------------
 
 		print("Sampling the model ...")
 
@@ -733,7 +679,7 @@ class Inference:
 
 			#---------- Posterior -----------------------
 			trace = pm.sample(draws=sample_iters,
-							start=start,
+							initvals=initvals,
 							step=step,
 							tune=tuning_iters,
 							chains=chains, cores=cores,
