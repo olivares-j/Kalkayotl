@@ -32,7 +32,7 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/pymc4/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/pymc5/"
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
@@ -50,7 +50,7 @@ dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
-chains = 1
+chains = 2
 
 # Number of computer cores to be used. You can increase it to run faster.
 # IMPORTANT. Depending on your computer configuration you may have different performances.
@@ -120,6 +120,8 @@ indep_measures = False
 # "constant": models the velocity as expanding or contracting field
 # "linear": models the velocity field as a linear function of position.
 #----------------------------------------------------------------------------------------
+
+nuts_backend = "numpyro"
 #=========================================================================================
 
 #========================= PRIORS ===========================================
@@ -215,12 +217,13 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_blackjax".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}".format(
 		dimension,
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
-		prior["velocity_model"])
+		prior["velocity_model"],
+		nuts_backend)
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -254,7 +257,8 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			optimize=prior["optimize"],
 			chains=chains,
-			cores=cores)
+			cores=cores,
+			nuts_backend=nuts_backend)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
