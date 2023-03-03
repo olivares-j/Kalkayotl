@@ -1,7 +1,7 @@
 import sys
 import numpy as np
-import theano
-from theano import tensor as tt
+import aesara
+from aesara import tensor as tt
 
 '''
 The following transformation have been taken from pygaia (https://github.com/agabrown/PyGaia)

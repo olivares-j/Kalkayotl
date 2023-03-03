@@ -32,10 +32,10 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Blanco1/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/pymc4/"
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members_Meingast+2021_GDR3.csv"
+file_data = dir_base + "members+rvs.csv"
 file_parameters = None
 #----------------------------------------------------------------------------
 
@@ -124,21 +124,21 @@ indep_measures = False
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":None
-	# 						},
-	# 	"field_sd":None,
-	# 	"parametrization":"central",
-	# 	"velocity_model":"independent",
-	# 	"optimize":True},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None,
+							"gamma":None,
+							"delta":None,
+							"eta":None
+							},
+		"field_sd":None,
+		"parametrization":"central",
+		"velocity_model":"joint",
+		"optimize":True},
 	# {"type":"StudentT",
 	# 	"dimension":dimension,
 	# 	"zero_point":zero_point[:dimension],
@@ -151,9 +151,10 @@ list_of_prior = [
 	# 						"eta":None,
 	# 						"nu":None,
 	# 						},
+	# 	"field_sd":None,
 	# 	"parametrization":"central",
-	#   "velocity_model":"independent",
-	# 	"optimize":True},
+	# 	"velocity_model":"joint",
+	# 	"optimize":False},
 	# {"type":"FGMM",
 	# 	"dimension":dimension,
 	# 	"zero_point":zero_point[:dimension],        
@@ -168,26 +169,26 @@ list_of_prior = [
 	# 						},
 	# 	"field_sd":{"position":50.0,"velocity":10.0},
 	# 	"parametrization":"central",
-	#   "velocity_model":"independent",
-	# 	"optimize":True},
-	{"type":"CGMM",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],        
-		"parameters":{"location":None,
-					  "scale":None,
-					  "weights":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None, 
-							"gamma":None,
-							"delta":np.repeat(2,2),
-							"eta":None,
-							"n_components":2
-							},
-		"field_sd":None,
-		"parametrization":"central",
-		"velocity_model":"joint",
-		"optimize":True},
+	# 	"velocity_model":"joint",
+	# 	"optimize":False},
+	# {"type":"CGMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],        
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"gamma":None,
+	# 						"delta":np.repeat(2,2),
+	# 						"eta":None,
+	# 						"n_components":2
+	# 						},
+	# 	"field_sd":None,
+	# 	"parametrization":"central",
+	# 	"velocity_model":"joint",
+	# 	"optimize":False},
 
 	# {"type":"GMM",
 	# 	"dimension":dimension,
@@ -203,9 +204,10 @@ list_of_prior = [
 	# 						"eta":None,
 	# 						"n_components":2
 	# 						},
+	# 	"field_sd":None,
 	# 	"parametrization":"central",
-	#   "velocity_model":"independent",
-	# 	"optimize":True}
+	# 	"velocity_model":"joint",
+	# 	"optimize":False}
 	]
 #======================= Inference and Analysis =====================================================
 
@@ -213,7 +215,7 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_blackjax".format(
 		dimension,
 		prior["type"],
 		reference_system,
@@ -235,7 +237,6 @@ for prior in list_of_prior:
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
 	p3d.load_data(file_data)
-	sys.exit()
 
 	#------ Prepares the model -------------------
 	p3d.setup(prior=prior["type"],

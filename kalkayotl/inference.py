@@ -19,7 +19,7 @@ This file is part of Kalkayotl.
 from __future__ import absolute_import, unicode_literals, print_function
 import sys
 import random
-import pymc3 as pm
+import pymc as pm
 import numpy as np
 import pandas as pn
 import arviz as az
@@ -48,6 +48,7 @@ from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovarianceP
 # from kalkayotl.Evidence import Evidence1D
 from kalkayotl.Transformations import astrometry_and_rv_to_phase_space
 #------------------------------------------------------------------------
+import pymc.sampling_jax
 
 class Inference:
 	"""
@@ -669,92 +670,103 @@ class Inference:
 
 		#-------------- ADVI+ADAPT_DIAG ----------------------------------------------------------
 		if optimize:
-			print("Using advi+adapt_diag to optimize the initial solution ...")
-			trials = []
-			min_trials = []
+			initvals,step = pm.init_nuts(init="advi+adapt_diag",chains=chains,n_init=int(1e3),model=self.Model)
+			print(initvals)
+			# print("Using advi+adapt_diag to optimize the initial solution ...")
+			# trials = []
+			# min_trials = []
 
-			for i in range(opt_args["trials"]):
-				print("Trial {0}".format(i+1))
-				approx = pm.fit(
-					random_seed=None,
-					n=opt_args["iterations"],
-					method="advi",
-					model=self.Model,
-					callbacks=[pm.callbacks.CheckParametersConvergence(
-								tolerance=opt_args["tolerance"], 
-								diff=opt_args["tolerance_type"])],
-					progressbar=True,
-					obj_optimizer=pm.adagrad_window)
-				trials.append(approx)
-				min_trials.append(np.min(approx.hist))
+			# for i in range(opt_args["trials"]):
+			# 	print("Trial {0}".format(i+1))
+			# 	approx = pm.fit(
+			# 		random_seed=None,
+			# 		n=opt_args["iterations"],
+			# 		method="advi",
+			# 		model=self.Model,
+			# 		callbacks=[pm.callbacks.CheckParametersConvergence(
+			# 					tolerance=opt_args["tolerance"], 
+			# 					diff=opt_args["tolerance_type"])],
+			# 		progressbar=True,
+			# 		obj_optimizer=pm.adagrad_window)
+			# 	trials.append(approx)
+			# 	min_trials.append(np.min(approx.hist))
 
-			#-------- Best one -----------------
-			best = trials[np.argmin(min_trials)]
-			#-----------------------------------
+			# #-------- Best one -----------------
+			# best = trials[np.argmin(min_trials)]
+			# #-----------------------------------
 			
-			#------------- Plot trials ----------------------------------
-			if opt_args["plot"]:
-				plt.figure()
-				for i,app in enumerate(trials):
-					plt.plot(app.hist,label="Trial {0}".format(i+1))
-				plt.plot(best.hist,label="Best one")
-				plt.legend()
-				plt.xlabel("Iterations")
-				plt.ylabel("Average Loss")
-				plt.savefig(self.dir_out+"/Initializations.png")
-				plt.close()
-			#-----------------------------------------------------------
+			# #------------- Plot trials ----------------------------------
+			# if opt_args["plot"]:
+			# 	plt.figure()
+			# 	for i,app in enumerate(trials):
+			# 		plt.plot(app.hist,label="Trial {0}".format(i+1))
+			# 	plt.plot(best.hist,label="Best one")
+			# 	plt.legend()
+			# 	plt.xlabel("Iterations")
+			# 	plt.ylabel("Average Loss")
+			# 	plt.savefig(self.dir_out+"/Initializations.png")
+			# 	plt.close()
+			# #-----------------------------------------------------------
 
-			#----------- Mean field approximation ------------------------------------
-			start = best.sample(draws=chains)
-			start = list(start)
-			stds = best.bij.rmap(best.std.eval())
-			cov = self.Model.dict_to_array(stds) ** 2
-			mean = best.bij.rmap(best.mean.get_value())
-			mean = self.Model.dict_to_array(mean)
-			weight = 50
-			potential = pm.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
-												self.Model.ndim, mean, cov, weight)
-			step = pm.NUTS(potential=potential, model=self.Model, **kwargs)
-			#------------------------------------------------------------------------
+			# #----------- Mean field approximation ------------------------------------
+			# start = best.sample(draws=chains)
+			# start = list(start)
+			# stds = best.bij.rmap(best.std.eval())
+			# cov = self.Model.dict_to_array(stds) ** 2
+			# mean = best.bij.rmap(best.mean.get_value())
+			# mean = self.Model.dict_to_array(mean)
+			# weight = 50
+			# potential = pm.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
+			# 									self.Model.ndim, mean, cov, weight)
+			# step = pm.NUTS(potential=potential, model=self.Model, **kwargs)
+			# #------------------------------------------------------------------------
 		else:
-			start = None
-			step = None
+			initvals = None
 
 		print("Sampling the model ...")
 
 		with self.Model:
-			#-------- Prior predictive ----------------------------------
-			if prior_predictive:
-				prior = pm.sample_prior_predictive(samples=sample_iters) #Fails for MvNorm
-			else:
-				prior = None
-			#-------------------------------------------------------------
+			# #-------- Prior predictive ----------------------------------
+			# if prior_predictive:
+			# 	prior = pm.sample_prior_predictive(samples=sample_iters) #Fails for MvNorm
+			# else:
+			# 	prior = None
+			# #-------------------------------------------------------------
 
 			#---------- Posterior -----------------------
 			trace = pm.sample(draws=sample_iters,
-							start=start,
+							initvals=initvals,
 							step=step,
 							tune=tuning_iters,
 							chains=chains, cores=cores,
 							progressbar=progressbar,
 							discard_tuned_samples=True,
-							return_inferencedata=False)
+							return_inferencedata=True)
+			# trace = pm.sampling_jax.sample_numpyro_nuts(
+			# 				draws=sample_iters,
+			# 				initvals=start,
+			# 				tune=tuning_iters,
+			# 				chains=chains)
+			# trace = pm.sampling_jax.sample_blackjax_nuts(
+			# 				draws=sample_iters,
+			# 				initvals=initvals,
+			# 				tune=tuning_iters,
+			# 				chains=chains)
 			#-----------------------------------------------
 
-			#-------- Posterior predictive -----------------------------
-			if posterior_predictive:
-				predictive = pm.sample_posterior_predictive(trace)
-			else:
-				predictive = None
-			#--------------------------------------------------------
+			# #-------- Posterior predictive -----------------------------
+			# if posterior_predictive:
+			# 	predictive = pm.sample_posterior_predictive(trace)
+			# else:
+			# 	predictive = None
+			# #--------------------------------------------------------
 
 			#--------- Save with arviz ------------
-			pm_data = az.from_pymc3(
-						trace=trace,
-						prior=prior,
-						posterior_predictive=predictive)
-			az.to_netcdf(pm_data,file_chains)
+			# pm_data = az.from_pymc3(
+			# 			trace=trace,
+			# 			prior=prior,
+			# 			posterior_predictive=predictive)
+			az.to_netcdf(trace,file_chains)
 			#-------------------------------------
 
 
@@ -1090,8 +1102,8 @@ class Inference:
 
 		#--------- Reorder indices ----------------------
 		if self.prior in ["GMM","CGMM"]:
-			if str(self.D)+"D_weights" in self.cluster_variables:
-				amps = np.array(data[str(self.D)+"D_weights"].values)
+			if str(self.D)+"D::weights" in self.cluster_variables:
+				amps = np.array(data[str(self.D)+"D::weights"].values)
 				amps = np.moveaxis(amps,2,0)
 			else:
 				amps = np.array(self.parameters["weights"])
@@ -1174,7 +1186,7 @@ class Inference:
 						log_lk[i,j,k] = st.multivariate_normal(mean=loc,cov=cov,
 											allow_singular=True).logpdf(dt)
 
-			grps = st.mode(log_lk.argmax(axis=2),axis=1)[0].flatten()
+			grps = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
 
 		else:
 			grps = np.zeros(len(self.ID))
@@ -1786,7 +1798,7 @@ class Inference:
 
 			#------ Loop over source parameters ---
 			for i,name in enumerate(IDs):
-				data = sources_trace[{str(self.D)+"D_source_dim_0" : i}].values
+				data = sources_trace[{str(self.D)+"D::source_dim_0" : i}].values
 				if merge:
 					data = data.reshape((data.shape[0],-1))
 				grp_src.create_dataset(name, data=data)

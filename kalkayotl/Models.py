@@ -18,16 +18,16 @@ This file is part of Kalkayotl.
 '''
 import sys
 import numpy as np
-import pymc3 as pm
-from pymc3 import Model
-import theano
-from theano import tensor as tt, printing
+import pymc as pm
+from pymc import Model
+import aesara
+from aesara import tensor as tt, printing
 
 from kalkayotl.Transformations import Iden,pc2mas # 1D
 from kalkayotl.Transformations import icrs_xyz_to_radecplx,galactic_xyz_to_radecplx #3D
 from kalkayotl.Transformations import icrs_xyzuvw_to_astrometry_and_rv
 from kalkayotl.Transformations import galactic_xyzuvw_to_astrometry_and_rv #6D
-from kalkayotl.Priors import EDSD,MvEFF #,EFF,King,MvEFF,MvKing
+#from kalkayotl.Priors import EDSD,MvEFF #,EFF,King,MvEFF,MvKing
 
 PRINT = printing.Print('Theano shape: ', attrs=['shape'])
 
@@ -225,8 +225,8 @@ class Model3D(Model):
 			#------------- Shapes -------------------------
 			n_components = len(hyper_delta)
 
-			loc  = theano.shared(np.zeros((n_components,3)))
-			chol = theano.shared(np.zeros((n_components,3,3)))
+			loc  = aesara.shared(np.zeros((n_components,3)))
+			chol = aesara.shared(np.zeros((n_components,3,3)))
 			#----------------------------------------------
 
 			#----------- Locations ------------------------------------------
@@ -430,8 +430,8 @@ class Model6D(Model):
 				#------------- Shapes -------------------------
 				n_components = len(hyper_delta)
 
-				loc  = theano.shared(np.zeros((n_components,6)))
-				chol = theano.shared(np.zeros((n_components,6,6)))
+				loc  = aesara.shared(np.zeros((n_components,6)))
+				chol = aesara.shared(np.zeros((n_components,6,6)))
 				#----------------------------------------------
 
 				#----------- Locations ------------------------------------------
@@ -562,10 +562,10 @@ class Model6D(Model):
 				#------------- Shapes -------------------------
 				n_components = len(hyper_delta)
 
-				loc_pos  = theano.shared(np.zeros((n_components,3)))
-				loc_vel  = theano.shared(np.zeros((n_components,3)))
-				chol_pos = theano.shared(np.zeros((n_components,3,3)))
-				chol_vel = theano.shared(np.zeros((n_components,3,3)))
+				loc_pos  = aesara.shared(np.zeros((n_components,3)))
+				loc_vel  = aesara.shared(np.zeros((n_components,3)))
+				chol_pos = aesara.shared(np.zeros((n_components,3,3)))
+				chol_vel = aesara.shared(np.zeros((n_components,3,3)))
 				#----------------------------------------------
 
 				#----------- Locations ------------------------------------------
@@ -757,10 +757,10 @@ class Model6D(Model):
 				#------------- Shapes -------------------------
 				n_components = len(hyper_delta)
 
-				loc_pos  = theano.shared(np.zeros((n_components,3)))
-				loc_vel  = theano.shared(np.zeros((n_components,3)))
-				chol_pos = theano.shared(np.zeros((n_components,3,3)))
-				chol_vel = theano.shared(np.zeros((n_components,3,3)))
+				loc_pos  = aesara.shared(np.zeros((n_components,3)))
+				loc_vel  = aesara.shared(np.zeros((n_components,3)))
+				chol_pos = aesara.shared(np.zeros((n_components,3,3)))
+				chol_vel = aesara.shared(np.zeros((n_components,3,3)))
 				#----------------------------------------------
 
 				#----------- Locations ------------------------------------------
