@@ -121,7 +121,7 @@ indep_measures = False
 # "linear": models the velocity field as a linear function of position.
 #----------------------------------------------------------------------------------------
 
-nuts_backend = "numpyro"
+nuts_sampler = "numpyro"
 #=========================================================================================
 
 #========================= PRIORS ===========================================
@@ -139,8 +139,7 @@ list_of_prior = [
 							},
 		"field_sd":None,
 		"parametrization":"central",
-		"velocity_model":"joint",
-		"optimize":True},
+		"velocity_model":"joint"},
 	# {"type":"StudentT",
 	# 	"dimension":dimension,
 	# 	"zero_point":zero_point[:dimension],
@@ -223,7 +222,7 @@ for prior in list_of_prior:
 		reference_system,
 		prior["parametrization"],
 		prior["velocity_model"],
-		nuts_backend)
+		nuts_sampler)
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -255,10 +254,9 @@ for prior in list_of_prior:
 	p3d.run(sample_iters=sample_iters,
 			tuning_iters=tuning_iters,
 			target_accept=target_accept,
-			optimize=prior["optimize"],
 			chains=chains,
 			cores=cores,
-			nuts_backend=nuts_backend)
+			nuts_sampler=nuts_sampler)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------

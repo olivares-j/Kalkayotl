@@ -648,7 +648,7 @@ class Inference:
 		prior_predictive=False,
 		posterior_predictive=False,
 		progressbar=True,
-		nuts_backend="pymc",
+		nuts_sampler="pymc",
 		*args,**kwargs):
 		"""
 		Performs the MCMC run.
@@ -658,9 +658,6 @@ class Inference:
 		"""
 
 		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
-
-		initvals,step = pm.init_nuts(init=init_method, chains=chains, 
-									n_init=init_iters, model=self.Model)
 
 		print("Sampling the model ...")
 
@@ -673,29 +670,16 @@ class Inference:
 			# #-------------------------------------------------------------
 
 			#---------- Posterior -----------------------
-			if nuts_backend == "pymc":
-				trace = pm.sample(draws=sample_iters,
-								initvals=initvals,
-								step=step,
+	
+			trace = pm.sample(draws=sample_iters,
+								init=init_method,
+								n_init=init_iters,
+								nuts_sampler=nuts_sampler,
 								tune=tuning_iters,
 								chains=chains, cores=cores,
 								progressbar=progressbar,
 								discard_tuned_samples=True,
 								return_inferencedata=True)
-			elif nuts_backend == "numpyro":
-				trace = pm.sampling_jax.sample_numpyro_nuts(
-								draws=sample_iters,
-								initvals=initvals,
-								tune=tuning_iters,
-								chains=chains)
-			elif nuts_backend == "blackjax":
-				trace = pm.sampling_jax.sample_blackjax_nuts(
-								draws=sample_iters,
-								initvals=initvals,
-								tune=tuning_iters,
-								chains=chains)
-			else:
-				sys.exit("Backend {0} not recognized".format(nuts_backend))
 			#-----------------------------------------------
 
 			# #-------- Posterior predictive -----------------------------
