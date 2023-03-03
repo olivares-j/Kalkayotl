@@ -722,6 +722,7 @@ class Inference:
 			# #------------------------------------------------------------------------
 		else:
 			initvals = None
+			step = None
 
 		print("Sampling the model ...")
 

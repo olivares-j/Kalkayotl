@@ -20,8 +20,8 @@ import sys
 import numpy as np
 import pymc as pm
 from pymc import Model
-import aesara
-from aesara import tensor as tt, printing
+import pytensor
+from pytensor import tensor as tt, printing
 
 from kalkayotl.Transformations import Iden,pc2mas # 1D
 from kalkayotl.Transformations import icrs_xyz_to_radecplx,galactic_xyz_to_radecplx #3D

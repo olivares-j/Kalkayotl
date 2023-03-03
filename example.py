@@ -50,7 +50,7 @@ dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
-chains = 2
+chains = 1
 
 # Number of computer cores to be used. You can increase it to run faster.
 # IMPORTANT. Depending on your computer configuration you may have different performances.
