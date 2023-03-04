@@ -58,9 +58,10 @@ class Model1D(Model):
 			shape = len(hyper_delta)
 
 		#------------------------ Location ----------------------------------
-		if parameters["location"] is None:
+		if (parameters["location"] is None) & (prior is not "GGD"):
 			pm.Normal("loc",mu=hyper_alpha[0],sigma=hyper_alpha[1],shape=shape)
-
+		elif prior is "GGD": # ignore loc for GGD
+			pass
 		else:
 			self.loc = parameters["location"]
 
@@ -138,9 +139,8 @@ class Model1D(Model):
 		elif prior is "EDSD":
 			EDSD("source",scale=self.scl,shape=self.N)
 		elif prior is "GGD":
-			alpha = pm.HalfFlat('alpha',testval=1.0)
-			betap1 = pm.HalfFlat('beta_plus_1', testval=2.0)
-			beta = pm.Deterministic('beta', betap1-1.0)
+			alpha = pm.Uniform('alpha',lower=0, upper=100, testval=1.0)
+			beta = pm.Uniform('beta', lower=-1, upper=99, testval=2.0)
 			GGD("source",scale=self.scl,alpha=alpha,beta=beta,shape=self.N)
 		else:
 			sys.exit("The specified prior is not implemented")

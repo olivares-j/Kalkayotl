@@ -72,7 +72,11 @@ class Evidence1D():
 
 
 		#================ Hyper-prior =====================================
-		hp_loc = st.norm(loc=hyper_alpha[0],scale=hyper_alpha[1])
+		if prior is "GGD": 
+			hp_alpha = st.uniform(loc=0.0,scale=100) #alpha > 0
+			hp_beta = st.uniform(loc=-1.0,scale=100) #beta > -1
+		else:
+			hp_loc = st.norm(loc=hyper_alpha[0],scale=hyper_alpha[1])
 		hp_scl = st.gamma(a=2.0,scale=hyper_beta[0]/2.0)
 		#========================================================================
 
@@ -241,7 +245,24 @@ class Evidence1D():
 					x[0] = hp_loc.ppf(u[0])
 					x[1] = hp_scl.ppf(u[1])
 					return x
+                
+		elif prior is "GGD":
+			self.D = 3
+			self.names = ["scl","alpha","beta"]
 
+			def prior_sample(theta):
+				a = (theta[2] + 1)/theta[1] #beta+1/alpha
+				c = theta[1]               
+				result = st.gengamma.rvs(a=a,c=c,scale=theta[0],loc=0.0,size=self.M)
+				return result
+
+			def hp_transform(u):
+				x = np.zeros_like(u)
+				x[0] = hp_scl.ppf(u[0])
+				x[1] = hp_alpha.ppf(u[1])
+				x[2] = hp_beta.ppf(u[1])
+				return x
+            
 		else:
 			sys.exit("The specified prior is not supported. Check spelling.")
 
