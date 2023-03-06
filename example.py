@@ -32,7 +32,7 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/pymc5/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
@@ -46,7 +46,7 @@ os.makedirs(dir_base,exist_ok=True)
 
 
 #=============== Tuning knobs ============================
-dimension = 6
+dimension = 3
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -121,7 +121,7 @@ indep_measures = False
 # "linear": models the velocity field as a linear function of position.
 #----------------------------------------------------------------------------------------
 
-nuts_sampler = "numpyro"
+nuts_sampler = "blackjax"
 #=========================================================================================
 
 #========================= PRIORS ===========================================
@@ -207,8 +207,7 @@ list_of_prior = [
 	# 						},
 	# 	"field_sd":None,
 	# 	"parametrization":"central",
-	# 	"velocity_model":"joint",
-	# 	"optimize":False}
+	# 	"velocity_model":"joint"}
 	]
 #======================= Inference and Analysis =====================================================
 

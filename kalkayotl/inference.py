@@ -50,6 +50,8 @@ from kalkayotl.Transformations import astrometry_and_rv_to_phase_space
 #------------------------------------------------------------------------
 import pymc.sampling_jax
 
+import pytensor.tensor as at
+
 class Inference:
 	"""
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
@@ -644,11 +646,13 @@ class Inference:
 		step=None,
 		file_chains=None,
 		init_method="advi+adapt_diag",
-		init_iters=int(1e3),
+		init_iters=int(1e6),
 		prior_predictive=False,
 		posterior_predictive=False,
 		progressbar=True,
 		nuts_sampler="pymc",
+		absolute_tol=1e-3,
+		relative_tol=1e-3,
 		*args,**kwargs):
 		"""
 		Performs the MCMC run.
@@ -658,6 +662,27 @@ class Inference:
 		"""
 
 		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
+
+		#------------------ Get optimized initial values ---------------------
+		initvals,step = pm.init_nuts(init=init_method, chains=chains,
+									absolute_tol=absolute_tol,
+									relative_tol=relative_tol,
+									n_init=init_iters, model=self.Model)
+		#--------------------------------------------------------------------
+
+		#-------- Fix problem with initial solution of cholesky cov-packed ----------
+		name_ccp = "_cholesky-cov-packed__" 
+		for vals in initvals:
+			for key,value in vals.copy().items():
+				if name_ccp in key:
+					# name_scl = key.replace(name_ccp,"")
+					# chol = pm.expand_packed_triangular(n=self.D,packed=value).eval()
+					# cov = chol.dot(chol.T)
+					# vals[name_scl] = cov
+					# vals["scl"] = cov
+					del vals[key]
+		# TO BE REMOVED once pymc5 solves this issue
+		#----------------------------------------------------------------------------
 
 		print("Sampling the model ...")
 
@@ -672,8 +697,8 @@ class Inference:
 			#---------- Posterior -----------------------
 	
 			trace = pm.sample(draws=sample_iters,
-								init=init_method,
-								n_init=init_iters,
+								initvals=initvals,
+								step=step,
 								nuts_sampler=nuts_sampler,
 								tune=tuning_iters,
 								chains=chains, cores=cores,
