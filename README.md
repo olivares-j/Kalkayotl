@@ -22,11 +22,15 @@ You can do this by Anaconda with the following command:
 
 **Linux users**
 ```
-conda create -n kalkayotl -c conda-forge python==3.9.13 pymc3==3.11.5 h5py==3.7.0 arviz==0.13.0 astropy==5.2.1 pandas==1.5.3
+conda create -n kalkayotl -c conda-forge python==3.11 pymc==5.1.0 h5py==3.8 arviz==0.14 astropy==5.2.1 pandas==1.5.3
+
+conda install jaxlib=*=*cuda* jax cuda-nvcc -c conda-forge -c nvidia
+
+conda install -c conda-forge blackjax numpyro
 ```
 **Mac OS users**
 ```
-conda create -n kalkayotl -c conda-forge clang=4.0.1 python=3.6.10 pymc3=3.7 matplotlib=3.1.3 dynesty=1.0.0 arviz=0.5.1
+conda create -n kalkayotl -c conda-forge clang=4.0.1 python=3.6.10 pymc3=3.8 matplotlib=3.1.3 dynesty=1.0.0 arviz=0.5.1
 ```
 Note: PyMC3 may have problems to run in old operative systems (e.g. MAC OS < 10.14)
 
