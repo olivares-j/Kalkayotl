@@ -46,7 +46,7 @@ os.makedirs(dir_base,exist_ok=True)
 
 
 #=============== Tuning knobs ============================
-dimension = 3
+dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
