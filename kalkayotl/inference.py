@@ -646,7 +646,7 @@ class Inference:
 		step=None,
 		file_chains=None,
 		init_method="advi+adapt_diag",
-		init_iters=int(1e6),
+		init_iters=int(1e5),
 		prior_predictive=False,
 		posterior_predictive=False,
 		progressbar=True,
