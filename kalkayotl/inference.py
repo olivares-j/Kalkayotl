@@ -1726,6 +1726,7 @@ class Inference:
 		Saves the chain samples to an h5 file.
 		Arguments:
 		dir_csv (string) Directory where to save the samples
+		merge:: True # Merge chains into single dimension
 		'''
 		print("Saving samples ...")
 
@@ -1736,7 +1737,7 @@ class Inference:
 		#------ Open h5 file -------------------
 		file_h5 = self.dir_out + "/Samples.h5"
 
-		sources_trace = self.ds_posterior[self.source_variables].to_array().T
+		sources_trace = self.ds_posterior[self.source_variables].to_array()
 
 		with h5py.File(file_h5,'w') as hf:
 			grp_glb = hf.create_group("Cluster")
@@ -1744,16 +1745,16 @@ class Inference:
 
 			#------ Loop over global parameters ---
 			for name in self.cluster_variables:
-				data = np.array(self.ds_posterior[name]).T
+				data = np.array(self.ds_posterior[name])
 				if merge:
-					data = data.reshape((data.shape[0],-1))
+					data = data.reshape((data.shape[0]*data.shape[1],-1))
 				grp_glb.create_dataset(name, data=data)
 
 			#------ Loop over source parameters ---
 			for i,name in enumerate(IDs):
 				data = sources_trace[{str(self.D)+"D::source_dim_0" : i}].values
 				if merge:
-					data = data.reshape((data.shape[0],-1))
+					data = data.reshape((-1,self.D))
 				grp_src.create_dataset(name, data=data)
 
 
