@@ -693,7 +693,7 @@ class Inference:
 			trace = pm.sample(
 				draws=sample_iters,
 				initvals=initvals,
-				step=step,
+				# step=step,
 				target_accept=target_accept,
 				nuts_sampler=nuts_sampler,
 				tune=tuning_iters,

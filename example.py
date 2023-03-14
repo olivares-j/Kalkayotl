@@ -126,20 +126,20 @@ nuts_sampler = "numpyro"
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":None
-	# 						},
-	# 	"field_sd":None,
-	# 	"parametrization":"central",
-	# 	"velocity_model":"joint"},
+	{"type":"Gaussian",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None,
+							"gamma":None,
+							"delta":None,
+							"eta":None
+							},
+		"field_sd":None,
+		"parametrization":"central",
+		"velocity_model":"joint"},
 	# {"type":"StudentT",
 	# 	"dimension":dimension,
 	# 	"zero_point":zero_point[:dimension],
@@ -191,23 +191,23 @@ list_of_prior = [
 	# 	"velocity_model":"joint",
 	# 	"optimize":False},
 
-	{"type":"GMM",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],        
-		"parameters":{"location":file_parameters,
-					  "scale":file_parameters,
-					  "weights":file_parameters},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None, 
-							"gamma":None,
-							"delta":np.repeat(1,2),
-							"eta":None,
-							"n_components":2
-							},
-		"field_sd":None,
-		"parametrization":"central",
-		"velocity_model":"joint"}
+	# {"type":"GMM",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],        
+	# 	"parameters":{"location":file_parameters,
+	# 				  "scale":file_parameters,
+	# 				  "weights":file_parameters},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"gamma":None,
+	# 						"delta":np.repeat(1,2),
+	# 						"eta":None,
+	# 						"n_components":2
+	# 						},
+	# 	"field_sd":None,
+	# 	"parametrization":"central",
+	# 	"velocity_model":"joint"}
 	]
 #======================= Inference and Analysis =====================================================
 
@@ -271,8 +271,13 @@ for prior in list_of_prior:
 	# of the provided sources. If IDs keyword removed only plots the population parameters.
 	p3d.plot_chains()
 
-	#------- Plot model ----------------
+	#--- Check the prior against the posterior ----
+	p3d.plot_prior_check()
+	#----------------------------------------------
+
+	#--- Plot model -- 
 	p3d.plot_model()
+	#-----------------
 
 	#----- Compute and save the posterior statistics ---------
 	p3d.save_statistics(hdi_prob=hdi_prob)
