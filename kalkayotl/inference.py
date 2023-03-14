@@ -361,7 +361,7 @@ class Inference:
 				print("The alpha hyper-parameter has been set to:")
 
 				#-- Cluster dispersion ----
-				uvw_sd = 10.
+				uvw_sd = 5.
 				xyz_fc = 0.2
 				#-------------------------
 
@@ -463,7 +463,7 @@ class Inference:
 		#============================= Scale ===========================================================
 		if self.parameters["scale"] is None:
 			if self.hyper["beta"] is None:
-				self.hyper["beta"] = 10.0
+				self.hyper["beta"] = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
 				print("The beta hyper-parameter has been set to:")
 				print(self.hyper["beta"])
 		else:
@@ -642,18 +642,18 @@ class Inference:
 		print((30+13)*"+")
 
 	def run(self,sample_iters,tuning_iters,
+		target_accept=0.8,
 		chains=None,cores=None,
 		step=None,
 		file_chains=None,
 		init_method="advi+adapt_diag",
 		init_iters=int(5e5),
-		prior_predictive=False,
+		prior_predictive=True,
 		posterior_predictive=False,
 		progressbar=True,
 		nuts_sampler="pymc",
 		absolute_tol=1e-3,
-		relative_tol=1e-3,
-		*args,**kwargs):
+		relative_tol=1e-3):
 		"""
 		Performs the MCMC run.
 		Arguments:
@@ -669,6 +669,7 @@ class Inference:
 									relative_tol=relative_tol,
 									n_init=init_iters, model=self.Model)
 		#--------------------------------------------------------------------
+		
 
 		#-------- Fix problem with initial solution of cholesky cov-packed ----------
 		name_ccp = "_cholesky-cov-packed__" 
@@ -687,38 +688,35 @@ class Inference:
 		print("Sampling the model ...")
 
 		with self.Model:
-			# #-------- Prior predictive ----------------------------------
-			# if prior_predictive:
-			# 	prior = pm.sample_prior_predictive(samples=sample_iters) #Fails for MvNorm
-			# else:
-			# 	prior = None
-			# #-------------------------------------------------------------
 
 			#---------- Posterior -----------------------
-	
-			trace = pm.sample(draws=sample_iters,
-								initvals=initvals,
-								step=step,
-								nuts_sampler=nuts_sampler,
-								tune=tuning_iters,
-								chains=chains, cores=cores,
-								progressbar=progressbar,
-								discard_tuned_samples=True,
-								return_inferencedata=True)
+			trace = pm.sample(
+				draws=sample_iters,
+				initvals=initvals,
+				step=step,
+				target_accept=target_accept,
+				nuts_sampler=nuts_sampler,
+				tune=tuning_iters,
+				chains=chains, cores=cores,
+				progressbar=progressbar,
+				discard_tuned_samples=True,
+				return_inferencedata=True)
 			#-----------------------------------------------
 
-			# #-------- Posterior predictive -----------------------------
-			# if posterior_predictive:
-			# 	predictive = pm.sample_posterior_predictive(trace)
-			# else:
-			# 	predictive = None
-			# #--------------------------------------------------------
+			#-------- Prior predictive ----------------------------------
+			if prior_predictive:
+				prior_pred = pm.sample_prior_predictive(
+							samples=sample_iters*chains)
+				trace.extend(prior_pred)
+			#-------------------------------------------------------------
+
+			#-------- Posterior predictive -----------------------------
+			if posterior_predictive:
+				posterior_pred = pm.sample_posterior_predictive(trace)
+				trace.extend(posterior_pred)
+			#--------------------------------------------------------
 
 			#--------- Save with arviz ------------
-			# pm_data = az.from_pymc3(
-			# 			trace=trace,
-			# 			prior=prior,
-			# 			posterior_predictive=predictive)
 			az.to_netcdf(trace,file_chains)
 			#-------------------------------------
 
@@ -808,6 +806,7 @@ class Inference:
 		for var in tmp_corr:
 			if "corr" not in var or "lnv" in var:
 				cluster_cor_var.remove(var)
+
 		#----------------------------------------------------
 
 		self.source_variables  = source_variables
@@ -817,6 +816,7 @@ class Inference:
 		self.loc_variables     = cluster_loc_var
 		self.std_variables     = cluster_std_var
 		self.cor_variables     = cluster_cor_var
+		self.chk_variables     = sum([cluster_loc_var,cluster_std_var],[])
 
 		# print(self.source_variables)
 		# print(self.cluster_variables)
@@ -825,6 +825,7 @@ class Inference:
 		# print(self.loc_variables    )
 		# print(self.std_variables     )
 		# print(self.cor_variables     )
+		# print(self.chk_variables)
 		# sys.exit()
 
 	def convergence(self):
@@ -946,6 +947,28 @@ class Inference:
 			pdf.savefig(bbox_inches='tight')
 			plt.close(1)
 
+		pdf.close()
+
+	def plot_prior_check(self,
+		file_plots=None,
+		file_chains=None,
+		figsize=None,
+		):
+		"""
+		This function plots the prior and posterior distributions.
+		"""
+
+		print("Plotting checks ...")
+		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
+		file_plots = self.dir_out+"/Prior_check.pdf" if (file_plots is None) else file_plots
+
+		trace = az.from_netcdf(file_chains)
+		pdf = PdfPages(filename=file_plots)
+		for var in self.chk_variables:
+			plt.figure(0,figsize=figsize)
+			az.plot_dist_comparison(trace,var_names=var)
+			pdf.savefig(bbox_inches='tight')
+			plt.close(0)
 		pdf.close()
 
 	def _extract(self,group="posterior",n_samples=None,chain=None):
@@ -1364,7 +1387,12 @@ class Inference:
 			#-------------------------------------------------
 
 			#------------ Normalizations ------------------------
-			norm_pos = TwoSlopeNorm(vcenter=0,
+			if nvr.min() > 0:
+				vcenter = 0.5*(nvr.max()-nvr.min())
+			else:
+				vcenter = 0.0
+
+			norm_pos = TwoSlopeNorm(vcenter=vcenter,
 								vmin=nvr.min(),vmax=nvr.max())
 			norm_vel = Normalize(vmin=nrs.min(),vmax=nrs.max())
 			#----------------------------------------------------
