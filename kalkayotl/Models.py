@@ -85,7 +85,7 @@ class Model1D(Model):
 
 		#------------------------ Scale ---------------------------------------
 		if parameters["scale"] is None:
-			pm.Gamma("scl",alpha=2.0,beta=2.0/hyper_beta,shape=shape)
+			pm.Gamma("scl",alpha=2.0,beta=hyper_beta,shape=shape)
 		else:
 			self.scl = parameters["scale"]
 		#========================================================================
@@ -261,7 +261,7 @@ class Model3D(Model):
 					choli, corri, stdsi = pm.LKJCholeskyCov("scl_{0}".format(i), 
 										n=3, eta=hyper_eta, 
 										sd_dist=pm.Gamma.dist(
-										alpha=2.0,beta=1.0/hyper_beta),
+										alpha=2.0,beta=hyper_beta),
 										compute_corr=True)
 				
 					chol = tt.set_subtensor(chol[i],choli)
@@ -289,7 +289,7 @@ class Model3D(Model):
 			#---------- Covariance matrix ------------------------------------
 			if parameters["scale"] is None:
 				chol, corr, stds = pm.LKJCholeskyCov("scl", n=3, eta=hyper_eta, 
-						sd_dist=pm.Gamma.dist(alpha=2.0,beta=1.0/hyper_beta),
+						sd_dist=pm.Gamma.dist(alpha=2.0,beta=hyper_beta),
 						compute_corr=True)
 			else:
 				sys.exit("Not yet implemented.")
@@ -466,7 +466,7 @@ class Model6D(Model):
 						choli, corri, stdsi = pm.LKJCholeskyCov("scl_{0}".format(i), 
 											n=6, eta=hyper_eta, 
 											sd_dist=pm.Gamma.dist(
-											alpha=2.0,beta=1.0/hyper_beta),
+											alpha=2.0,beta=hyper_beta),
 											compute_corr=True)
 					
 						chol = tt.set_subtensor(chol[i],choli)
@@ -496,7 +496,7 @@ class Model6D(Model):
 				#---------- Covariance matrix ------------------------------------
 				if parameters["scale"] is None:
 					chol, corr, stds = pm.LKJCholeskyCov("scl", n=6, eta=hyper_eta, 
-							sd_dist=pm.Gamma.dist(alpha=2.0,beta=1.0/hyper_beta),
+							sd_dist=pm.Gamma.dist(alpha=2.0,beta=hyper_beta),
 							compute_corr=True)
 				else:
 					chol = np.linalg.cholesky(parameters["scale"])
@@ -616,7 +616,7 @@ class Model6D(Model):
 											"scl_pos_{0}".format(i), 
 											n=3, eta=hyper_eta, 
 											sd_dist=pm.Gamma.dist(
-											alpha=2.0,beta=1.0/hyper_beta),
+											alpha=2.0,beta=hyper_beta),
 											compute_corr=True)
 					
 						chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
@@ -625,8 +625,7 @@ class Model6D(Model):
 											"scl_vel_{0}".format(i), 
 											n=3, eta=hyper_eta, 
 											sd_dist=pm.Gamma.dist(
-												alpha=2.0,
-												beta=1.0/hyper_beta),
+											alpha=2.0,beta=hyper_beta),
 											compute_corr=True)
 					
 						chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
@@ -668,8 +667,7 @@ class Model6D(Model):
 										n=3, 
 										eta=hyper_eta, 
 										sd_dist=pm.Gamma.dist(
-											alpha=2.0,
-											beta=1.0/hyper_beta),
+											alpha=2.0,beta=hyper_beta),
 										compute_corr=True)
 
 					chol_vel, corr_vel, stds_vel = pm.LKJCholeskyCov(
@@ -677,8 +675,7 @@ class Model6D(Model):
 										n=3, 
 										eta=hyper_eta, 
 										sd_dist=pm.Gamma.dist(
-											alpha=2.0,
-											beta=1.0/hyper_beta),
+											alpha=2.0,beta=hyper_beta),
 										compute_corr=True)
 
 				else:
@@ -811,7 +808,7 @@ class Model6D(Model):
 											"scl_pos_{0}".format(i), 
 											n=3, eta=hyper_eta, 
 											sd_dist=pm.Gamma.dist(
-											alpha=2.0,beta=1.0/hyper_beta),
+											alpha=2.0,beta=hyper_beta),
 											compute_corr=True)
 					
 						chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
@@ -821,7 +818,7 @@ class Model6D(Model):
 											n=3, eta=hyper_eta, 
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
-												beta=1.0/hyper_beta),
+												beta=hyper_beta),
 											compute_corr=True)
 					
 						chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
@@ -871,7 +868,7 @@ class Model6D(Model):
 										eta=hyper_eta, 
 										sd_dist=pm.Gamma.dist(
 											alpha=2.0,
-											beta=1.0/hyper_beta),
+											beta=hyper_beta),
 										compute_corr=True)
 
 					chol_vel, corr_vel, stds_vel = pm.LKJCholeskyCov(
@@ -880,7 +877,7 @@ class Model6D(Model):
 										eta=hyper_eta, 
 										sd_dist=pm.Gamma.dist(
 											alpha=2.0,
-											beta=1.0/hyper_beta),
+											beta=hyper_beta),
 										compute_corr=True)
 
 				else:
