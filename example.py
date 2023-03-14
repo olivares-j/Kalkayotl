@@ -50,12 +50,12 @@ dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
-chains = 2
+chains = 4
 
 # Number of computer cores to be used. You can increase it to run faster.
 # IMPORTANT. Depending on your computer configuration you may have different performances.
 # I recommend to use 2 cores; this is one per chain.
-cores  = 2
+cores  = 4
 
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
@@ -65,7 +65,7 @@ tuning_iters = 3000
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 3000
+sample_iters = 1000
 
 
 #----- Target_accept-------
@@ -121,25 +121,25 @@ indep_measures = False
 # "linear": models the velocity field as a linear function of position.
 #----------------------------------------------------------------------------------------
 
-nuts_sampler = "blackjax"
+nuts_sampler = "numpyro"
 #=========================================================================================
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	{"type":"Gaussian",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
-							"eta":None
-							},
-		"field_sd":None,
-		"parametrization":"central",
-		"velocity_model":"joint"},
+	# {"type":"Gaussian",
+	# 	"dimension":dimension,
+	# 	"zero_point":zero_point[:dimension],
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None
+	# 						},
+	# 	"field_sd":None,
+	# 	"parametrization":"central",
+	# 	"velocity_model":"joint"},
 	# {"type":"StudentT",
 	# 	"dimension":dimension,
 	# 	"zero_point":zero_point[:dimension],
@@ -191,23 +191,23 @@ list_of_prior = [
 	# 	"velocity_model":"joint",
 	# 	"optimize":False},
 
-	# {"type":"GMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
-	# 	"parameters":{"location":file_parameters,
-	# 				  "scale":file_parameters,
-	# 				  "weights":file_parameters},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(1,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"field_sd":None,
-	# 	"parametrization":"central",
-	# 	"velocity_model":"joint"}
+	{"type":"GMM",
+		"dimension":dimension,
+		"zero_point":zero_point[:dimension],        
+		"parameters":{"location":file_parameters,
+					  "scale":file_parameters,
+					  "weights":file_parameters},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"gamma":None,
+							"delta":np.repeat(1,2),
+							"eta":None,
+							"n_components":2
+							},
+		"field_sd":None,
+		"parametrization":"central",
+		"velocity_model":"joint"}
 	]
 #======================= Inference and Analysis =====================================================
 

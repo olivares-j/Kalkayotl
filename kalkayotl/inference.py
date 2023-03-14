@@ -1414,13 +1414,13 @@ class Inference:
 						fmt='none',
 						ecolor=source_kwargs["error_color"],
 						elinewidth=source_kwargs["error_lw"],
-						zorder=1)
+						zorder=2)
 			ax.scatter(x=srcs_loc[:,idx[0]],
 						y=srcs_loc[:,idx[1]],
 						c=srcs_clr_pos,
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
-						zorder=1)
+						zorder=2)
 
 			#-------- Posterior ----------------------------------------------------------
 			for mus,covs in zip(pos_locs,pos_covs):
@@ -1433,7 +1433,7 @@ class Inference:
 										fill=False,
 										linewidth=group_kwargs["linewidth"],
 										alpha=group_kwargs["alpha"],
-										zorder=2)
+										zorder=1)
 						ax.add_artist(ell)
 			#-----------------------------------------------------------------------------
 
@@ -1524,13 +1524,13 @@ class Inference:
 							fmt='none',
 							ecolor=source_kwargs["error_color"],
 							elinewidth=source_kwargs["error_lw"],
-							zorder=1)
+							zorder=2)
 				clr_vel = ax.scatter(x=srcs_loc[:,idx[0]],
 							y=srcs_loc[:,idx[1]],
 							c=srcs_clr_vel,
 							marker=source_kwargs["marker"],
 							s=source_kwargs["size"],
-							zorder=1)
+							zorder=2)
 
 				#-------- Posterior ----------------------------------------------------------
 				for mus,covs in zip(pos_locs,pos_covs):
@@ -1543,7 +1543,7 @@ class Inference:
 											fill=False,
 											linewidth=group_kwargs["linewidth"],
 											alpha=group_kwargs["alpha"],
-											zorder=2)
+											zorder=1)
 							ax.add_artist(ell)
 				#-----------------------------------------------------------------------------
 
