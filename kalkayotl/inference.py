@@ -52,6 +52,8 @@ import pymc.sampling_jax
 
 import pytensor.tensor as at
 
+from typing import cast
+
 class Inference:
 	"""
 	This class provides flexibility to infer the distance distribution given the parallax and its uncertainty
@@ -733,16 +735,24 @@ class Inference:
 			self.ID = pn.read_csv(self.file_ids).to_numpy().flatten()
 
 		print("Loading existing samples ... ")
-		#---------Load Trace ---------------------------------------------------
+
+		#---------Load posterior ---------------------------------------------------
 		try:
-			self.ds_posterior = az.from_netcdf(file_chains).posterior
+			self.trace = az.from_netcdf(file_chains)
+		except ValueError:
+			sys.exit("ERROR at loading {0}".format(file_chains))
+		#------------------------------------------------------------------------
+		
+		#---------Load posterior ---------------------------------------------------
+		try:
+			self.ds_posterior = self.trace.posterior
 		except ValueError:
 			sys.exit("There is no posterior group in {0}".format(file_chains))
 		#------------------------------------------------------------------------
 
 		#----------- Load prior -------------------------------------------------
 		try:
-			self.ds_prior = az.from_netcdf(file_chains).prior
+			self.ds_prior = self.trace.prior
 		except:
 			self.ds_prior = None
 		#-------------------------------------------------------------------------
@@ -1588,17 +1598,17 @@ class Inference:
 			#----------- Legend symbols ----------------------------------
 			if self.prior in ["GMM","CGMM"]:
 				source_mrkr = [mlines.Line2D([], [], marker=source_kwargs["marker"], 
-							  	color="w", 
-							  	markerfacecolor=cmap_vel(norm_vel(g)), 
-							  	markersize=5,
-							  	label=source_labels[g]) 
+								color="w", 
+								markerfacecolor=cmap_vel(norm_vel(g)), 
+								markersize=5,
+								label=source_labels[g]) 
 								for g in np.unique(groups)] 
 			else:
 				source_mrkr = [mlines.Line2D([], [], marker=source_kwargs["marker"], 
-							  	color="w", 
-							  	markerfacecolor=source_kwargs["color"], 
-							  	markersize=5,
-							  	label=source_kwargs["label"])]
+								color="w", 
+								markerfacecolor=source_kwargs["color"], 
+								markersize=5,
+								label=source_kwargs["label"])]
 			#---------------------------------------------------------------
 
 			#----------- Handles -------------------------------------------
@@ -1627,8 +1637,38 @@ class Inference:
 
 		pdf.close()
 
+	def _get_map(self,var_names):
+		#------------------------------------
+		labeller = az.labels.BaseLabeller()
+		metric_names = ["MAP"]
+		#------------------------------------
 
-	def save_statistics(self,hdi_prob=0.95,chain_gmm=[0]):
+		idx_map = np.unravel_index(np.argmax(
+			self.trace.sample_stats.lp.values),
+			shape=self.trace.sample_stats.lp.values.shape)
+		
+		data = az.extract(self.ds_posterior,var_names=var_names)
+		data_map = az.utils.get_coords(data,
+			{"chain":idx_map[0],"draw":idx_map[1]})
+		
+		joined = data_map.assign_coords(metric=metric_names).reset_coords(drop=True)
+		n_metrics = len(metric_names)
+		n_vars = np.sum([joined[var].size // n_metrics for var in joined.data_vars])
+
+		summary_df = pn.DataFrame(
+			(np.full((cast(int, n_vars), n_metrics), np.nan)), columns=metric_names
+		)
+		indices = []
+		for i, (var_name, sel, isel, values) in enumerate(
+			az.sel_utils.xarray_var_iter(joined, skip_dims={"metric"})
+		):
+			summary_df.iloc[i] = values
+			indices.append(labeller.make_label_flat(var_name, sel, isel))
+		summary_df.index = indices
+
+		return summary_df
+
+	def save_statistics(self,hdi_prob=0.95,chain_gmm=[0],stat_focus="mean"):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -1637,8 +1677,6 @@ class Inference:
 		print("Computing statistics ...")
 
 		#----------------------- Functions ---------------------------------
-		stat_funcs = {"median":lambda x:np.median(x),
-					  "mode":lambda x:my_mode(x)}
 		def distance(x,y,z):
 			return np.sqrt(x**2 + y**2 + z**2)
 		#---------------------------------------------------------------------
@@ -1653,15 +1691,22 @@ class Inference:
 		else:
 			data = self.ds_posterior
 		#------------------------------------------------------------
+		
+		#--------- Get MAP ------------------------------------------
+		df_map_grp = self._get_map(var_names=self.stats_variables)
+		df_map_src = self._get_map(var_names=[self.source_variables])
+		#-------------------------------------------------------------
 
-		#-------------- Source statistics ----------------------------------------------------
+		#-------------- Source statistics ----------------------------
 		source_csv = self.dir_out +"/Sources_statistics.csv"
 		df_source  = az.summary(data,var_names=self.source_variables,
-						stat_funcs=stat_funcs,
+						stat_focus = stat_focus,
 						hdi_prob=hdi_prob,
 						extend=True)
+		df_source = df_map_src.join(df_source)
+		#--------------------------------------------------------------
 
-		#------------- Replace parameter id by source ID--------------------
+		#------------- Replace parameter id by source ID----------------
 		n_sources = len(self.ID)
 		ID  = np.repeat(self.ID,self.D,axis=0)
 		idx = np.tile(np.arange(self.D),n_sources)
@@ -1706,13 +1751,10 @@ class Inference:
 			#----------------------------------------------
 
 			#------ Add distance ---------------------------------------------------------
-			df_source["mode_distance"] = df_source[["mode_X","mode_Y","mode_Z"]].apply(
+			df_source["MAP_distance"] = df_source[["MAP_X","MAP_Y","MAP_Z"]].apply(
 				lambda x: distance(*x),axis=1)
 
 			df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
-				lambda x: distance(*x),axis=1)
-
-			df_source["median_distance"] = df_source[["median_X","median_Y","median_Z"]].apply(
 				lambda x: distance(*x),axis=1)
 			#----------------------------------------------------------------------------
 
@@ -1721,13 +1763,14 @@ class Inference:
 
 		#-------------- Global statistics ----------------------------------
 		if len(self.cluster_variables) > 0:
-			global_csv = self.dir_out +"/Cluster_statistics.csv"
-			df_global = az.summary(data,var_names=self.stats_variables,
-							stat_funcs=stat_funcs,
+			grp_csv = self.dir_out +"/Cluster_statistics.csv"
+			df_grp = az.summary(data,var_names=self.stats_variables,
+							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
 							extend=True)
+			df_grp = df_map_grp.join(df_grp)
 
-			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
+			df_grp.to_csv(path_or_buf=grp_csv,index_label="Parameter")
 		#-------------------------------------------------------------------
 
 		#--------------- Velocity field ----------------------------------

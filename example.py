@@ -127,8 +127,6 @@ nuts_sampler = "numpyro"
 #========================= PRIORS ===========================================
 list_of_prior = [
 	{"type":"Gaussian",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],
 		"parameters":{"location":None,"scale":None},
 		"hyper_parameters":{
 							"alpha":None,
@@ -141,8 +139,6 @@ list_of_prior = [
 		"parametrization":"central",
 		"velocity_model":"joint"},
 	# {"type":"StudentT",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
 	# 	"parameters":{"location":None,"scale":None},
 	# 	"hyper_parameters":{
 	# 						"alpha":None,
@@ -156,9 +152,7 @@ list_of_prior = [
 	# 	"parametrization":"central",
 	# 	"velocity_model":"joint",
 	# 	"optimize":False},
-	# {"type":"FGMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
+	# {"type":"FGMM",      
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
 	# 				  "weights":None},
@@ -172,9 +166,7 @@ list_of_prior = [
 	# 	"parametrization":"central",
 	# 	"velocity_model":"joint",
 	# 	"optimize":False},
-	# {"type":"CGMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
+	# {"type":"CGMM",     
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
 	# 				  "weights":None},
@@ -191,9 +183,7 @@ list_of_prior = [
 	# 	"velocity_model":"joint",
 	# 	"optimize":False},
 
-	# {"type":"GMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
+	# {"type":"GMM",     
 	# 	"parameters":{"location":file_parameters,
 	# 				  "scale":file_parameters,
 	# 				  "weights":file_parameters},
@@ -229,9 +219,9 @@ for prior in list_of_prior:
 	#------------------------------------------------
 
 	#--------- Initialize the inference module -------
-	p3d = Inference(dimension=prior["dimension"],
+	p3d = Inference(dimension=dimension,
 					dir_out=dir_prior,
-					zero_point=prior["zero_point"],
+					zero_point=zero_point[:dimension],
 					indep_measures=indep_measures,
 					reference_system=reference_system)
 
