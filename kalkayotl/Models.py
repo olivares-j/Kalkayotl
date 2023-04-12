@@ -101,9 +101,9 @@ class Model1D(Model):
 
 		elif prior == "Gaussian":
 			if parametrization == "central":
-				pm.Normal("source",mu=self.loc,sd=self.scl,shape=n_sources)
+				pm.Normal("source",mu=self.loc,sigma=self.scl,shape=n_sources)
 			else:
-				pm.Normal("offset",mu=0.0,sd=1.0,shape=n_sources)
+				pm.Normal("offset",mu=0.0,sigma=1.0,shape=n_sources)
 				pm.Deterministic("source",self.loc + self.scl*self.offset)
 
 		elif prior == "StudentT":
@@ -169,9 +169,9 @@ class Model1D(Model):
 			sys.exit("The specified prior is not implemented")
 		#-----------------------------------------------------------------------------
 		#=======================================================================================
-		# print_ = tt.printing.Print("source")(self.source)
-		#----------------- Transformations ----------------------
-		true = Transformation(self.source)
+
+		#----------------- Transformations -------------------------
+		true = pm.Deterministic("true",Transformation(self.source))
 
 		#----------------------- Likelihood ----------------------------------------
 		pm.MvNormal('obs', mu=true, tau=tau_data,observed=mu_data)
@@ -183,7 +183,14 @@ class Model3D(Model):
 	'''
 	Model to infer the n_sources-dimensional parameter vector of a cluster
 	'''
-	def __init__(self,n_sources,mu_data,tau_data,
+	def __init__(self,
+		n_sources,
+		mu_data,
+		tau_data,
+		# radec_mu,
+		# radec_tau,
+		# plpms_mu,
+		# plpms_tau,
 		prior="Gaussian",
 		parameters={"location":None,"scale":None},
 		hyper_alpha=None,
@@ -196,8 +203,15 @@ class Model3D(Model):
 		transformation=None,
 		reference_system="ICRS",
 		parametrization="non-central",
-		name="3D", model=None):
+		name="3D", 
+		model=None,
+		identifiers=None,
+		coordinates=["X","Y","Z"],
+		observables=["ra","dec","parallax"]):
 		super().__init__(name, model)
+		self.add_coord("source_id",values=identifiers)
+		self.add_coord("coordinate",values=coordinates)
+		self.add_coord("observable",values=observables)
 
 		#------------------- Data ------------------------------------------------------
 		if n_sources == 0:
@@ -308,18 +322,28 @@ class Model3D(Model):
 		#===================== True values ============================================		
 		if prior == "Gaussian":
 			if parametrization == "central":
-				pm.MvNormal("source",mu=loc,chol=chol,shape=(n_sources,3))
+				pm.MvNormal("source",mu=loc,chol=chol,
+					shape=(n_sources,3),
+					dims=("source_id","coordinate"))
 			else:
-				pm.Normal("offset",mu=0,sigma=1,shape=(n_sources,3))
-				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
+				pm.Normal("offset",mu=0,sigma=1,
+					shape=(n_sources,3))
+				pm.Deterministic("source",
+					loc + tt.nlinalg.matrix_dot(self.offset,chol),
+					dims=("source_id","coordinate"))
 
 		elif prior == "StudentT":
 			pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"])
 			if parametrization == "central":
-				pm.MvStudentT("source",nu=self.nu,mu=loc,chol=chol,shape=(n_sources,3))
+				pm.MvStudentT("source",nu=self.nu,mu=loc,chol=chol,
+					shape=(n_sources,3),
+					dims=("source_id","coordinate"))
 			else:
-				pm.StudentT("offset",nu=self.nu,mu=0,sigma=1,shape=(n_sources,3))
-				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
+				pm.StudentT("offset",nu=self.nu,mu=0,sigma=1,
+					shape=(n_sources,3))
+				pm.Deterministic("source",
+					loc + tt.nlinalg.matrix_dot(self.offset,chol),
+					dims=("source_id","coordinate"))
 
 		elif prior == "King":
 			if parameters["rt"] is None:
@@ -329,10 +353,15 @@ class Model3D(Model):
 				self.rt = parameters["rt"]
 
 			if parametrization == "central":
-				MvKing("source",location=loc,chol=chol,rt=self.rt,shape=(n_sources,3))
+				MvKing("source",location=loc,chol=chol,rt=self.rt,
+					shape=(n_sources,3),
+					dims=("source_id","coordinate"))
 			else:
-				MvKing("offset",location=np.zeros(3),chol=np.eye(3),rt=self.rt,shape=(n_sources,3))
-				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
+				MvKing("offset",location=np.zeros(3),chol=np.eye(3),rt=self.rt,
+					shape=(n_sources,3))
+				pm.Deterministic("source",
+					loc + tt.nlinalg.matrix_dot(self.offset,chol),
+					dims=("source_id","coordinate"))
 
 		elif prior == "EFF":
 			if parameters["gamma"] is None:
@@ -342,16 +371,22 @@ class Model3D(Model):
 				self.gamma = parameters["gamma"]
 
 			if parametrization == "central":
-				MvEFF("source",location=loc,chol=chol,gamma=self.gamma,shape=(n_sources,3))
+				MvEFF("source",location=loc,chol=chol,gamma=self.gamma,
+					shape=(n_sources,3),
+					dims=("source_id","coordinate"))
 			else:
-				MvEFF("offset",location=np.zeros(3),chol=np.eye(3),gamma=self.gamma,shape=(n_sources,3))
-				pm.Deterministic("source",loc + tt.nlinalg.matrix_dot(self.offset,chol))
+				MvEFF("offset",location=np.zeros(3),chol=np.eye(3),gamma=self.gamma,
+					shape=(n_sources,3))
+				pm.Deterministic("source",
+					loc + tt.nlinalg.matrix_dot(self.offset,chol),
+					dims=("source_id","coordinate"))
 
 		elif prior in ["GMM","CGMM"]:
 			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_components)]
 
 			#---- Sample from the mixture ----------------------------------
-			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,3))
+			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,3),
+					dims=("source_id","coordinate"))
 
 		elif prior == "FGMM":
 			chol_field = np.diag(np.repeat(field_sd["position"],3))
@@ -359,23 +394,27 @@ class Model3D(Model):
 			comps = [pm.MvNormal.dist(mu=loc,chol=chol),pm.MvNormal.dist(mu=loc,chol=chol_field)]
 
 			#---- Sample from the mixture ----------------------------------
-			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,3))
+			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,3),
+					dims=("source_id","coordinate"))
 		
 		else:
 			sys.exit("The specified prior is not supported")
 		#=================================================================================
 
-		#----------------------- Transformation---------------------------------------
-		transformed = Transformation(self.source)
-		#-----------------------------------------------------------------------------
-
-		#------------ Flatten --------------------------------------------------------
-		true = pm.math.flatten(transformed)
-		#----------------------------------------------------------------------------
+		#----------------------- Transformation-----------------------
+		true = pm.Deterministic("true",Transformation(self.source),
+					dims=("source_id","observable"))
+		#-------------------------------------------------------------
 
 		#----------------------- Likelihood ----------------------------------------
-		pm.MvNormal('obs', mu=true, tau=tau_data,observed=mu_data)
-		#------------------------------------------------------------------------------
+		pm.MvNormal('obs', mu=pm.math.flatten(true), tau=tau_data,observed=mu_data)
+		#---------------------------------------------------------------------------
+
+		#---------------------- Likelihood -------------------------------------------
+		# pm.Normal('ra_obs', mu=true[:,0], tau=radec_tau[:,0],observed=radec_mu[:,0])
+		# pm.Normal('dec_obs',mu=true[:,1], tau=radec_tau[:,1],observed=radec_mu[:,1])
+		# pm.Normal('plx_obs',mu=true[:,2], tau=plpms_tau,observed=plpms_mu)
+		# #---------------------------------------------------------------------------
 
 ############################ 6D Model ###########################################################
 class Model6D(Model):
@@ -938,14 +977,13 @@ class Model6D(Model):
 
 
 		#----------------------- Transformation---------------------------------------
-		transformed = Transformation(source)
+		true = pm.Deterministic("true",Transformation(source))
 		#-----------------------------------------------------------------------------
 
 		#------------ Flatten --------------------------------------------------------
-		true = pm.math.flatten(transformed)
+		true_flat = pm.math.flatten(true)
 		#----------------------------------------------------------------------------
 
-		#----------------------- Likelihood ----------------------------------------
-		# Select only those observed e.g., true[idx_obs]
-		pm.MvNormal('obs', mu=true[idx_data], tau=tau_data,observed=mu_data)
-		#------------------------------------------------------------------------------
+		#----------------------- Likelihood --------------------------------------
+		pm.MvNormal('obs', mu=true_flat[idx_data], tau=tau_data,observed=mu_data)
+		#-------------------------------------------------------------------------
