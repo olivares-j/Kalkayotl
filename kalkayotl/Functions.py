@@ -33,8 +33,8 @@ def get_principal(sigma,idx):
 
 def AngularSeparation(a):
 
-	ra  = np.radians(a[:,0])
-	dec = np.radians(a[:,1])
+	ra  = np.deg2rad(a[:,0])
+	dec = np.deg2rad(a[:,1])
 
 	N   = len(ra)
 
