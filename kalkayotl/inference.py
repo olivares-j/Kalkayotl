@@ -22,6 +22,7 @@ import random
 import pymc as pm
 import numpy as np
 import pandas as pn
+import xarray
 import arviz as az
 import h5py
 import scipy.stats as st
@@ -60,7 +61,7 @@ class Inference:
 	"""
 	def __init__(self,dimension,
 				dir_out,
-				zero_point,
+				zero_points,
 				indep_measures=False,
 				reference_system=None,
 				id_name='source_id',
@@ -85,16 +86,25 @@ class Inference:
 		self.suffixes  = ["_X","_Y","_Z","_U","_V","_W"]
 
 		self.D                = dimension 
-		self.zero_point       = zero_point
+		self.zero_points      = zero_points
 		self.dir_out          = dir_out
 		self.indep_measures   = indep_measures
 		
 		self.reference_system = reference_system
 		self.file_ids         = self.dir_out+"/Identifiers.csv"
+		self.file_obs         = self.dir_out+"/Observations.nc"
+		self.file_chains      = self.dir_out+"/Chains.nc"
+
+		# self.mas2deg = 1.0/(60.*60.*1000.)
+		self.asec2deg = 1.0/(60.*60.)
 
 		self.idx_pma    = 3
 		self.idx_pmd    = 4
 		self.idx_plx    = 2
+
+		# idx_radec_mu = [0,1]
+		# idx_radec_sd = [6,7]
+		# idx_radec_cr = [12]
 
 		if self.D == 1:
 			index_obs   = [0,1,2,8]
@@ -103,6 +113,9 @@ class Inference:
 			index_corr  = []
 			self.idx_plx = 0
 			index_nan   = index_obs.copy()
+			# idx_plpms_mu = [2]
+			# idx_plpms_sd = [8]
+			# idx_plpms_cr = []
 			
 
 		elif self.D == 3:
@@ -111,6 +124,9 @@ class Inference:
 			index_sd   = [6,7,8]
 			index_corr = [12,13,16]
 			index_nan  = index_obs.copy()
+			# idx_plpms_mu = [2]
+			# idx_plpms_sd = [8]
+			# idx_plpms_cr = []
 
 
 		elif self.D == 6:
@@ -124,6 +140,9 @@ class Inference:
 			index_nan.remove(5)
 			index_nan.remove(11)
 			#-----------------------------------------
+			# idx_plpms_mu = [2,3,4]
+			# idx_plpms_sd = [8,9,10]
+			# idx_plpms_cr = [19,20,21]
 
 		else:
 			sys.exit("Dimension not valid!")
@@ -134,8 +153,16 @@ class Inference:
 		self.names_corr = [gaia_observables[i] for i in index_corr]
 		self.names_nan  = [gaia_observables[i] for i in index_nan]
 
+		# self.names_radec_mu = [gaia_observables[i] for i in idx_radec_mu]
+		# self.names_radec_sd = [gaia_observables[i] for i in idx_radec_sd]
+		# self.names_radec_cr = [gaia_observables[i] for i in idx_radec_cr]
+
+		# self.names_plpms_mu = [gaia_observables[i] for i in idx_plpms_mu]
+		# self.names_plpms_sd = [gaia_observables[i] for i in idx_plpms_sd]
+		# self.names_plpms_cr = [gaia_observables[i] for i in idx_plpms_cr]
+
 		self.id_name = id_name
-		self.list_observables = sum([[id_name],self.names_obs],[]) 
+		self.gaia_observables = sum([[id_name],gaia_observables],[]) 
 
 
 	def load_data(self,file_data,corr_func="Lindegren+2020",*args,**kwargs):
@@ -152,10 +179,10 @@ class Inference:
 		"""
 
 		#------- Reads the data ---------------------------------------------------
-		data  = pn.read_csv(file_data,usecols=self.list_observables,*args,**kwargs) 
+		data  = pn.read_csv(file_data,usecols=self.gaia_observables,*args,**kwargs) 
 
 		#---------- Order ----------------------------------
-		data  = data.reindex(columns=self.list_observables)
+		data  = data.reindex(columns=self.gaia_observables)
 
 		#------- ID as string ----------------------------
 		data[self.id_name] = data[self.id_name].astype('str')
@@ -167,6 +194,17 @@ class Inference:
 		data.dropna(subset=self.names_nan,inplace=True,
 						thresh=len(self.names_nan))
 		#----------------------------------------------
+
+		#--------- mas to degrees -------------------------
+		# Fixes RA Dec uncertainties to 1 arcsec
+		data["ra_error"]  = 1.*self.asec2deg
+		data["dec_error"] = 1.*self.asec2deg
+		#--------------------------------------------------
+
+		#---------- Zero-points --------------------
+		for key,val in self.zero_points.items():
+			data[key] = data[key] - val
+		#-------------------------------------------
 
 		#--------- Mean values ---------------------------------------
 		mean_observed = data[self.names_mu].mean()
@@ -195,7 +233,7 @@ class Inference:
 		for i,(ID,datum) in enumerate(data.iterrows()):
 			#--------------------------
 			ida  = range(i*self.D,i*self.D + self.D)
-			mu   = np.array(datum[self.names_mu]) - self.zero_point
+			mu   = np.array(datum[self.names_mu])
 			sd   = np.array(datum[self.names_sd])
 			corr = np.array(datum[self.names_corr])
 
@@ -212,12 +250,50 @@ class Inference:
 			sg_data[np.ix_(ida,ida)] = sigma
 		#=========================================================================
 
+		# #==================== RA Dec data =========================================
+		# self.radec_mu  = np.zeros((self.n_sources,2))
+		# self.radec_tau = np.zeros((self.n_sources,2))
+
+		# for i,(ID,datum) in enumerate(data.iterrows()):
+		# 	mu   = np.array(datum[self.names_radec_mu])
+		# 	sd   = np.array(datum[self.names_radec_sd])
+			
+		# 	self.radec_mu[i]  = mu
+		# 	self.radec_tau[i] = 1./(sd**2)
+		# #=========================================================================
+
+		# #==================== Other correlated data ==============================
+		# # THIS STILL NEEDS THE ANGULAR CORRELATIONS
+		# if self.D == 3:
+		# 	plpms_mu  = np.zeros(self.n_sources)
+		# 	plpms_tau = np.zeros(self.n_sources)
+
+		# 	for i,(ID,datum) in enumerate(data.iterrows()):
+		# 		mu   = np.array(datum[self.names_plpms_mu])
+		# 		sd   = np.array(datum[self.names_plpms_sd])
+				
+		# 		#---------- Insert source data --------------
+		# 		plpms_mu[i] = mu
+		# 		plpms_tau[i] = 1./(sd**2)
+		# 	self.plpms_mu  = plpms_mu
+		# 	self.plpms_tau = plpms_tau 
+		# #=========================================================================
+
 		#----- Save identifiers --------------------------
 		df = pn.DataFrame(self.ID,columns=[self.id_name])
 		df.to_csv(path_or_buf=self.file_ids,index=False)
 		#------------------------------------------------
 
-
+		#-------- Observations to InferenceData ---------------
+		df = pn.DataFrame(mu_data,
+			columns=["obs"],
+			index=pn.MultiIndex.from_product(
+			iterables=[[0],[0],self.ID,self.names_mu],
+			names=['chain', 'draw','source_id','observable']))
+		xdata = xarray.Dataset.from_dataframe(df)
+		observed = az.InferenceData(observed_data=xdata)
+		az.to_netcdf(observed,self.file_obs)
+		#------------------------------------------------------
 
 		#===================== Set correlations amongst stars ===========================
 		if not self.indep_measures :
@@ -603,11 +679,14 @@ class Inference:
 								hyper_nu=self.hyper["nu"],
 								transformation=self.transformation,
 								parametrization=self.parametrization)
-
 		elif self.D == 3:
 			self.Model = Model3D(n_sources=self.n_sources,
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
+								# radec_mu=self.radec_mu,
+								# radec_tau=self.radec_tau,
+								# plpms_mu=self.plpms_mu,
+								# plpms_tau=self.plpms_tau,
 								prior=self.prior,
 								parameters=self.parameters,
 								hyper_alpha=self.hyper["alpha"],
@@ -619,7 +698,8 @@ class Inference:
 								field_sd=field_sd,
 								transformation=self.transformation,
 								reference_system=self.reference_system,
-								parametrization=self.parametrization)
+								parametrization=self.parametrization,
+								identifiers=self.ID)
 		elif self.D == 6:
 			self.Model = Model6D(n_sources=self.n_sources,
 								mu_data=self.mu_data,
@@ -654,8 +734,9 @@ class Inference:
 		posterior_predictive=False,
 		progressbar=True,
 		nuts_sampler="pymc",
-		absolute_tol=1e-3,
-		relative_tol=1e-3):
+		init_absolute_tol=1e-1,
+		init_relative_tol=1e-1,
+		random_seed=None):
 		"""
 		Performs the MCMC run.
 		Arguments:
@@ -663,19 +744,107 @@ class Inference:
 		tuning_iters (integer):    Number of burning iterations.
 		"""
 
-		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
+		file_chains = self.file_chains if (file_chains is None) else file_chains
 
 		#------------------ Get optimized initial values ---------------------
-		initvals,step = pm.init_nuts(init=init_method, chains=chains,
-									absolute_tol=absolute_tol,
-									relative_tol=relative_tol,
-									n_init=init_iters, model=self.Model)
-		#--------------------------------------------------------------------
+		with self.Model:
+			initvals = pm.find_MAP(include_transformed=False,maxeval=int(1e5),progressbar=False)
 		
+		# #-------- Fix problem -----------------
+		# name_ccp = "_cholesky-cov-packed__" 
+		# for key,value in initvals.copy().items():
+		# 	if name_ccp in key:
+		# 		del initvals[key]
+		# #-----------------------------------------
+		# initvals,step = pm.init_nuts(init=init_method, 
+		# 						chains=chains,
+		# 						absolute_tol=init_absolute_tol,
+		# 						relative_tol=init_relative_tol,
+		# 						initvals=initvals,
+		# 						n_init=init_iters,
+		# 						model=self.Model)
+		# print(initvals)
+		# print(step)
 
-		#-------- Fix problem with initial solution of cholesky cov-packed ----------
+		# # -------- Fix problem with initial solution of cholesky cov-packed ----------
+		# name_ccp = "_cholesky-cov-packed__" 
+		# for vals in initvals:
+		# 	for key,value in vals.copy().items():
+		# 		if name_ccp in key:
+		# 			# name_scl = key.replace(name_ccp,"")
+		# 			# chol = pm.expand_packed_triangular(n=self.D,packed=value).eval()
+		# 			# cov = chol.dot(chol.T)
+		# 			# vals[name_scl] = cov
+		# 			# vals["scl"] = cov
+		# 			del vals[key]
+		# # TO BE REMOVED once pymc5 solves this issue
+		# #----------------------------------------------------------------------------
+		random_seed_list = pymc.util._get_seeds_per_chain(random_seed, chains)
+
+		cb = [
+			# pm.callbacks.CheckParametersConvergence(tolerance=init_absolute_tol, diff="absolute"),
+			pm.callbacks.CheckParametersConvergence(tolerance=init_relative_tol, diff="relative"),
+		]
+
+		initial_points = pymc.sampling.mcmc._init_jitter(
+			self.Model,
+			initvals,
+			seeds=random_seed_list,
+			jitter="jitter" in init_method,
+			jitter_max_retries=10
+			)
+
+		approx = pm.fit(
+			random_seed=random_seed_list[0],
+			n=init_iters,
+			method="advi",
+			model=self.Model,
+			callbacks=cb,
+			progressbar=True,
+			test_optimizer=pm.adagrad#_window
+			)
+
+		approx_sample = approx.sample(
+			draws=chains, 
+			random_seed=random_seed_list[0],
+			return_inferencedata=False
+			)
+
+		initial_points = [approx_sample[i] for i in range(chains)]
+		std_apoint = approx.std.eval()
+		cov = std_apoint**2
+		mean = approx.mean.get_value()
+		weight = 10
+		potential = pymc.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
+					len(cov), mean, cov, weight)
+
+		#------------- Plot trials ----------------------------------
+		plt.figure()
+		plt.plot(approx.hist)
+		plt.xlabel("Iterations")
+		plt.yscale("log")
+		plt.ylabel("Average Loss")
+		plt.savefig(self.dir_out+"/Initializations.png")
+		plt.close()
+		#-----------------------------------------------------------
+
+		df = pn.DataFrame(data=initial_points[0]["3D::true"],columns=["ra","dec","parallax"])
+		df.to_csv(self.dir_out+"/test.csv",index=False)
+
+		# sys.exit()
+
+		step = pm.NUTS(potential=potential,model=self.Model,target_accept=target_accept)
+
+		# # Filter deterministics from initial_points
+		# value_var_names = [var.name for var in self.Model.value_vars]
+		# initial_points = [
+		# 	{k: v for k, v in initial_point.items() if k in value_var_names}
+		# 	for initial_point in initial_points
+		# ]
+
+		# # -------- Fix problem with initial solution of cholesky cov-packed ----------
 		name_ccp = "_cholesky-cov-packed__" 
-		for vals in initvals:
+		for vals in initial_points:
 			for key,value in vals.copy().items():
 				if name_ccp in key:
 					# name_scl = key.replace(name_ccp,"")
@@ -684,8 +853,8 @@ class Inference:
 					# vals[name_scl] = cov
 					# vals["scl"] = cov
 					del vals[key]
-		# TO BE REMOVED once pymc5 solves this issue
-		#----------------------------------------------------------------------------
+		# # TO BE REMOVED once pymc5 solves this issue
+		# #----------------------------------------------------------------------------
 
 		print("Sampling the model ...")
 
@@ -694,16 +863,29 @@ class Inference:
 			#---------- Posterior -----------------------
 			trace = pm.sample(
 				draws=sample_iters,
-				initvals=initvals,
-				# step=step,
-				target_accept=target_accept,
+				initvals=initial_points,
+				step=step,
+				# n_init=init_iters,
+				# init=init_method,
+				# init_absolute_tol=init_absolute_tol,
+				# init_relative_tol=init_relative_tol,
+				# target_accept=target_accept,
 				nuts_sampler=nuts_sampler,
 				tune=tuning_iters,
-				chains=chains, cores=cores,
+				chains=chains, 
+				cores=cores,
 				progressbar=progressbar,
 				discard_tuned_samples=True,
 				return_inferencedata=True)
 			#-----------------------------------------------
+
+			#-------- Posterior predictive -----------------------------
+			if posterior_predictive:
+				posterior_pred = pm.sample_posterior_predictive(trace,
+					var_names=[self.Model.name+"::true"]
+					)
+				trace.extend(posterior_pred)
+			#--------------------------------------------------------
 
 			#-------- Prior predictive ----------------------------------
 			if prior_predictive:
@@ -711,12 +893,6 @@ class Inference:
 							samples=sample_iters*chains)
 				trace.extend(prior_pred)
 			#-------------------------------------------------------------
-
-			#-------- Posterior predictive -----------------------------
-			if posterior_predictive:
-				posterior_pred = pm.sample_posterior_predictive(trace)
-				trace.extend(posterior_pred)
-			#--------------------------------------------------------
 
 			#--------- Save with arviz ------------
 			az.to_netcdf(trace,file_chains)
@@ -728,7 +904,7 @@ class Inference:
 		Loads a previously saved sampling of the model
 		'''
 
-		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
+		file_chains = self.file_chains if (file_chains is None) else file_chains
 
 		if not hasattr(self,"ID"):
 			#----- Load identifiers ------
@@ -885,7 +1061,7 @@ class Inference:
 				if not np.any(id_in_IDs) :
 					sys.exit("{0} {1} is not valid. Use strings".format(self.id_name,ID))
 				idx = np.where(id_in_IDs)[0]
-				coords = {str(self.D)+"D_source_dim_0" : idx}
+				coords = {"source_id":ID}
 				plt.figure(0)
 				axes = az.plot_trace(self.ds_posterior,
 						var_names=self.source_variables,
@@ -969,7 +1145,7 @@ class Inference:
 		"""
 
 		print("Plotting checks ...")
-		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
+		file_chains = self.file_chains if (file_chains is None) else file_chains
 		file_plots = self.dir_out+"/Prior_check.pdf" if (file_plots is None) else file_plots
 
 		trace = az.from_netcdf(file_chains)
@@ -1823,11 +1999,33 @@ class Inference:
 
 			#------ Loop over source parameters ---
 			for i,name in enumerate(IDs):
-				data = sources_trace[{str(self.D)+"D::source_dim_0" : i}].values
+				data = sources_trace.sel(source_id=name).to_numpy()
 				if merge:
 					data = data.reshape((-1,self.D))
 				grp_src.create_dataset(name, data=data)
 
+	def save_posterior_predictive(self,
+		file_chains=None,
+		file_type="csv"
+		):
+		var_name = str(self.D)+"D::true"
+
+		file_chains = self.file_chains if (file_chains is None) else file_chains
+		file_out = self.dir_out+"/posterior_predictive"
+
+		dfg = self.trace.posterior_predictive[var_name].to_dataframe().groupby("observable")
+		dfs = []
+		for obs,df in dfg.__iter__():
+			df.reset_index("observable",drop=True,inplace=True)
+			df.rename(columns={var_name:obs},inplace=True)
+			dfs.append(df)
+		df = pn.concat(dfs,axis=1,ignore_index=False)
+
+		if file_type == "hdf":
+			df.to_hdf(file_out+".h5",key="posterior_predictive")
+		elif file_type == "csv":
+			df.to_csv(file_out+".csv",index=True)
+		
 
 	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,
 		quantiles=[0.05,0.95],
