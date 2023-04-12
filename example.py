@@ -46,26 +46,26 @@ os.makedirs(dir_base,exist_ok=True)
 
 
 #=============== Tuning knobs ============================
-dimension = 6
+dimension = 3
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
-chains = 4
+chains = 2
 
 # Number of computer cores to be used. You can increase it to run faster.
 # IMPORTANT. Depending on your computer configuration you may have different performances.
 # I recommend to use 2 cores; this is one per chain.
-cores  = 4
+cores  = 2
 
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 3000
+tuning_iters = 2000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 1000
+sample_iters = 2000
 
 
 #----- Target_accept-------
@@ -93,12 +93,16 @@ transformation = "pc"
 # Either "ICRS" or "Galactic"
 reference_system = "Galactic"
 
-#--------- Zero point -----------------------------------------------
-# The zero point of the parallax measurements
-# You can provide either a scalar or a vector of the same dimension
-# as the valid sources in your data set.
-zero_point = [0.,0.,-0.017,0.,0.,0.]  # This is Brrowns+2020 value
-#---------------------------------------------------------------------
+#--------- Zero point ------------
+# A dcictionary with zerpoints
+zero_points = {
+"ra":0.,
+"dec":0.,
+"parallax":-0.017,# This is Brown+2020 value
+"pmra":0.,
+"pmdec":0.,
+"radial_velocity":0.}  
+#--------------------------------
 
 #------- Independent measurements--------
 # In the Gaia astrometric data the measurements of stars are correlated between sources.
@@ -221,7 +225,7 @@ for prior in list_of_prior:
 	#--------- Initialize the inference module -------
 	p3d = Inference(dimension=dimension,
 					dir_out=dir_prior,
-					zero_point=zero_point[:dimension],
+					zero_points=zero_points,
 					indep_measures=indep_measures,
 					reference_system=reference_system)
 
@@ -245,8 +249,10 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			nuts_sampler=nuts_sampler)
-	#-------------------------------------
+			nuts_sampler=nuts_sampler,
+			posterior_predictive=True,
+			prior_predictive=True)
+	# #-------------------------------------
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
@@ -261,18 +267,23 @@ for prior in list_of_prior:
 	# of the provided sources. If IDs keyword removed only plots the population parameters.
 	p3d.plot_chains()
 
-	#--- Check the prior against the posterior ----
+	#--- Check Prior and Posterior ----
 	p3d.plot_prior_check()
-	#----------------------------------------------
+	#--------------------------------
 
 	#--- Plot model -- 
 	p3d.plot_model()
-	#-----------------
+	# -----------------
 
 	#----- Compute and save the posterior statistics ---------
 	p3d.save_statistics(hdi_prob=hdi_prob)
 
+	p3d.save_posterior_predictive()
+
 	#------- Save the samples into HDF5 file --------------
 	p3d.save_samples()
+
+	
+
 	
 #=======================================================================================
