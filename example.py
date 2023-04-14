@@ -44,9 +44,8 @@ os.makedirs(dir_base,exist_ok=True)
 #-------------------------------------------------------
 #============================================================================
 
-
 #=============== Tuning knobs ============================
-dimension = 3
+dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -60,12 +59,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 2000
+tuning_iters = 10
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 2000
+sample_iters = 10
 
 
 #----- Target_accept-------
@@ -81,12 +80,12 @@ target_accept = 0.95
 hdi_prob = 0.95
 #------------------------------------------------------------------------------
 
-# --------- Transformation------------------------------------
-# In which space you want to sample: distance or parallax?
-# For distance use "pc", for parallax use "mas"
+# --------- Sampling space ------------------------------------
+# In which space you want to sample: "physical" or "observed"?
+# "observed" works only in the 1D case where the sampling can be done in the parallax space.
 # IMPORTANT: The units of the parameters and hyper-parameters
 # defined below must coincide with those of the chosen transformation.
-transformation = "pc"
+sampling_space = "physical"
 
 #------------- Reference system -----------
 # Coordinate system in which parameters will be inferred
@@ -123,9 +122,15 @@ indep_measures = False
 # "independent": independently models positions and velocities.
 # "constant": models the velocity as expanding or contracting field
 # "linear": models the velocity field as a linear function of position.
+velocity_model = "linear"
 #----------------------------------------------------------------------------------------
 
-nuts_sampler = "numpyro"
+#---------- NUTS Sampler ------------
+# This is the type of sample to use.
+# Check PyMC documentation for valid samplers and their installation
+# By default use the "pymc" sampler.
+nuts_sampler = "pymc"
+
 #=========================================================================================
 
 #========================= PRIORS ===========================================
@@ -139,69 +144,58 @@ list_of_prior = [
 							"delta":None,
 							"eta":None
 							},
-		"field_sd":None,
-		"parametrization":"central",
-		"velocity_model":"joint"},
-	# {"type":"StudentT",
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":None,
-	# 						"nu":None,
-	# 						},
-	# 	"field_sd":None,
-	# 	"parametrization":"central",
-	# 	"velocity_model":"joint",
-	# 	"optimize":False},
-	# {"type":"FGMM",      
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"delta":[1,1], # Field in the second entry
-	# 						"eta":None,
-	# 						},
-	# 	"field_sd":{"position":50.0,"velocity":10.0},
-	# 	"parametrization":"central",
-	# 	"velocity_model":"joint",
-	# 	"optimize":False},
-	# {"type":"CGMM",     
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(2,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"field_sd":None,
-	# 	"parametrization":"central",
-	# 	"velocity_model":"joint",
-	# 	"optimize":False},
-
-	# {"type":"GMM",     
-	# 	"parameters":{"location":file_parameters,
-	# 				  "scale":file_parameters,
-	# 				  "weights":file_parameters},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(1,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"field_sd":None,
-	# 	"parametrization":"central",
-	# 	"velocity_model":"joint"}
+		"parametrization":"central"},
+	{"type":"StudentT",
+		"parameters":{"location":None,"scale":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None,
+							"gamma":None,
+							"delta":None,
+							"eta":None,
+							"nu":None,
+							},
+		"parametrization":"non-central"},
+	{"type":"GMM",     
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"gamma":None,
+							"delta":np.repeat(1,2),
+							"eta":None,
+							"n_components":2
+							},
+		"parametrization":"central"},
+	{"type":"CGMM",     
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"gamma":None,
+							"delta":np.repeat(1,2),
+							"eta":None,
+							"n_components":2
+							},
+		"parametrization":"central"},
+	{"type":"FGMM",      
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None,
+					  "field_scale":[50.,50.,50.,10.,10.,10.][:dimension]
+					  },
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"delta":np.repeat(1,2),
+							"eta":None,
+							"n_components":2
+							},
+		"parametrization":"central"}
 	]
 #======================= Inference and Analysis =====================================================
 
@@ -214,7 +208,7 @@ for prior in list_of_prior:
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
-		prior["velocity_model"],
+		velocity_model,
 		nuts_sampler)
 	#------------------------------------------------------------
 
@@ -237,22 +231,21 @@ for prior in list_of_prior:
 	p3d.setup(prior=prior["type"],
 			  parameters=prior["parameters"],
 			  hyper_parameters=prior["hyper_parameters"],
-			  transformation=transformation,
 			  parametrization=prior["parametrization"],
-			  field_sd=prior["field_sd"],
-			  velocity_model=prior["velocity_model"])
+			  sampling_space=sampling_space,
+			  velocity_model=velocity_model)
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	p3d.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			chains=chains,
-			cores=cores,
-			nuts_sampler=nuts_sampler,
-			posterior_predictive=True,
-			prior_predictive=True)
-	# #-------------------------------------
+	# p3d.run(sample_iters=sample_iters,
+	# 		tuning_iters=tuning_iters,
+	# 		target_accept=target_accept,
+	# 		chains=chains,
+	# 		cores=cores,
+	# 		nuts_sampler=nuts_sampler,
+	# 		posterior_predictive=True,
+	# 		prior_predictive=True)
+	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
@@ -272,7 +265,7 @@ for prior in list_of_prior:
 	#--------------------------------
 
 	#--- Plot model -- 
-	p3d.plot_model()
+	p3d.plot_model(n_samples=10)
 	# -----------------
 
 	#----- Compute and save the posterior statistics ---------
@@ -282,8 +275,4 @@ for prior in list_of_prior:
 
 	#------- Save the samples into HDF5 file --------------
 	p3d.save_samples()
-
-	
-
-	
 #=======================================================================================
