@@ -6,22 +6,26 @@ os.environ["MKL_NUM_THREADS"] = "1" # Avoids overlapping of processes
 os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
+import dill
+
+dill.load_session(str(sys.argv[1]))
+
+dir_repos = "/home/jolivares/Repos/"
+dir_kalkayotl  = dir_repos + "Kalkayotl/"
+dir_base = dir_kalkayotl + "article/v2.0/Synthetic/"
 
 #----- Import the module -------------------------------
-dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
 sys.path.append(dir_kalkayotl)
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
-#===================================================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/"
+#----------------- Knobs ------------------------------
 dimension = 6
 chains = 2
 cores  = 2
 tuning_iters = 1000
 sample_iters = 1000
 target_accept = 0.95
-hdi_prob = 0.95
 sampling_space = "physical"
 reference_system = "Galactic"
 zero_points = {
@@ -34,9 +38,7 @@ zero_points = {
 indep_measures = False
 velocity_model = "joint"
 nuts_sampler = "numpyro"
-list_of_n_stars   = [100,200]
-list_of_distances = [1600.0]
-#=====================================================================
+#--------------------------------------------------
 
 #========================= Cases ===========================================
 list_of_cases = [
@@ -105,52 +107,54 @@ list_of_cases = [
 #===============================================================================
 
 #--------------------- Loop over case types ------------------------------------
-for case in list_of_cases:
-	for distance in list_of_distances:
-		for n_stars in list_of_n_stars:
-			#------ Directory and data file -------------------
-			dir_case = dir_base +  "{0}D_{1}_n{2}_d{3}_{4}".format(
-				dimension,
-				case["type"],
-				int(n_stars),
-				int(distance),
-				case["parametrization"])
-			
-			file_data = dir_base + "{0}_n{1}_d{2}.csv".format(
-				case["type"],
-				n_stars,
-				distance)
+for distance in list_of_distances:
+	for n_stars in list_of_n_stars:
+		for seed in list_of_seeds:
+		#------ Directory and data file -------------------
+		dir_case = dir_base +  "{0}D_{1}_n{2}_d{3}_s{4}_{5}".format(
+			dimension,
+			case["type"],
+			int(n_stars),
+			int(distance),
+			seed,
+			case["parametrization"])
+		
+		file_data = dir_base + "{0}_n{1}_d{2}_s{3}.csv".format(
+			case["type"],
+			int(n_stars),
+			int(distance),
+			seed)
 
-			os.makedirs(dir_case,exist_ok=True)
+		os.makedirs(dir_case,exist_ok=True)
 
-			p3d = Inference(dimension=dimension,
-							dir_out=dir_case,
-							zero_points=zero_points,
-							indep_measures=indep_measures,
-							reference_system=reference_system)
+		kal = Inference(dimension=dimension,
+						dir_out=dir_case,
+						zero_points=zero_points,
+						indep_measures=indep_measures,
+						reference_system=reference_system)
 
-			p3d.load_data(file_data)
-			p3d.setup(prior=case["type"],
-					  parameters=case["parameters"],
-					  hyper_parameters=case["hyper_parameters"],
-					  parametrization=case["parametrization"],
-					  sampling_space=sampling_space,
-					  velocity_model=velocity_model)
+		kal.load_data(file_data)
+		kal.setup(prior=case["type"],
+				  parameters=case["parameters"],
+				  hyper_parameters=case["hyper_parameters"],
+				  parametrization=case["parametrization"],
+				  sampling_space=sampling_space,
+				  velocity_model=velocity_model)
 
-			p3d.run(sample_iters=sample_iters,
-					tuning_iters=tuning_iters,
-					target_accept=target_accept,
-					chains=chains,
-					cores=cores,
-					nuts_sampler=nuts_sampler,
-					posterior_predictive=True,
-					prior_predictive=True)
-			p3d.load_trace()
-			p3d.convergence()
-			p3d.plot_chains()
-			p3d.plot_prior_check()
-			p3d.plot_model(n_samples=10)
-			p3d.save_statistics(hdi_prob=hdi_prob)
-			p3d.save_posterior_predictive()
-			p3d.save_samples()
+		kal.run(sample_iters=sample_iters,
+				tuning_iters=tuning_iters,
+				target_accept=target_accept,
+				chains=chains,
+				cores=cores,
+				nuts_sampler=nuts_sampler,
+				posterior_predictive=True,
+				prior_predictive=True)
+		kal.load_trace()
+		kal.convergence()
+		kal.plot_chains()
+		kal.plot_prior_check()
+		kal.plot_model()
+		kal.save_statistics()
+		kal.save_posterior_predictive()
+		kal.save_samples()
 #=======================================================================================
