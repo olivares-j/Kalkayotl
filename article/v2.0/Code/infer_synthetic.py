@@ -10,9 +10,8 @@ import dill
 
 dill.load_session(str(sys.argv[1]))
 
-dir_repos = "/home/jolivares/Repos/"
-dir_kalkayotl  = dir_repos + "Kalkayotl/"
-dir_base = dir_kalkayotl + "article/v2.0/Synthetic/"
+dir_kalkayotl = "/home/jolivares/Repos/Kalkayotl/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/"
 
 #----- Import the module -------------------------------
 sys.path.append(dir_kalkayotl)

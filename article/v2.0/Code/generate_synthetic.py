@@ -1,6 +1,8 @@
 import sys
+import os
 import numpy as np
 import dill
+os.environ["ISOCHRONES"] = "/home/jolivares/.isochrones/"
 
 list_of_distances = [100.,200.,400.,800.,1600.]
 list_of_n_stars   = [100,200,400]
@@ -22,7 +24,7 @@ photometric_args = {
 dill.dump_session("./globals_{0}.pkl".format(model))
 
 dir_repos = "/home/jolivares/Repos"
-dir_main  = dir_repos + "/Kalkayotl/article/v2.0/Synthetic/"
+dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/"
 
 #----- Amasijo -------------------
 path_amasijo   = dir_repos + "/Amasijo/"
