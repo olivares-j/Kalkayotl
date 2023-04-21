@@ -184,7 +184,7 @@ class Inference:
 
 		#---------- Zero-points --------------------
 		for key,val in self.zero_points.items():
-			data[key] = data[key] - val
+			data[key] -= val
 		#-------------------------------------------
 
 		#--------- Mean values -----------------------------
