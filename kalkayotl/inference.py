@@ -924,8 +924,11 @@ class Inference:
 
 		for var in tmp_stats:
 			if self.D in [3,6]:
-				if not ("loc" in var or "stds" in var 
-					or "corr" in var or "omega" in var
+				if not ("loc" in var 
+					or "stds" in var
+					or "weights" in var
+					or "corr" in var 
+					or "omega" in var
 					or "kappa" in var):
 					stats_variables.remove(var)
 

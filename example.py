@@ -122,7 +122,7 @@ indep_measures = False
 # "independent": independently models positions and velocities.
 # "constant": models the velocity as expanding or contracting field
 # "linear": models the velocity field as a linear function of position.
-velocity_model = "linear"
+velocity_model = "joint"
 #----------------------------------------------------------------------------------------
 
 #---------- NUTS Sampler ------------
@@ -135,40 +135,40 @@ nuts_sampler = "pymc"
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	{"type":"Gaussian",
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
-							"eta":None
-							},
-		"parametrization":"central"},
-	{"type":"StudentT",
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
-							"eta":None,
-							"nu":None,
-							},
-		"parametrization":"non-central"},
-	{"type":"GMM",     
-		"parameters":{"location":None,
-					  "scale":None,
-					  "weights":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None, 
-							"gamma":None,
-							"delta":np.repeat(1,2),
-							"eta":None,
-							"n_components":2
-							},
-		"parametrization":"central"},
+	# {"type":"Gaussian",
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"StudentT",
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						"nu":None,
+	# 						},
+	# 	"parametrization":"non-central"},
+	# {"type":"GMM",     
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"gamma":None,
+	# 						"delta":np.repeat(1,2),
+	# 						"eta":None,
+	# 						"n_components":2
+	# 						},
+	# 	"parametrization":"central"},
 	{"type":"CGMM",     
 		"parameters":{"location":None,
 					  "scale":None,
@@ -182,20 +182,20 @@ list_of_prior = [
 							"n_components":2
 							},
 		"parametrization":"central"},
-	{"type":"FGMM",      
-		"parameters":{"location":None,
-					  "scale":None,
-					  "weights":None,
-					  "field_scale":[50.,50.,50.,10.,10.,10.][:dimension]
-					  },
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None, 
-							"delta":np.repeat(1,2),
-							"eta":None,
-							"n_components":2
-							},
-		"parametrization":"central"}
+	# {"type":"FGMM",      
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "weights":None,
+	# 				  "field_scale":[50.,50.,50.,10.,10.,10.][:dimension]
+	# 				  },
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"delta":np.repeat(1,2),
+	# 						"eta":None,
+	# 						"n_components":2
+	# 						},
+	# 	"parametrization":"central"}
 	]
 #======================= Inference and Analysis =====================================================
 
