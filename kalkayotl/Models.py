@@ -24,144 +24,243 @@ from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
 
-#from kalkayotl.Priors import EDSD,MvEFF #,EFF,King,MvEFF,MvKing
+# from kalkayotl.Priors import EDSD,EFF,King
 
 ################################## Model 1D ####################################
 class Model1D(Model):
 	'''
 	Model to infer the distance of a series of stars
 	'''
-	def __init__(self,n_sources,mu_data,tau_data,
+	def __init__(self,
+		n_sources,mu_data,tau_data,
+		dimension=1,
 		prior="Gaussian",
 		parameters={"location":None,"scale": None},
-		hyper_alpha=[100,10],
-		hyper_beta=[10],
+		hyper_alpha=None,
+		hyper_beta=None,
 		hyper_gamma=None,
 		hyper_delta=None,
 		hyper_nu=None,
-		transformation="mas",
-		parametrization="non-central",
-		name="1D", model=None):
-		super().__init__(name, model)
+		transformation=None,
+		parametrization="central",
+		identifiers=None,
+		coordinates=["distance"],
+		observables=["parallax"]
+		):
+		super().__init__(name="1D", model=None)
+		self.add_coord("source_id",values=identifiers)
+		self.add_coord("coordinate",values=coordinates)
+		self.add_coord("observable",values=observables)
 
-		#------------------- Data ------------------------------------------------------
-		if n_sources == 0:
-			sys.exit("Data has length zero!. You must provide at least one data point")
-
-		#-------------------------------------------------------------------------------
-
-		#-------------- Parametrization ------------------
-		if parametrization == "non-central":
-			print("Using non central parametrization.")
-		else:
-			print("Using central parametrization.")
-		#-------------------------------------------------
+		print("Using {0} parametrization".format(parametrization))
+		assert dimension == 1, "This class is only for 1D models!"
 
 		#================ Hyper-parameters =====================================
-		if hyper_delta is None:
-			shape = ()
-		else:
-			shape = len(hyper_delta)
+		#----------------- Mixture prior families ----------------------------
+		if "GMM" in prior:
+			#------------- Names ---------------------------------------------------
+			n_components = len(hyper_delta)
+			if prior == "FGMM":
+				names_components = list(string.ascii_uppercase)[:(n_components-1)]
+				names_components.append("Field")
+			else:
+				names_components = list(string.ascii_uppercase)[:n_components]
+			self.add_coord("component",values=names_components)
+			#-----------------------------------------------------------------------
 
-		#------------------------ Location ----------------------------------
-		if parameters["location"] is None:
-			pm.Normal("loc",mu=hyper_alpha[0],sigma=hyper_alpha[1],shape=shape)
+			#------------- Weights ---------------------------
+			if parameters["weights"] is None:
+				weights = pm.Dirichlet("weights",
+							a=hyper_delta,dims="component")
+			else:
+				weights = pm.Dirichlet(parameters["weights"],
+							dims="component")
+			#------------------------------------------------
 
-		else:
-			self.loc = parameters["location"]
+			#----------- Locations ------------------------------------------
+			if parameters["location"] is None:
+				if prior == "GMM":
+					loc = pm.Normal("loc",
+								mu=hyper_alpha["loc"],
+								sigma=hyper_alpha["scl"],
+								shape=(n_components,dimension),
+								dims=("component","coordinate"))
+				else:
+					#-------------- Repeat same location --------------
+					loc_i = pm.Normal("centre",
+								mu=hyper_alpha["loc"],
+								sigma=hyper_alpha["scl"],
+								shape=dimension)
 
-		#------------------------ Scale ---------------------------------------
-		if parameters["scale"] is None:
-			pm.Gamma("scl",alpha=2.0,beta=hyper_beta,shape=shape)
+					loc  = pytensor.shared(np.zeros((n_components,dimension)))
+					for i in range(n_components):
+						loc  = tt.set_subtensor(loc[i],loc_i)
+
+					loc = pm.Deterministic("loc",loc,
+						dims=("component","coordinate"))
+					#--------------------------------------------------
+					
+			else:
+				#----------------- Fixed location -----------------
+				loc  = pytensor.shared(np.zeros((n_components,dimension)))
+				for i in range(n_components):
+					loc  = tt.set_subtensor(loc[i],
+							np.array(parameters["location"][i]))
+				loc = pm.Deterministic("loc",loc,
+					dims=("component","coordinate"))
+				#--------------------------------------------------
+			#----------------------------------------------------------------------------
+
+			#---------- Standard deviations ----------------------------------
+			if parameters["scale"] is None and prior in ["GMM","CGMM"]:
+				std = pm.Gamma("std",
+							alpha=2.0,
+							beta=1./hyper_beta,
+							shape=(n_components,dimension),
+							dims=("component","coordinate"))
+
+			elif parameters["scale"] is None and prior == "FGMM":
+				stds = pytensor.shared(np.zeros((n_components,dimension)))
+
+				stds_i = pm.Gamma("stds_cls",
+							alpha=2.0,
+							beta=1./hyper_beta,
+							shape=(n_components-1,dimension))
+
+				stds = tt.set_subtensor(stds[:(n_components-1)],stds_i)
+
+				#------------ Field -----------------------------------
+				stds = tt.set_subtensor(stds[-1],
+						np.array(parameters["field_scale"]))
+				#---------------------------------------------------
+
+				std = pm.Deterministic("std", stds,dims=("component","coordinate"))
+
+			else:
+				std = pytensor.shared(np.zeros((n_components,dimension)))
+				std = tt.set_subtensor(std,np.array(parameters["scale"]))
+
+				std = pm.Deterministic("std", std,dims=("component","coordinate"))
+			#--------------------------------------------------------------------
+		#---------------------------------------------------------------------------------
+
+		#-------------- Non-mixture prior families ----------------------------------
 		else:
-			self.scl = parameters["scale"]
-		#========================================================================
+			#--------- Location ----------------------------------
+			if parameters["location"] is None:
+				loc = pm.Normal("loc",
+						mu=hyper_alpha["loc"],
+						sigma=hyper_alpha["scl"],
+						shape=dimension,
+						dims="coordinate")
+			else:
+				loc = pm.Deterministic("loc",parameters["location"],
+						dims="coordinate")
+			#------------------------------------------------------
+
+			#---------- Covariance matrix ------------------------------------
+			if parameters["scale"] is None:
+				std = pm.Gamma("std",
+							alpha=2.0,
+							beta=1./hyper_beta,
+							shape=dimension,
+							dims="coordinate")
+			else:
+				std = pm.Deterministic("std",parameters["scale"],
+						dims="coordinate")
+			#--------------------------------------------------------------
+		#----------------------------------------------------------------------------
+		#==============================================================================
 
 		#================= True values ========================================================
 		#--------- Cluster oriented prior-----------------------------------------------
 		if prior == "Uniform":
 			if parametrization == "central":
-				pm.Uniform("source",lower=self.loc-self.scl,upper=self.loc+self.scl,shape=n_sources)
+				source = pm.Uniform("source",lower=loc-std,upper=loc+std,
+									shape=(n_sources,dimension),
+									dims=("source_id","coordinate"))
 			else:
-				pm.Uniform("offset",lower=-1.,upper=1.,shape=n_sources)
-				pm.Deterministic("source",self.loc + self.scl*self.offset)
+				offset = pm.Uniform("offset",lower=-1.,upper=1.,shape=(n_sources,dimension))
+				source = pm.Deterministic("source",loc + std*offset,
+									dims=("source_id","coordinate"))
 
 		elif prior == "Gaussian":
 			if parametrization == "central":
-				pm.Normal("source",mu=self.loc,sigma=self.scl,shape=n_sources)
+				source = pm.Normal("source",mu=loc,sigma=std,shape=(n_sources,dimension),
+									dims=("source_id","coordinate"))
 			else:
-				pm.Normal("offset",mu=0.0,sigma=1.0,shape=n_sources)
-				pm.Deterministic("source",self.loc + self.scl*self.offset)
+				offset = pm.Normal("offset",mu=0.0,sigma=1.0,shape=(n_sources,dimension))
+				source = pm.Deterministic("source",loc + std*offset,
+									dims=("source_id","coordinate"))
 
 		elif prior == "StudentT":
-			pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"])
-			if parametrization == "central":
-				pm.StudentT("source",nu=self.nu,mu=self.loc,sd=self.scl,shape=n_sources)
-			else:
-				pm.StudentT("offset",nu=self.nu,mu=0.0,sd=1.0,shape=n_sources)
-				pm.Deterministic("source",self.loc + self.scl*self.offset)
-
-		elif prior == "GMM":
-			# break symmetry and avoids inf in advi
-			pm.Potential('order_means', tt.switch(self.loc[1]-self.loc[0] < 0, -1e20, 0))
-
-			if parameters["weights"] is None:
-				pm.Dirichlet("weights",a=hyper_delta,shape=shape)	
-			else:
-				self.weights = parameters["weights"]
+			nu = pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"])
 
 			if parametrization == "central":
-				pm.NormalMixture("source",w=self.weights,
-					mu=self.loc,
-					sigma=self.scl,
-					comp_shape=1,
-					shape=n_sources)
+				source = pm.StudentT("source",nu=nu,mu=loc,sigma=std,shape=(n_sources,dimension),
+									dims=("source_id","coordinate"))
 			else:
-				pm.Normal("offset",mu=0.0,sd=1.0,shape=n_sources)
-				# latent cluster of each observation
-				component = pm.Categorical("component",p=self.weights,shape=n_sources)
-				pm.Deterministic("source",self.loc[component] + self.scl[component]*self.offset) 
+				offset = pm.StudentT("offset",nu=nu,mu=0.0,sigma=1.0,shape=(n_sources,dimension))
+				source = pm.Deterministic("source",loc + std*offset,
+									dims=("source_id","coordinate"))
 
-		elif prior == "EFF":
-			if parameters["gamma"] is None:
-				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma)
-				pm.Deterministic("gamma",1.0+self.x)
-			else:
-				self.gamma = parameters["gamma"]
+		# elif prior == "EFF":
+		# 	if parameters["gamma"] is None:
+		# 		x = pm.Gamma("x",alpha=2.0,beta=1./hyper_gamma)
+		# 		gamma = pm.Deterministic("gamma",1.0+x)
+		# 	else:
+		# 		gamma = pytensor.shared(np.array(parameters["gamma"]))
 
-			if parametrization == "central":
-				EFF("source",location=self.loc,scale=self.scl,gamma=self.gamma,shape=n_sources)
-			else:
-				EFF("offset",location=0.0,scale=1.0,gamma=self.gamma,shape=n_sources)
-				pm.Deterministic("source",self.loc + self.scl*self.offset)
+		# 	if parametrization == "central":
+		# 		source = EFF("source",location=loc,scale=std,gamma=gamma,
+		# 							shape=(n_sources,dimension),
+		# 							dims=("source_id","coordinate"))
+		# 	else:
+		# 		offset = EFF("offset",location=0.0,scale=1.0,gamma=gamma,
+		# 							shape=(n_sources,dimension))
+		# 		source = pm.Deterministic("source",loc + std*offset,
+		# 							dims=("source_id","coordinate"))
 
-		elif prior == "King":
-			if parameters["rt"] is None:
-				pm.Gamma("x",alpha=2.0,beta=2.0/hyper_gamma)
-				pm.Deterministic("rt",1.0+self.x)
-			else:
-				self.rt = parameters["rt"]
+		# elif prior == "King":
+		# 	if parameters["rt"] is None:
+		# 		x  = pm.Gamma("x",alpha=2.0,beta=1./hyper_gamma)
+		# 		rt = pm.Deterministic("rt",1.0+x)
+		# 	else:
+		# 		rt = pytensor.shared(np.array(parameters["rt"]))
 
-			if parametrization == "central":
-				King("source",location=self.loc,scale=self.scl,rt=self.rt,shape=n_sources)
-			else:
-				King("offset",location=0.0,scale=1.0,rt=self.rt,shape=n_sources)
-				pm.Deterministic("source",self.loc + self.scl*self.offset)
+		# 	if parametrization == "central":
+		# 		source = King("source",location=loc,scale=scl,rt=rt,
+		# 							shape=(n_sources,dimension),
+		# 							dims=("source_id","coordinate"))
+		# 	else:
+		# 		offset = King("offset",location=0.0,scale=1.0,rt=rt,
+		# 							shape=(n_sources,dimension))
+		# 		source = pm.Deterministic("source",loc + std*offset,
+		# 							dims=("source_id","coordinate"))
 			
-		#---------- Galactic oriented prior ---------------------------------------------
-		elif prior == "EDSD":
-			EDSD("source",scale=self.scl,shape=n_sources)
-		
+		# elif prior == "EDSD":
+		# 	source = EDSD("source",scale=std,
+		# 							shape=(n_sources,dimension),
+		# 							dims=("source_id","coordinate"))
+
+		elif "GMM" in prior:				
+			comps = [ pm.Normal.dist(mu=loc[i],sigma=std[i]) for i in range(n_components)]
+
+			source = pm.Mixture("source",w=weights,comp_dists=comps,
+									shape=(n_sources,dimension),
+									dims=("source_id","coordinate"))
+
 		else:
-			sys.exit("The specified prior is not implemented")
+			sys.exit("ERROR: prior not recognized!")
 		#-----------------------------------------------------------------------------
 		#=======================================================================================
 
 		#----------------- Transformations -------------------------
-		true = pm.Deterministic("true",Transformation(self.source))
+		true = pm.Deterministic("true",transformation(source),
+									dims=("source_id","observable"))
 
 		#----------------------- Likelihood ----------------------------------------
-		pm.MvNormal('obs', mu=true, tau=tau_data,observed=mu_data)
+		pm.MvNormal('obs', mu=pm.math.flatten(true), tau=tau_data,observed=mu_data)
 		#------------------------------------------------------------------------------
 ####################################################################################################
 
@@ -879,35 +978,30 @@ class Model6D_linear(Model):
 			if parametrization == "central":
 				offset_pos = pm.MvNormal("offset_pos",mu=0.0,chol=chol_pos,shape=(n_sources,3))
 				offset_vel = pm.MvNormal("offset_vel",mu=0.0,chol=chol_vel,shape=(n_sources,3))
-
-				source_pos = loc[:3] + offset_pos
-				source_vel = loc[3:] + offset_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
-
 			else:
 				tau = pm.Normal("tau",mu=0,sigma=1,shape=(n_sources,6))
 
 				offset_pos = tt.nlinalg.matrix_dot(tau[:,:3],chol_pos)
 				offset_vel = tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
 
-				source_pos = loc[:3] + offset_pos
-				source_vel = loc[3:] + offset_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
+			source_pos = loc[:3] + offset_pos
+			source_vel = loc[3:] + offset_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
 
 		elif prior == "StudentT":
+			nu = pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"],shape=2)
 			if parametrization == "central":
-				offset_pos = pm.MvNormal("offset_pos",mu=0.0,chol=chol_pos,shape=(n_sources,3))
-				offset_vel = pm.MvNormal("offset_vel",mu=0.0,chol=chol_vel,shape=(n_sources,3))
-
-				source_pos = loc[:3] + offset_pos
-				source_vel = loc[3:] + offset_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
+				offset_pos = pm.MvStudentT("offset_pos",nu=nu[0],mu=0.0,chol=chol_pos,shape=(n_sources,3))
+				offset_vel = pm.MvStudentT("offset_vel",nu=nu[1],mu=0.0,chol=chol_vel,shape=(n_sources,3))
 
 			else:
-				tau = pm.Normal("tau",mu=0,sigma=1,shape=(n_sources,6))
+				tau_pos = pm.StudentT("tau_pos",nu=nu[0],mu=0,sigma=1,shape=(n_sources,3))
+				tau_vel = pm.StudentT("tau_vel",nu=nu[1],mu=0,sigma=1,shape=(n_sources,3))
 
 				offset_pos = tt.nlinalg.matrix_dot(tau[:,:3],chol_pos)
 				offset_vel = tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
 
-				source_pos = loc[:3] + offset_pos
-				source_vel = loc[3:] + offset_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
+			source_pos = loc[:3] + offset_pos
+			source_vel = loc[3:] + offset_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
 		
 		else:
 			sys.exit("The specified prior is not yet supported")

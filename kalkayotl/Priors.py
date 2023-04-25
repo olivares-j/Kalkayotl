@@ -4,7 +4,7 @@ This file contains the non-standard prior
 """
 
 import numpy as np
-import theano.tensor as tt
+from pytensor import tensor as tt, function,printing,pp
 
 from pymc3.distributions.dist_math import bound
 from pymc3.distributions.continuous import PositiveContinuous,Continuous,assert_negative_support

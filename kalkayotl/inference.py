@@ -410,9 +410,6 @@ class Inference:
 			if self.prior == "FGMM":
 				msg_fgmm = "In FGMM there are only two components"
 				assert len(self.hyper["delta"]) == 2, msg_fgmm
-
-			if self.prior in ["CGMM","FGMM"]:
-				assert self.D in [3,6], "This prior is not valid for 1D version."
 		#============================================================================
 
 		#====================== Location ==========================================================
@@ -436,7 +433,7 @@ class Inference:
 					d_sd = xyz_fc*d
 					#---------------------------------------
 
-					self.hyper["alpha"] = [d,d_sd]
+					self.hyper["alpha"] = {"loc":d,"scl":d_sd}
 					print("D: {0:2.1f} +/- {1:2.1f}".format(d,d_sd))
 
 				
@@ -613,16 +610,14 @@ class Inference:
 			#----------------------------------------------------------------
 		#==============================================================================================
 
+		#==================== Miscelaneous ============================================================
 		if self.parameters["scale"] is None and self.hyper["eta"] is None:
 			self.hyper["eta"] = 1.0
 			print("The eta hyper-parameter has been set to:")
 			print(self.hyper["eta"])
 
-		if self.prior == "EDSD":
-			assert self.D == 1, "EDSD prior is only valid for 1D version."
-
-		if self.prior == "Uniform":
-			assert self.D == 1, "Uniform prior is only valid for 1D version."
+		if self.prior in ["EDSD","Uniform","EFF","King"]:
+			assert self.D == 1, "{0} prior is only valid for 1D version.".format(self.prior)
 
 		if self.prior == "StudentT":
 			assert "nu" in self.hyper, msg_nu
@@ -650,12 +645,15 @@ class Inference:
 				assert self.hyper["gamma"] is not None, msg_gamma
 		else:
 			self.hyper["gamma"] = None
+		#===========================================================================================================
 
 
 		if self.D == 1:
-			self.Model = Model1D(n_sources=self.n_sources,
+			self.Model = Model1D(
+								n_sources=self.n_sources,
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
+								dimension=self.D,
 								prior=self.prior,
 								parameters=self.parameters,
 								hyper_alpha=self.hyper["alpha"],
@@ -663,16 +661,19 @@ class Inference:
 								hyper_gamma=self.hyper["gamma"],
 								hyper_delta=self.hyper["delta"],
 								hyper_nu=self.hyper["nu"],
-								transformation=self.transformation,
+								transformation=Transformation,
 								parametrization=self.parametrization,
-								identifiers=self.ID)
+								identifiers=self.ID,
+								coordinates=self.names_coords,
+								observables=self.names_mu)
+
 		elif self.D in [3,6] and velocity_model == "joint":
 			self.Model = Model3D6D(
-								dimension=self.D,
 								n_sources=self.n_sources,
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
 								idx_observed=self.idx_data,
+								dimension=self.D,
 								prior=self.prior,
 								parameters=self.parameters,
 								hyper_alpha=self.hyper["alpha"],
@@ -886,7 +887,8 @@ class Inference:
 		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
 		cluster_variables = list(filter(lambda x: ( ("loc" in x) 
 											or ("corr" in x)
-											or ("stds" in x) 
+											or ("stds" in x)
+											or ("std" in x)
 											or ("weights" in x)
 											or ("beta" in x)
 											or ("gamma" in x)
@@ -937,7 +939,7 @@ class Inference:
 				cluster_loc_var.remove(var)
 
 		for var in tmp_stds:
-			if "stds" not in var:
+			if "std" not in var:
 				cluster_std_var.remove(var)
 
 		for var in tmp_corr:

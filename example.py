@@ -45,7 +45,7 @@ os.makedirs(dir_base,exist_ok=True)
 #============================================================================
 
 #=============== Tuning knobs ============================
-dimension = 6
+dimension = 1
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -59,12 +59,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 10
+tuning_iters = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 10
+sample_iters = 1000
 
 
 #----- Target_accept-------
@@ -155,7 +155,7 @@ list_of_prior = [
 	# 						"eta":None,
 	# 						"nu":None,
 	# 						},
-	# 	"parametrization":"non-central"},
+	# 	"parametrization":"central"},
 	# {"type":"GMM",     
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
@@ -169,19 +169,19 @@ list_of_prior = [
 	# 						"n_components":2
 	# 						},
 	# 	"parametrization":"central"},
-	{"type":"CGMM",     
-		"parameters":{"location":None,
-					  "scale":None,
-					  "weights":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None, 
-							"gamma":None,
-							"delta":np.repeat(1,2),
-							"eta":None,
-							"n_components":2
-							},
-		"parametrization":"central"},
+	# {"type":"CGMM",     
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"gamma":None,
+	# 						"delta":np.repeat(1,2),
+	# 						"eta":None,
+	# 						"n_components":2
+	# 						},
+	# 	"parametrization":"central"},
 	# {"type":"FGMM",      
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
@@ -195,7 +195,44 @@ list_of_prior = [
 	# 						"eta":None,
 	# 						"n_components":2
 	# 						},
-	# 	"parametrization":"central"}
+	# 	"parametrization":"central"},
+	{"type":"Uniform",
+		"parameters":{"location":None,
+					  "scale":None
+					  },
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None,
+							"gamma":None,
+							"delta":None,
+							"eta":None,
+							},
+		"parametrization":"central"},
+	# {"type":"King",
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "rt":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":10.,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"EFF",
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "gamma":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":10.,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						},
+	# 	"parametrization":"central"},
+
 	]
 #======================= Inference and Analysis =====================================================
 
@@ -217,7 +254,7 @@ for prior in list_of_prior:
 	#------------------------------------------------
 
 	#--------- Initialize the inference module -------
-	p3d = Inference(dimension=dimension,
+	kal = Inference(dimension=dimension,
 					dir_out=dir_prior,
 					zero_points=zero_points,
 					indep_measures=indep_measures,
@@ -225,10 +262,10 @@ for prior in list_of_prior:
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	p3d.load_data(file_data)
+	kal.load_data(file_data)
 
 	#------ Prepares the model -------------------
-	p3d.setup(prior=prior["type"],
+	kal.setup(prior=prior["type"],
 			  parameters=prior["parameters"],
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"],
@@ -237,42 +274,42 @@ for prior in list_of_prior:
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	# p3d.run(sample_iters=sample_iters,
-	# 		tuning_iters=tuning_iters,
-	# 		target_accept=target_accept,
-	# 		chains=chains,
-	# 		cores=cores,
-	# 		nuts_sampler=nuts_sampler,
-	# 		posterior_predictive=True,
-	# 		prior_predictive=True)
+	kal.run(sample_iters=sample_iters,
+			tuning_iters=tuning_iters,
+			target_accept=target_accept,
+			chains=chains,
+			cores=cores,
+			nuts_sampler=nuts_sampler,
+			posterior_predictive=True,
+			prior_predictive=True)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
 	# and want to re-analyse (in that case comment the p1d.run() line)
-	p3d.load_trace()
+	kal.load_trace()
 
 	# ------- Re-analyse the convergence of the sampler---
-	p3d.convergence()
+	kal.convergence()
 
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources. If IDs keyword removed only plots the population parameters.
-	p3d.plot_chains()
+	kal.plot_chains()
 
 	#--- Check Prior and Posterior ----
-	p3d.plot_prior_check()
+	kal.plot_prior_check()
 	#--------------------------------
 
 	#--- Plot model -- 
-	p3d.plot_model(n_samples=10)
+	kal.plot_model()
 	# -----------------
 
 	#----- Compute and save the posterior statistics ---------
-	p3d.save_statistics(hdi_prob=hdi_prob)
+	kal.save_statistics(hdi_prob=hdi_prob)
 
-	p3d.save_posterior_predictive()
+	kal.save_posterior_predictive()
 
 	#------- Save the samples into HDF5 file --------------
-	p3d.save_samples()
+	kal.save_samples()
 #=======================================================================================
