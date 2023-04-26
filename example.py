@@ -32,7 +32,7 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core+Tails/"
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
@@ -45,7 +45,7 @@ os.makedirs(dir_base,exist_ok=True)
 #============================================================================
 
 #=============== Tuning knobs ============================
-dimension = 1
+dimension = 3
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -129,7 +129,7 @@ velocity_model = "joint"
 # This is the type of sample to use.
 # Check PyMC documentation for valid samplers and their installation
 # By default use the "pymc" sampler.
-nuts_sampler = "pymc"
+nuts_sampler = "numpyro"
 
 #=========================================================================================
 
@@ -169,19 +169,19 @@ list_of_prior = [
 	# 						"n_components":2
 	# 						},
 	# 	"parametrization":"central"},
-	# {"type":"CGMM",     
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(1,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"parametrization":"central"},
+	{"type":"CGMM",     
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"gamma":None,
+							"delta":np.repeat(1,2),
+							"eta":None,
+							"n_components":2
+							},
+		"parametrization":"central"},
 	# {"type":"FGMM",      
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
@@ -196,18 +196,18 @@ list_of_prior = [
 	# 						"n_components":2
 	# 						},
 	# 	"parametrization":"central"},
-	{"type":"Uniform",
-		"parameters":{"location":None,
-					  "scale":None
-					  },
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
-							"eta":None,
-							},
-		"parametrization":"central"},
+	# {"type":"Uniform",
+	# 	"parameters":{"location":None,
+	# 				  "scale":None
+	# 				  },
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						},
+	# 	"parametrization":"central"},
 	# {"type":"King",
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,

@@ -723,8 +723,8 @@ class Inference:
 		posterior_predictive=False,
 		progressbar=True,
 		nuts_sampler="pymc",
-		init_absolute_tol=1e-1,
-		init_relative_tol=1e-1,
+		init_absolute_tol=1e-2,
+		init_relative_tol=1e-2,
 		random_seed=None):
 		"""
 		Performs the MCMC run.
