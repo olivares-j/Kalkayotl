@@ -17,6 +17,7 @@ This file is part of Kalkayotl.
 	along with Kalkayotl.  If not, see <http://www.gnu.org/licenses/>.
 '''
 from __future__ import absolute_import, unicode_literals, print_function
+import os
 import sys
 import random
 import pymc as pm
@@ -25,6 +26,7 @@ import pandas as pn
 import xarray
 import arviz as az
 import h5py
+import dill
 import scipy.stats as st
 from scipy.linalg import inv as inverse
 from string import ascii_uppercase
@@ -51,10 +53,13 @@ from kalkayotl.Models import Model1D,Model3D6D,Model6D_linear
 from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM,get_principal,my_mode
 # from kalkayotl.Evidence import Evidence1D
 from kalkayotl.Transformations import astrometry_and_rv_to_phase_space
-from kalkayotl.Transformations import Iden,pc2mas # 1D
+from kalkayotl.Transformations import Iden,pc2mas,mas2pc # 1D
 from kalkayotl.Transformations import icrs_xyz_to_radecplx,galactic_xyz_to_radecplx #3D
+from kalkayotl.Transformations import np_radecplx_to_icrs_xyz,np_radecplx_to_galactic_xyz #3D
 from kalkayotl.Transformations import icrs_xyzuvw_to_astrometry_and_rv #6D
 from kalkayotl.Transformations import galactic_xyzuvw_to_astrometry_and_rv #6D
+from kalkayotl.Transformations import np_astrometry_and_rv_to_icrs_xyzuvw #6D
+from kalkayotl.Transformations import np_astrometry_and_rv_to_galactic_xyzuvw #6D
 #------------------------------------------------------------------------
 
 
@@ -98,6 +103,7 @@ class Inference:
 		self.file_ids         = self.dir_out+"/Identifiers.csv"
 		self.file_obs         = self.dir_out+"/Observations.nc"
 		self.file_chains      = self.dir_out+"/Chains.nc"
+		self.file_start       = self.dir_out+"/Initialization.pkl"
 
 		self.asec2deg = 1.0/(60.*60.)
 
@@ -146,7 +152,11 @@ class Inference:
 		self.gaia_observables = sum([[id_name],gaia_observables],[]) 
 
 
-	def load_data(self,file_data,corr_func="Lindegren+2020",*args,**kwargs):
+	def load_data(self,file_data,
+		corr_func="Lindegren+2020",
+		radec_precision_arcsec=1.0,
+		*args,
+		**kwargs):
 		"""
 		This function reads the data.
 
@@ -171,15 +181,15 @@ class Inference:
 		#----- ID as index ----------------------
 		data.set_index(self.id_name,inplace=True)
 
-		#-------- Drop NaNs ------------------------
+		#-------- Drop NaNs ----------------------------
 		data.dropna(subset=self.names_nan,inplace=True,
 						thresh=len(self.names_nan))
 		#----------------------------------------------
 
 		#--------- mas to degrees -------------------------
 		# Fixes RA Dec uncertainties to 1 arcsec
-		data["ra_error"]  = 1.*self.asec2deg
-		data["dec_error"] = 1.*self.asec2deg
+		data["ra_error"]  = radec_precision_arcsec*self.asec2deg
+		data["dec_error"] = radec_precision_arcsec*self.asec2deg
 		#--------------------------------------------------
 
 		#---------- Zero-points --------------------
@@ -194,6 +204,14 @@ class Inference:
 				np.array(data["ra"])*u.deg).to(u.deg).value
 		self.mean_observed = mean_observed.values
 		#---------------------------------------------------
+
+		#------------- Observed --------------------------------
+		observed = data[self.names_mu].copy()
+		observed.fillna(value={
+			"radial_velocity":mean_observed["radial_velocity"]},
+			inplace=True)
+		self.observed = observed.to_numpy()
+		#-------------------------------------------------------
 
 		#----- Track ID -------------
 		self.ID = data.index.values
@@ -302,6 +320,7 @@ class Inference:
 		self.mu_data  = mu_data
 		self.sg_data  = sg_data
 		self.tau_data = np.linalg.inv(sg_data)
+		#---------------------------------------------------------------
 		#=================================================================================
 
 		print("Data correctly loaded")
@@ -349,26 +368,34 @@ class Inference:
 		if reference_system == "ICRS":
 			if self.D == 3:
 				Transformation = icrs_xyz_to_radecplx
+				backwards = np_radecplx_to_icrs_xyz
 			elif self.D == 6:
 				Transformation = icrs_xyzuvw_to_astrometry_and_rv
+				backwards = np_astrometry_and_rv_to_icrs_xyzuvw
 			elif self.D == 1:
 				if sampling_space == "physical":
 					Transformation = pc2mas
+					backwards = mas2pc
 				else:
 					Transformation = Iden
+					backwards = Iden
 			else:
 				sys.exit("ERROR:Uknown")
 
 		elif reference_system == "Galactic":
 			if self.D == 3:
 				Transformation = galactic_xyz_to_radecplx
+				backwards = np_radecplx_to_galactic_xyz
 			elif self.D == 6:
 				Transformation = galactic_xyzuvw_to_astrometry_and_rv
+				backwards = np_astrometry_and_rv_to_galactic_xyzuvw
 			elif self.D == 1:
 				if sampling_space == "physical":
 					Transformation = pc2mas
+					backwards = mas2pc
 				else:
 					Transformation = Iden
+					backwards = Iden
 		else:
 			sys.exit("Reference system not accepted")
 		#==================================================================
@@ -610,6 +637,10 @@ class Inference:
 			#----------------------------------------------------------------
 		#==============================================================================================
 
+		#=========================== Initial values ====================================
+		self.starting_points = {"{0}D::source".format(self.D):backwards(self.observed)}
+		#===============================================================================
+
 		#==================== Miscelaneous ============================================================
 		if self.parameters["scale"] is None and self.hyper["eta"] is None:
 			self.hyper["eta"] = 1.0
@@ -723,8 +754,10 @@ class Inference:
 		posterior_predictive=False,
 		progressbar=True,
 		nuts_sampler="pymc",
-		init_absolute_tol=1e-2,
-		init_relative_tol=1e-2,
+		init_absolute_tol=5e-3,
+		init_relative_tol=1e-5,
+		init_plot_iters=int(1e3),
+		init_refine=False,
 		random_seed=None):
 		"""
 		Performs the MCMC run.
@@ -735,72 +768,96 @@ class Inference:
 
 		file_chains = self.file_chains if (file_chains is None) else file_chains
 
-		#================== Optimization ======================================================		
-		random_seed_list = pymc.util._get_seeds_per_chain(random_seed, chains)
+		#================== Optimization =============================================
+		if os.path.exists(self.file_start):
+			print("Reading initial positions ...")
+			in_file = open(self.file_start, "rb")
+			approx = dill.load(in_file)
+			in_file.close()
+			start = approx["initial_points"][0]
+		else:
+			approx = None
+			start = self.starting_points
+			print("Finding initial positions ...")
 
-		cb = [pm.callbacks.CheckParametersConvergence(
-				tolerance=init_absolute_tol, diff="absolute"),
-			  pm.callbacks.CheckParametersConvergence(
-			  	tolerance=init_relative_tol, diff="relative")]
+		if approx is None or (approx is not None and init_refine):
+			# -------- Fix problem with initial solution of cholesky cov-packed ----------
+			name_ccp = "_cholesky-cov-packed__" 
+			for key,value in start.copy().items():
+				if name_ccp in key:
+					del start[key]
+			# TO BE REMOVED once pymc5 solves this issue
+			#----------------------------------------------------------------------------
 
-		with self.Model:
-			initvals = pm.find_MAP(include_transformed=False,
-						maxeval=int(1e5),progressbar=False)
+			random_seed_list = pymc.util._get_seeds_per_chain(random_seed, chains)
+			cb = [pm.callbacks.CheckParametersConvergence(
+					tolerance=init_absolute_tol, diff="absolute"),
+				  pm.callbacks.CheckParametersConvergence(
+				  	tolerance=init_relative_tol, diff="relative")]
 
-		initial_points = pymc.sampling.mcmc._init_jitter(
-			self.Model,
-			initvals,
-			seeds=random_seed_list,
-			jitter="jitter" in init_method,
-			jitter_max_retries=10
-			)
+			approx = pm.fit(
+				start=start,
+				random_seed=random_seed_list[0],
+				n=init_iters,
+				method="advi",
+				model=self.Model,
+				callbacks=cb,
+				progressbar=True,
+				#test_optimizer=pm.adagrad#_window
+				)
 
-		approx = pm.fit(
-			random_seed=random_seed_list[0],
-			n=init_iters,
-			method="advi",
-			model=self.Model,
-			callbacks=cb,
-			progressbar=True,
-			test_optimizer=pm.adagrad#_window
-			)
+			#------------- Plot Loss ----------------------------------
+			plt.figure()
+			plt.plot(approx.hist[-init_plot_iters:])
+			plt.xlabel("Last {0} iterations".format(init_plot_iters))
+			# plt.yscale("log")
+			plt.ylabel("Average Loss")
+			plt.savefig(self.dir_out+"/Initializations.png")
+			plt.close()
+			#-----------------------------------------------------------
 
-		approx_sample = approx.sample(
-			draws=chains, 
-			random_seed=random_seed_list[0],
-			return_inferencedata=False
-			)
+			approx_sample = approx.sample(
+				draws=chains, 
+				random_seed=random_seed_list[0],
+				return_inferencedata=False
+				)
 
-		initial_points = [approx_sample[i] for i in range(chains)]
-		std_apoint = approx.std.eval()
-		cov = std_apoint**2
-		mean = approx.mean.get_value()
+			initial_points = [approx_sample[i] for i in range(chains)]
+			sd_point = approx.std.eval()
+			mu_point = approx.mean.get_value()
+			approx = {
+				"initial_points":initial_points,
+				"mu_point":mu_point,
+				"sd_point":sd_point
+				}
+
+			out_file = open(self.file_start, "wb")
+			dill.dump(approx, out_file)
+			out_file.close()
+
+			#------------------ Save initial point ------------------------------
+			df = pn.DataFrame(data=initial_points[0]["{0}D::true".format(self.D)],
+				columns=self.names_mu)
+			df.to_csv(self.dir_out+"/initial_point.csv",index=False)
+			#---------------------------------------------------------------------
+
+		#----------- Extract ---------------------
+		mu_point = approx["mu_point"]
+		sd_point = approx["sd_point"]
+		initial_points = approx["initial_points"]
+		#-----------------------------------------
+
+		#--------------- Prepare step ---------------------------------------------
+		cov = sd_point**2
 		weight = 10
 		potential = pymc.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
-					len(cov), mean, cov, weight)
+					len(cov), mu_point, sd_point**2, weight)
 
-		#------------- Plot Loss ----------------------------------
-		plt.figure()
-		plt.plot(approx.hist)
-		plt.xlabel("Iterations")
-		plt.yscale("log")
-		plt.ylabel("Average Loss")
-		plt.savefig(self.dir_out+"/Initializations.png")
-		plt.close()
-		#-----------------------------------------------------------
-
-		#------------------ Save initial point ------------------------------
-		df = pn.DataFrame(data=initial_points[0]["{0}D::true".format(self.D)],
-			columns=self.names_mu)
-		df.to_csv(self.dir_out+"/initial_point.csv",index=False)
-		#---------------------------------------------------------------------
-
-		#--------------- Prepare step -------------------
 		step = pm.NUTS(
 				potential=potential,
 				model=self.Model,
 				target_accept=target_accept)
-		#----------------------------------------------
+		#----------------------------------------------------------------------------
 
 		# -------- Fix problem with initial solution of cholesky cov-packed ----------
 		name_ccp = "_cholesky-cov-packed__" 

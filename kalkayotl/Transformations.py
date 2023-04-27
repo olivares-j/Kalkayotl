@@ -112,6 +112,9 @@ def Iden(x):
 def pc2mas(x):
 	return 1.e3/x
 
+def mas2pc(x):
+	return 1.e3/x
+
 def np_normalTriad(phi, theta):
 	"""
 	Calculate the so-called normal triad [p, q, r] which is associated with a spherical coordinate system .
