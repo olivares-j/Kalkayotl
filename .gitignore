@@ -8,5 +8,5 @@ Validation/
 *.csv
 *.pkl
 .ipynb_checkpoints/
-article/v1.0/Synthetic
-article/v2.0/Synthetic
+article/v1.0/Synthetic/*
+article/v2.0/Synthetic/*
