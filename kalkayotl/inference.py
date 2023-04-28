@@ -71,7 +71,9 @@ class Inference:
 				dir_out,
 				zero_points,
 				indep_measures=False,
-				reference_system=None,
+				reference_system="Galactic",
+				sampling_space="physical",
+				velocity_model="joint",
 				id_name='source_id',
 				precision=2,
 				**kwargs):
@@ -94,12 +96,21 @@ class Inference:
 
 		coordinates = ["X","Y","Z","U","V","W"]
 
+		assert dimension in [1,3,6], "Dimension must be 1, 3 or 6"
+		assert isinstance(zero_points,dict), "zero_points must be a dictionary"
+		assert reference_system in ["ICRS","Galactic"], "Unrecognized reference system!"
+		assert velocity_model in ["joint","constant","linear"],"Unrecognized velocity model!"
+		assert sampling_space in ["observed","physical"],"Unrecognized sampling space"
+
 		self.D                = dimension 
 		self.zero_points      = zero_points
 		self.dir_out          = dir_out
 		self.indep_measures   = indep_measures
 		
 		self.reference_system = reference_system
+		self.velocity_model   = velocity_model
+		self.sampling_space   = sampling_space
+
 		self.file_ids         = self.dir_out+"/Identifiers.csv"
 		self.file_obs         = self.dir_out+"/Observations.nc"
 		self.file_chains      = self.dir_out+"/Chains.nc"
@@ -150,6 +161,48 @@ class Inference:
 
 		self.id_name = id_name
 		self.gaia_observables = sum([[id_name],gaia_observables],[]) 
+
+		#============= Transformations ====================================
+		if reference_system == "ICRS":
+			if self.D == 3:
+				self.forward  = icrs_xyz_to_radecplx
+				self.backward = np_radecplx_to_icrs_xyz
+
+			elif self.D == 6:
+				self.forward  = icrs_xyzuvw_to_astrometry_and_rv
+				self.backward = np_astrometry_and_rv_to_icrs_xyzuvw
+
+			else:
+				if self.sampling_space == "physical":
+					self.forward  = pc2mas
+					self.backward = mas2pc
+				else:
+					self.forward  = Iden
+					self.backward = Iden
+			
+		elif reference_system == "Galactic":
+			if self.D == 3:
+				self.forward  = galactic_xyz_to_radecplx
+				self.backward = np_radecplx_to_galactic_xyz
+
+			elif self.D == 6:
+				self.forward  = galactic_xyzuvw_to_astrometry_and_rv
+				self.backward = np_astrometry_and_rv_to_galactic_xyzuvw
+
+			else:
+				if self.sampling_space == "physical":
+					self.forward  = pc2mas
+					self.backward = mas2pc
+				else:
+					self.forward  = Iden
+					self.backward = Iden
+		else:
+			sys.exit("Reference system not accepted")
+		#==================================================================
+
+		if self.D in [3,6]:
+			assert self.sampling_space == "physical", "3D and 6D models work only in the physical space."
+
 
 
 	def load_data(self,file_data,
@@ -330,9 +383,6 @@ class Inference:
 				parameters,
 				hyper_parameters,
 				parametrization,
-				sampling_space="physical",
-				reference_system="Galactic",
-				velocity_model="joint"
 				):
 		'''
 		Set-up the model with the corresponding dimensions and data
@@ -342,63 +392,19 @@ class Inference:
 		self.parameters       = parameters
 		self.hyper            = hyper_parameters
 		self.parametrization  = parametrization
-		self.velocity_model   = velocity_model
-		self.sampling_space   = sampling_space
+		
 
 		print(15*"+", " Prior setup ", 15*"+")
 		print("Type of prior: ",self.prior)
 
 		msg_alpha = "hyper_alpha must be specified."
 		msg_beta  = "hyper_beta must be specified."
-		msg_trans = "Transformation must be either pc or mas."
-		msg_delta = "hyper_delta must be specified."
 		msg_gamma = "hyper_gamma must be specified."
+		msg_delta = "hyper_delta must be specified."
 		msg_nu    = "hyper_nu must be specified."
 		msg_central = "Only the central parametrization is valid for this configuration."
 		msg_non_central = "Only the non-central parametrization is valid for this configuration."
 		msg_weights = "weights must be greater than 5%."
-
-		assert sampling_space in ["observed","physical"], "ERROR: sampling space can only be physical or observed"
-		assert velocity_model in ["joint","constant","linear"], "ERROR: velocity_model not recognized!"
-
-		if self.D in [3,6]:
-			assert sampling_space == "physical", "3D and 6D models work only in the physical space."
-
-		#============= Transformations ====================================
-		if reference_system == "ICRS":
-			if self.D == 3:
-				Transformation = icrs_xyz_to_radecplx
-				backwards = np_radecplx_to_icrs_xyz
-			elif self.D == 6:
-				Transformation = icrs_xyzuvw_to_astrometry_and_rv
-				backwards = np_astrometry_and_rv_to_icrs_xyzuvw
-			elif self.D == 1:
-				if sampling_space == "physical":
-					Transformation = pc2mas
-					backwards = mas2pc
-				else:
-					Transformation = Iden
-					backwards = Iden
-			else:
-				sys.exit("ERROR:Uknown")
-
-		elif reference_system == "Galactic":
-			if self.D == 3:
-				Transformation = galactic_xyz_to_radecplx
-				backwards = np_radecplx_to_galactic_xyz
-			elif self.D == 6:
-				Transformation = galactic_xyzuvw_to_astrometry_and_rv
-				backwards = np_astrometry_and_rv_to_galactic_xyzuvw
-			elif self.D == 1:
-				if sampling_space == "physical":
-					Transformation = pc2mas
-					backwards = mas2pc
-				else:
-					Transformation = Iden
-					backwards = Iden
-		else:
-			sys.exit("Reference system not accepted")
-		#==================================================================
 
 		#============== Mixtures =====================================================
 		if "GMM" in self.prior:
@@ -442,33 +448,29 @@ class Inference:
 		#====================== Location ==========================================================
 		if self.parameters["location"] is None:
 			#---------------- Alpha ---------------------------------------------------------
+			print("The alpha hyper-parameter has been set to:")
 			if self.hyper["alpha"] is None:
-				print("The alpha hyper-parameter has been set to:")
-
 				#-- Cluster dispersion ----
 				uvw_sd = 5.
 				xyz_fc = 0.2
 				#-------------------------
 
-				#------------------------ Cluster mean value ------------------------
 				if self.D == 1:
 					#---------- Mean distance ------------
-					d = 1000./self.mean_observed[0]
+					d = self.backward(self.mean_observed[0])
 					#------------------------------------
 
 					#---------- Dispersion -----------------
 					d_sd = xyz_fc*d
 					#---------------------------------------
 
-					self.hyper["alpha"] = {"loc":d,"scl":d_sd}
-					print("D: {0:2.1f} +/- {1:2.1f}".format(d,d_sd))
-
+					self.hyper["alpha"] = {
+						"loc":[d],
+						"scl":[d_sd]}
 				
 				elif self.D == 3:
 					#------------ Cluster mean coordinates -------------------
-					x,y,z,_,_,_ = astrometry_and_rv_to_phase_space(np.append(
-									self.mean_observed,[0.0,0.0,0.0])[np.newaxis,:],
-									reference_system=self.reference_system).flatten()
+					x,y,z,_,_,_ = self.backward(self.mean_observed[np.newaxis,:]).flatten()
 					#----------------------------------------------------------
 
 					#---------- Dispersion -----------------
@@ -479,17 +481,9 @@ class Inference:
 						"loc":[x,y,z],
 						"scl":[xyz_sd,xyz_sd,xyz_sd]}
 
-					names = ["X","Y","Z"]
-					locs = self.hyper["alpha"]["loc"]
-					scls = self.hyper["alpha"]["scl"]
-					for i,(loc,scl) in enumerate(zip(locs,scls)):
-						print("{0}: {1:2.1f} +/- {2:2.1f}".format(names[i],loc,scl))
-
 				elif self.D == 6:
 					#------------ Cluster mean coordinates -------------------
-					x,y,z,u,v,w = astrometry_and_rv_to_phase_space(
-									self.mean_observed[np.newaxis,:],
-									reference_system=self.reference_system).flatten()
+					x,y,z,u,v,w = self.backward(self.mean_observed[np.newaxis,:]).flatten()
 					#----------------------------------------------------------
 
 					#---------- Dispersion -----------------
@@ -500,13 +494,11 @@ class Inference:
 					"loc":[x,y,z,u,v,w],
 					"scl":[xyz_sd,xyz_sd,xyz_sd,uvw_sd,uvw_sd,uvw_sd]}
 
-					names = ["X","Y","Z","U","V","W"]
-					locs = self.hyper["alpha"]["loc"]
-					scls = self.hyper["alpha"]["scl"]
-					for i,(loc,scl) in enumerate(zip(locs,scls)):
-						print("{0}: {1:2.1f} +/- {2:2.1f}".format(names[i],loc,scl))
-				#----------------------------------------------------------------------
-				
+			for name,loc,scl in zip(
+				self.names_coords,
+				self.hyper["alpha"]["loc"],
+				self.hyper["alpha"]["scl"]):
+				print("{0}: {1:2.1f} +/- {2:2.1f}".format(name,loc,scl))	
 			#---------------------------------------------------------------------------------
 
 		#-------------- Read from input file ----------------------------------
@@ -556,8 +548,9 @@ class Inference:
 		if self.parameters["scale"] is None:
 			if self.hyper["beta"] is None:
 				self.hyper["beta"] = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
-				print("The beta hyper-parameter has been set to:")
-				print(self.hyper["beta"])
+
+			print("The beta hyper-parameter has been set to:")
+			print(self.hyper["beta"])
 		else:
 			#-------------- Read from input file -----------------------------
 			if isinstance(self.parameters["scale"],str):
@@ -637,9 +630,9 @@ class Inference:
 			#----------------------------------------------------------------
 		#==============================================================================================
 
-		#=========================== Initial values ====================================
-		self.starting_points = {"{0}D::source".format(self.D):backwards(self.observed)}
-		#===============================================================================
+		#=========================== Initial values =======================================
+		self.starting_points = {"{0}D::source".format(self.D):self.backward(self.observed)}
+		#==================================================================================
 
 		#==================== Miscelaneous ============================================================
 		if self.parameters["scale"] is None and self.hyper["eta"] is None:
@@ -678,7 +671,6 @@ class Inference:
 			self.hyper["gamma"] = None
 		#===========================================================================================================
 
-
 		if self.D == 1:
 			self.Model = Model1D(
 								n_sources=self.n_sources,
@@ -692,13 +684,13 @@ class Inference:
 								hyper_gamma=self.hyper["gamma"],
 								hyper_delta=self.hyper["delta"],
 								hyper_nu=self.hyper["nu"],
-								transformation=Transformation,
+								transformation=self.forward,
 								parametrization=self.parametrization,
 								identifiers=self.ID,
 								coordinates=self.names_coords,
 								observables=self.names_mu)
 
-		elif self.D in [3,6] and velocity_model == "joint":
+		elif self.D in [3,6] and self.velocity_model == "joint":
 			self.Model = Model3D6D(
 								n_sources=self.n_sources,
 								mu_data=self.mu_data,
@@ -713,13 +705,13 @@ class Inference:
 								hyper_delta=self.hyper["delta"],
 								hyper_eta=self.hyper["eta"],
 								hyper_nu=self.hyper["nu"],
-								transformation=Transformation,
+								transformation=self.forward,
 								parametrization=self.parametrization,
 								identifiers=self.ID,
 								coordinates=self.names_coords,
 								observables=self.names_mu)
 
-		elif self.D == 6 and velocity_model != "joint":
+		elif self.D == 6 and self.velocity_model != "joint":
 			self.Model = Model6D_linear(n_sources=self.n_sources,
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
@@ -732,7 +724,7 @@ class Inference:
 								hyper_delta=self.hyper["delta"],
 								hyper_eta=self.hyper["eta"],
 								hyper_nu=self.hyper["nu"],
-								transformation=Transformation,
+								transformation=self.forward,
 								parametrization=self.parametrization,
 								velocity_model=self.velocity_model,
 								identifiers=self.ID,
