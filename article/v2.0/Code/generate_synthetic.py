@@ -2,9 +2,9 @@ import sys
 import os
 import numpy as np
 import dill
-os.environ["ISOCHRONES"] = "/home/jolivares/.isochrones/"
+os.environ["ISOCHRONES"] = "/raid/jromero/isochrones/"
 
-list_of_distances = [100.,200.,400.,800.,1600.]
+list_of_distances = [100.,200.,800.,1600.]
 list_of_n_stars   = [100,200,400]
 list_of_seeds     = [0,1,2,3,4]
 true_pos_sds      = np.array([9.,9.,9.])
@@ -23,8 +23,8 @@ photometric_args = {
 
 dill.dump_session("./globals_{0}.pkl".format(model))
 
-dir_repos = "/home/jolivares/Repos"
-dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/"
+dir_repos = "/home/jromero/Repos"
+dir_main  = "/raid/jromero/Kalkayotl/Synthetic/"
 
 #----- Amasijo -------------------
 path_amasijo   = dir_repos + "/Amasijo/"
@@ -36,6 +36,14 @@ from Amasijo import Amasijo
 for distance in list_of_distances:
 	for n_stars in list_of_n_stars:
 		for seed in list_of_seeds:
+			print(20*"-")
+			base_name = "{0}_n{1}_d{2}_s{3}".format(
+				model,int(n_stars),int(distance),seed)
+			print(base_name)
+
+			if os.path.isfile(dir_main+base_name+".csv"):
+				continue
+
 			astrometric_args = {
 			"position":{"family":model,
 						"location":np.array([distance,0.0,0.0]),
@@ -44,7 +52,7 @@ for distance in list_of_distances:
 						"location":true_vel_loc,
 						"covariance":np.diag(true_vel_sds**2)}}
 
-			base_name = "{0}_n{1}_d{2}".format(model,n_stars,int(distance))
+			
 			ama = Amasijo(
 						astrometric_args=astrometric_args,
 						photometric_args=photometric_args,
