@@ -260,9 +260,10 @@ class Inference:
 
 		#------------- Observed --------------------------------
 		observed = data[self.names_mu].copy()
-		observed.fillna(value={
-			"radial_velocity":mean_observed["radial_velocity"]},
-			inplace=True)
+		if self.D == 6:
+			observed.fillna(value={
+				"radial_velocity":mean_observed["radial_velocity"]},
+				inplace=True)
 		self.observed = observed.to_numpy()
 		#-------------------------------------------------------
 
@@ -389,13 +390,14 @@ class Inference:
 		'''
 
 		self.prior            = prior
-		self.parameters       = parameters
-		self.hyper            = hyper_parameters
+		self.parameters       = parameters.copy()
+		self.hyper            = hyper_parameters.copy()
 		self.parametrization  = parametrization
 		
 
 		print(15*"+", " Prior setup ", 15*"+")
 		print("Type of prior: ",self.prior)
+		print("Working in the {} reference system".format(self.reference_system))
 
 		msg_alpha = "hyper_alpha must be specified."
 		msg_beta  = "hyper_beta must be specified."
@@ -470,7 +472,7 @@ class Inference:
 				
 				elif self.D == 3:
 					#------------ Cluster mean coordinates -------------------
-					x,y,z,_,_,_ = self.backward(self.mean_observed[np.newaxis,:]).flatten()
+					x,y,z = self.backward(self.mean_observed[np.newaxis,:]).flatten()
 					#----------------------------------------------------------
 
 					#---------- Dispersion -----------------
@@ -502,8 +504,7 @@ class Inference:
 			#---------------------------------------------------------------------------------
 
 		#-------------- Read from input file ----------------------------------
-		else:
-			if isinstance(self.parameters["location"],str):
+		elif isinstance(self.parameters["location"],str):
 				#---- Extract parameters ----------------------
 				loc = pn.read_csv(self.parameters["location"],
 							usecols=["Parameter","mode"])
@@ -528,19 +529,29 @@ class Inference:
 					self.parameters["location"] = loc["mode"].values
 					#-----------------------------------------------
 				#----------------------------------------------------------
+		#-------- Fixed value ------------------------
+		elif isinstance(self.parameters["location"],np.ndarray) or \
+			 isinstance(self.parameters["location"],list):
 
-			#--------- Verify location ---------------------------------
-			print("The location parameter is fixed to:")
-			if "GMM" in self.prior:
-				for i,loc in enumerate(self.parameters["location"]):
-					print(i,loc)
-					assert len(loc) == self.D, \
+				self.parameters["location"] = np.array(self.parameters["location"])
+				#--------- Verify location ---------------------------------
+				print("The location parameter is fixed to:")
+				if "GMM" in self.prior:
+					for i,loc in enumerate(self.parameters["location"]):
+						print(i,loc)
+						assert len(loc) == self.D, \
+							"ERROR: The size of the location is incorrect!"
+				else:
+					print(self.parameters["location"])
+					assert len(self.parameters["location"]) == self.D, \
 						"The location parameter's size is incorrect!"
-			else:
-				print(self.parameters["location"])
-				assert len(self.parameters["location"]) == self.D, \
-					"The location parameter's size is incorrect!"
-			#-----------------------------------------------------------
+				#-----------------------------------------------------------
+		else:
+			sys.exit("ERROR: Unrecognized type of location parameter!"\
+					"Must be None, string, list ir numpy array!")
+
+
+		
 		#-----------------------------------------------------------------------
 		#==============================================================================================
 		
@@ -1504,7 +1515,9 @@ class Inference:
 		"""
 		This function plots the model.
 		"""
-		assert self.D in [3,6], "Only valid for 3D and 6D models"
+		if self.D == 1:
+			print("Plot model valid only for 3D and 6D")
+			return
 
 		msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
 

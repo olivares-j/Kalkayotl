@@ -32,7 +32,7 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core+Tails/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
@@ -45,7 +45,7 @@ os.makedirs(dir_base,exist_ok=True)
 #============================================================================
 
 #=============== Tuning knobs ============================
-dimension = 3
+dimension = 1
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -135,16 +135,16 @@ nuts_sampler = "numpyro"
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	# {"type":"Gaussian",
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":None
-	# 						},
-	# 	"parametrization":"central"},
+	{"type":"Gaussian",
+		"parameters":{"location":[85.8],"scale":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None,
+							"gamma":None,
+							"delta":None,
+							"eta":None
+							},
+		"parametrization":"central"},
 	# {"type":"StudentT",
 	# 	"parameters":{"location":None,"scale":None},
 	# 	"hyper_parameters":{
@@ -169,19 +169,19 @@ list_of_prior = [
 	# 						"n_components":2
 	# 						},
 	# 	"parametrization":"central"},
-	{"type":"CGMM",     
-		"parameters":{"location":None,
-					  "scale":None,
-					  "weights":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None, 
-							"gamma":None,
-							"delta":np.repeat(1,2),
-							"eta":None,
-							"n_components":2
-							},
-		"parametrization":"central"},
+	# {"type":"CGMM",     
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"gamma":None,
+	# 						"delta":np.repeat(1,2),
+	# 						"eta":None,
+	# 						"n_components":2
+	# 						},
+	# 	"parametrization":"central"},
 	# {"type":"FGMM",      
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
@@ -258,7 +258,9 @@ for prior in list_of_prior:
 					dir_out=dir_prior,
 					zero_points=zero_points,
 					indep_measures=indep_measures,
-					reference_system=reference_system)
+					reference_system=reference_system,
+					sampling_space=sampling_space,
+					velocity_model=velocity_model)
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
@@ -269,8 +271,7 @@ for prior in list_of_prior:
 			  parameters=prior["parameters"],
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"],
-			  sampling_space=sampling_space,
-			  velocity_model=velocity_model)
+			  )
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
