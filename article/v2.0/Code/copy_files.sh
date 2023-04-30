@@ -1,1 +1,1 @@
-rsync -av -r -e ssh --exclude='*.nc' --exclude='*.h5' --exclude="Synthetic" dance13:/raid/jromero/Kalkayotl/ /home/jolivares/Repos/Kalkayotl/article/v2.0/
+rsync -av -r -e ssh --exclude='*.nc' --exclude='*.h5' --exclude="Synthetic" --exclude="Code" dance13:/raid/jromero/Kalkayotl/ /home/jolivares/Repos/Kalkayotl/article/v2.0/
