@@ -123,5 +123,4 @@ for reference_system in ["ICRS","Galactic"]:
 	# kal.plot_model()
 	# kal.save_statistics()
 	# kal.save_samples()
-	kal = None
 #=======================================================================================
