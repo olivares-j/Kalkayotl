@@ -1448,17 +1448,17 @@ class Inference:
 
 			#----------- Tensor----------------
 			T = np.zeros((kappa.shape[0],3,3))
-			T[:,0,0] = kappa[:,0]
-			T[:,1,1] = kappa[:,1]
-			T[:,2,2] = kappa[:,2]
+			T[:,0,0] = kappa[:,0]*1000.
+			T[:,1,1] = kappa[:,1]*1000.
+			T[:,2,2] = kappa[:,2]*1000.
 			
 			if self.velocity_model == "linear":
-				T[:,0,1] = omega[:,0,0]
-				T[:,0,2] = omega[:,0,1]
-				T[:,1,2] = omega[:,0,2]
-				T[:,1,0] = omega[:,1,0]
-				T[:,2,0] = omega[:,1,1]
-				T[:,2,1] = omega[:,1,2]
+				T[:,0,1] = omega[:,0,0]*1000.
+				T[:,0,2] = omega[:,0,1]*1000.
+				T[:,1,2] = omega[:,0,2]*1000.
+				T[:,1,0] = omega[:,1,0]*1000.
+				T[:,2,0] = omega[:,1,1]*1000.
+				T[:,2,1] = omega[:,1,2]*1000.
 			#----------------------------------
 
 			#--------- Indicators ------------
@@ -1477,8 +1477,8 @@ class Inference:
 			print(
 		"WARNING: the expansion and rotation indicators are computed from the dot and cross-product \
 		of the positions and velocities. Instead use the linear velocity model")
-			exp = srcs_exp
-			rot = srcs_rot
+			exp = srcs_exp*1000.
+			rot = srcs_rot*1000.
 			T = None
 
 		return norm_radii,mean_speed,exp,rot,T
@@ -1585,9 +1585,9 @@ class Inference:
 		else:
 			#--------- Kinematic indices ------------------------------
 			nrs,nvr,exp,rot,tensor = self._kinematic_indices(group="posterior")
-			print("Expansion: {0:2.2f} +/- {1:2.2f} km/s".format(
+			print("Expansion: {0:2.2f} +/- {1:2.2f} m.s-1.pc-1".format(
 											np.mean(exp),np.std(exp)))
-			print("Rotation:  {0:2.2f} +/- {1:2.2f} km/(s pc)".format(
+			print("Rotation:  {0:2.2f} +/- {1:2.2f} m.s-1.pc-1".format(
 											np.mean(rot),np.std(rot)))
 			#----------------------------------------------------------
 
@@ -1984,17 +1984,17 @@ class Inference:
 			_,_,exp,rot,T = self._kinematic_indices(group="posterior")
 
 			df_field = az.summary(data={
-				"Exp [m.s-1.pc-1]":exp*1000.,
-				"Rot [m.s-1.pc-1]":rot*1000.,
-				"Txx [m.s-1.pc-1]":T[:,0,0]*1000.,
-				"Txy [m.s-1.pc-1]":T[:,0,1]*1000.,
-				"Txz [m.s-1.pc-1]":T[:,0,2]*1000.,
-				"Tyx [m.s-1.pc-1]":T[:,1,0]*1000.,
-				"Tyy [m.s-1.pc-1]":T[:,1,1]*1000.,
-				"Tyz [m.s-1.pc-1]":T[:,1,2]*1000.,
-				"Tzx [m.s-1.pc-1]":T[:,2,0]*1000.,
-				"Tzy [m.s-1.pc-1]":T[:,2,1]*1000.,
-				"Tzz [m.s-1.pc-1]":T[:,2,2]*1000.
+				"Exp [m.s-1.pc-1]":exp,
+				"Rot [m.s-1.pc-1]":rot,
+				"Txx [m.s-1.pc-1]":T[:,0,0],
+				"Txy [m.s-1.pc-1]":T[:,0,1],
+				"Txz [m.s-1.pc-1]":T[:,0,2],
+				"Tyx [m.s-1.pc-1]":T[:,1,0],
+				"Tyy [m.s-1.pc-1]":T[:,1,1],
+				"Tyz [m.s-1.pc-1]":T[:,1,2],
+				"Tzx [m.s-1.pc-1]":T[:,2,0],
+				"Tzy [m.s-1.pc-1]":T[:,2,1],
+				"Tzz [m.s-1.pc-1]":T[:,2,2]
 				},
 							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
@@ -2006,15 +2006,15 @@ class Inference:
 			#----------- Notation as in Lindegren et al. 2000 --------------
 			lenn_csv = self.dir_out +"/Lindegren_velocity_statistics.csv"
 			df_Lenn = az.summary(data={
-				"kappa [m.s-1.pc-1]":exp*1000.,
-				"omega_x [m.s-1.pc-1]":0.5*(T[:,2,1]-T[:,1,2])*1000.,
-				"omega_y [m.s-1.pc-1]":0.5*(T[:,0,2]-T[:,2,0])*1000.,
-				"omega_z [m.s-1.pc-1]":0.5*(T[:,1,0]-T[:,0,1])*1000.,
-				"w_1 [m.s-1.pc-1]":0.5*(T[:,2,1]+T[:,1,2])*1000.,
-				"w_2 [m.s-1.pc-1]":0.5*(T[:,0,2]+T[:,2,0])*1000.,
-				"w_3 [m.s-1.pc-1]":0.5*(T[:,1,0]+T[:,0,1])*1000.,
-				"w_4 [m.s-1.pc-1]":T[:,0,0]*1000.,
-				"w_5 [m.s-1.pc-1]":T[:,1,1]*1000.
+				"kappa [m.s-1.pc-1]":exp,
+				"omega_x [m.s-1.pc-1]":0.5*(T[:,2,1]-T[:,1,2]),
+				"omega_y [m.s-1.pc-1]":0.5*(T[:,0,2]-T[:,2,0]),
+				"omega_z [m.s-1.pc-1]":0.5*(T[:,1,0]-T[:,0,1]),
+				"w_1 [m.s-1.pc-1]":0.5*(T[:,2,1]+T[:,1,2]),
+				"w_2 [m.s-1.pc-1]":0.5*(T[:,0,2]+T[:,2,0]),
+				"w_3 [m.s-1.pc-1]":0.5*(T[:,1,0]+T[:,0,1]),
+				"w_4 [m.s-1.pc-1]":T[:,0,0],
+				"w_5 [m.s-1.pc-1]":T[:,1,1]
 				},
 							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
