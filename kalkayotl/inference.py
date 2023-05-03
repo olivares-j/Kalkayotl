@@ -1989,6 +1989,27 @@ class Inference:
 							extend=True)
 
 			df_field.to_csv(path_or_buf=field_csv,index_label="Parameter")
+
+			#----------- Notation as in Lindegren et al. 2000 --------------
+			lenn_csv = self.dir_out +"/Lindegren_velocity_statistics.csv"
+			df_Lenn = az.summary(data={
+				"kappa":exp,
+				"omega_x":0.5*(T[:,2,1]-T[:,1,2]),
+				"omega_y":0.5*(T[:,0,2]-T[:,2,0]),
+				"omega_z":0.5*(T[:,1,0]-T[:,0,1]),
+				"w_1":0.5*(T[:,2,1]+T[:,1,2]),
+				"w_2":0.5*(T[:,0,2]+T[:,2,0]),
+				"w_3":0.5*(T[:,1,0]+T[:,0,1]),
+				"w_4":T[:,0,0],
+				"w_5":T[:,1,1]
+				},
+							stat_focus=stat_focus,
+							hdi_prob=hdi_prob,
+							kind="stats",
+							extend=True)
+
+			df_Lenn.to_csv(path_or_buf=lenn_csv,index_label="Parameter")
+
 		#-------------------------------------------------------------------
 
 	def save_samples(self,merge=True):
