@@ -630,14 +630,20 @@ class Inference:
 			#--------- Verify scale ----------------------------------------
 			print("The scale parameter is fixed to:")
 			if "GMM" in self.prior:
+				msg_scl = "The scale parameter's shape is incorrect!"
 				for i,scl in enumerate(self.parameters["scale"]):
-					print(i,scl)
-					assert scl.shape == (self.D,self.D), \
-						"The scale parameter's shape is incorrect!"
+
+					if self.D in [3,6]:
+						assert scl.shape == (self.D,self.D), msg_scl
+					else:
+						assert len(scl) == 1,msg_scl
 			else:
 				print(self.parameters["scale"])
-				assert self.parameters["scale"].shape == (self.D,self.D), \
-					"The scale parameter's shape is incorrect!"
+				if self.D in [3,6]:
+					assert self.parameters["scale"].shape == (self.D,self.D), \
+					msg_scl
+				else:
+					assert len(self.parameters["scale"]) == 1, msg_scl
 			#----------------------------------------------------------------
 		#==============================================================================================
 
@@ -1978,10 +1984,17 @@ class Inference:
 			_,_,exp,rot,T = self._kinematic_indices(group="posterior")
 
 			df_field = az.summary(data={
-				"Exp":exp,"Rot":rot,
-				"Txx":T[:,0,0],"Txy":T[:,0,1],"Txz":T[:,0,2],
-				"Tyx":T[:,1,0],"Tyy":T[:,1,1],"Tyz":T[:,1,2],
-				"Tzx":T[:,2,0],"Tzy":T[:,2,1],"Tzz":T[:,2,2],
+				"Exp [m.s-1.pc-1]":exp*1000.,
+				"Rot [m.s-1.pc-1]":rot*1000.,
+				"Txx [m.s-1.pc-1]":T[:,0,0]*1000.,
+				"Txy [m.s-1.pc-1]":T[:,0,1]*1000.,
+				"Txz [m.s-1.pc-1]":T[:,0,2]*1000.,
+				"Tyx [m.s-1.pc-1]":T[:,1,0]*1000.,
+				"Tyy [m.s-1.pc-1]":T[:,1,1]*1000.,
+				"Tyz [m.s-1.pc-1]":T[:,1,2]*1000.,
+				"Tzx [m.s-1.pc-1]":T[:,2,0]*1000.,
+				"Tzy [m.s-1.pc-1]":T[:,2,1]*1000.,
+				"Tzz [m.s-1.pc-1]":T[:,2,2]*1000.
 				},
 							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
@@ -1993,15 +2006,15 @@ class Inference:
 			#----------- Notation as in Lindegren et al. 2000 --------------
 			lenn_csv = self.dir_out +"/Lindegren_velocity_statistics.csv"
 			df_Lenn = az.summary(data={
-				"kappa":exp,
-				"omega_x":0.5*(T[:,2,1]-T[:,1,2]),
-				"omega_y":0.5*(T[:,0,2]-T[:,2,0]),
-				"omega_z":0.5*(T[:,1,0]-T[:,0,1]),
-				"w_1":0.5*(T[:,2,1]+T[:,1,2]),
-				"w_2":0.5*(T[:,0,2]+T[:,2,0]),
-				"w_3":0.5*(T[:,1,0]+T[:,0,1]),
-				"w_4":T[:,0,0],
-				"w_5":T[:,1,1]
+				"kappa [m.s-1.pc-1]":exp*1000.,
+				"omega_x [m.s-1.pc-1]":0.5*(T[:,2,1]-T[:,1,2])*1000.,
+				"omega_y [m.s-1.pc-1]":0.5*(T[:,0,2]-T[:,2,0])*1000.,
+				"omega_z [m.s-1.pc-1]":0.5*(T[:,1,0]-T[:,0,1])*1000.,
+				"w_1 [m.s-1.pc-1]":0.5*(T[:,2,1]+T[:,1,2])*1000.,
+				"w_2 [m.s-1.pc-1]":0.5*(T[:,0,2]+T[:,2,0])*1000.,
+				"w_3 [m.s-1.pc-1]":0.5*(T[:,1,0]+T[:,0,1])*1000.,
+				"w_4 [m.s-1.pc-1]":T[:,0,0]*1000.,
+				"w_5 [m.s-1.pc-1]":T[:,1,1]*1000.
 				},
 							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
