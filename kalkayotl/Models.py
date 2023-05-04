@@ -73,7 +73,7 @@ class Model1D(Model):
 				weights = pm.Dirichlet("weights",
 							a=hyper_delta,dims="component")
 			else:
-				weights = pm.Dirichlet(parameters["weights"],
+				weights = pm.Deterministic("weights",pytensor.shared(parameters["weights"]),
 							dims="component")
 			#------------------------------------------------
 
@@ -138,9 +138,10 @@ class Model1D(Model):
 
 			else:
 				std = pytensor.shared(np.zeros((n_components,dimension)))
-				std = tt.set_subtensor(std,np.array(parameters["scale"]))
+				for i in range(n_components):
+					std = tt.set_subtensor(std[i],np.array(parameters["scale"][i]))
 
-				std = pm.Deterministic("std", std,dims=("component","coordinate"))
+				std = pm.Deterministic("std", std, dims=("component","coordinate"))
 			#--------------------------------------------------------------------
 		#---------------------------------------------------------------------------------
 
@@ -154,7 +155,8 @@ class Model1D(Model):
 						shape=dimension,
 						dims="coordinate")
 			else:
-				loc = pm.Deterministic("loc",parameters["location"],
+				loc = pm.Deterministic("loc",
+						pytensor.shared(parameters["location"]),
 						dims="coordinate")
 			#------------------------------------------------------
 
@@ -166,7 +168,8 @@ class Model1D(Model):
 							shape=dimension,
 							dims="coordinate")
 			else:
-				std = pm.Deterministic("std",parameters["scale"],
+				std = pm.Deterministic("std",
+						pytensor.shared(parameters["scale"]),
 						dims="coordinate")
 			#--------------------------------------------------------------
 		#----------------------------------------------------------------------------
@@ -318,7 +321,8 @@ class Model3D6D(Model):
 				weights = pm.Dirichlet("weights",
 							a=hyper_delta,dims="component")
 			else:
-				weights = pm.Dirichlet(parameters["weights"],
+				weights = pm.Deterministic("weights",
+							pytensor.shared(parameters["weights"]),
 							dims="component")
 			#------------------------------------------------
 
@@ -418,7 +422,7 @@ class Model3D6D(Model):
 					stds = tt.set_subtensor(stds[i],stds_i)
 
 			corr = pm.Deterministic("corr", corr,dims=("component","coordinate",))
-			stds = pm.Deterministic("stds", stds,dims=("component","coordinate"))
+			stds = pm.Deterministic("std", stds,dims=("component","coordinate"))
 			#--------------------------------------------------------------------
 		#---------------------------------------------------------------------------------
 
@@ -432,7 +436,7 @@ class Model3D6D(Model):
 						shape=dimension,
 						dims="coordinate")
 			else:
-				loc = pm.Deterministic("loc",parameters["location"],
+				loc = pm.Deterministic("loc",pytensor.shared(parameters["location"]),
 						dims="coordinate")
 			#------------------------------------------------------
 
@@ -447,10 +451,21 @@ class Model3D6D(Model):
 								compute_corr=True,
 								store_in_trace=False)
 				corr = pm.Deterministic("corr", corr)
-				stds = pm.Deterministic("stds", stds,
+				stds = pm.Deterministic("std", stds,
 							dims="coordinate")
 			else:
-				sys.exit("Not yet implemented.")
+				#--------- Extract ---------------------------------
+				chol_i = np.linalg.cholesky(parameters["scale"])
+				cov = np.dot(chol_i, chol_i.T)
+				stds_i = np.sqrt(np.diag(cov))
+				inv_stds = 1. / stds_i
+				corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				#---------------------------------------------------
+				
+				chol = pytensor.shared(chol_i)
+				corr = pm.Deterministic("corr", pytensor.shared(corr_i))
+				stds = pm.Deterministic("std",  pytensor.shared(stds_i),
+												dims="coordinate")
 			#--------------------------------------------------------------
 		#----------------------------------------------------------------------------
 		#==============================================================================
@@ -809,7 +824,7 @@ class Model6D_linear(Model):
 				weights = pm.Dirichlet("weights",
 							a=hyper_delta,dims="component")
 			else:
-				weights = pm.Dirichlet(parameters["weights"],
+				weights = pm.Deterministic("weights",pytensor.shared(parameters["weights"]),
 							dims="component")
 			#------------------------------------------------
 
@@ -909,7 +924,7 @@ class Model6D_linear(Model):
 					stds = tt.set_subtensor(stds[i],stds_i)
 
 			corr = pm.Deterministic("corr", corr,dims=("component","coordinate",))
-			stds = pm.Deterministic("stds", stds,dims=("component","coordinate"))
+			stds = pm.Deterministic("std", stds,dims=("component","coordinate"))
 			#--------------------------------------------------------------------
 		#---------------------------------------------------------------------------------
 
@@ -923,7 +938,7 @@ class Model6D_linear(Model):
 						shape=6,
 						dims="coordinate")
 			else:
-				loc = pm.Deterministic("loc",parameters["location"],
+				loc = pm.Deterministic("loc",pytensor.shared(parameters["location"]),
 						dims="coordinate")
 			#------------------------------------------------------
 
@@ -950,10 +965,34 @@ class Model6D_linear(Model):
 				corr_vel = pm.Deterministic("corr_vel", corr_vel)
 
 			else:
-				sys.exit("Not yet implemented.")
+				#------------- Extract scale of positions -------------------
+				chol_pos_i = np.linalg.cholesky(parameters["scale"][:3,:3])
+				cov = np.dot(chol_pos_i, chol_pos_i.T)
+				stds_pos_i = np.sqrt(np.diag(cov))
+				inv_stds = 1. / stds_pos_i
+				corr_pos_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				#----------------------------------------------------------
+
+				#------------- Extract scale of velocities -------------------
+				chol_vel_i = np.linalg.cholesky(parameters["scale"][3:,3:])
+				cov = np.dot(chol_vel_i, chol_vel_i.T)
+				stds_vel_i = np.sqrt(np.diag(cov))
+				inv_stds = 1. / stds_vel_i
+				corr_vel_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				#----------------------------------------------------------
+				
+				chol_pos = pytensor.shared(chol_pos_i)
+				chol_vel = pytensor.shared(chol_vel_i)
+
+				stds_pos = pytensor.shared(stds_pos_i)
+				stds_vel = pytensor.shared(stds_vel_i)
+
+				corr_pos = pm.Deterministic("corr_pos", pytensor.shared(corr_pos_i))
+				corr_vel = pm.Deterministic("corr_vel", pytensor.shared(corr_vel_i))
+				
 			#--------------------------------------------------------------
 
-			stds = pm.Deterministic("stds",
+			stds = pm.Deterministic("std",
 						tt.concatenate([stds_pos,stds_vel],axis=0),
 						dims="coordinate")
 		#----------------------------------------------------------------------------

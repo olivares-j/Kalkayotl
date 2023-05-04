@@ -35,6 +35,7 @@ from astropy import units as u
 import pymc.sampling_jax
 import pytensor.tensor as at
 from typing import cast
+import string
 
 #---------------- Matplotlib -------------------------------------
 import matplotlib
@@ -410,11 +411,8 @@ class Inference:
 
 		#============== Mixtures =====================================================
 		if "GMM" in self.prior:
-
-			if self.prior == "FGMM":
-				n_components = 2
-			else:
-				n_components = self.hyper["n_components"]
+			n_components = self.hyper["n_components"]
+			names_components = list(string.ascii_uppercase)[:n_components]
 
 			if self.parameters["weights"] is None:
 				assert self.hyper["delta"] is not None, msg_delta
@@ -423,12 +421,12 @@ class Inference:
 				if isinstance(self.parameters["weights"],str):
 					#---- Extract scale parameters ------------
 					wgh = pn.read_csv(self.parameters["weights"],
-								usecols=["Parameter","mode"])
+								usecols=["Parameter","MAP"])
 					wgh = wgh[wgh["Parameter"].str.contains("weights")]
 					#------------------------------------------
 
 					#---- Set weights ----------------------------
-					self.parameters["weights"] = wgh["mode"].values
+					self.parameters["weights"] = wgh["MAP"].values
 					#-----------------------------------------------
 				#-----------------------------------------------------------
 
@@ -437,14 +435,10 @@ class Inference:
 				print(self.parameters["weights"])
 				assert len(self.parameters["weights"]) == n_components, \
 					"The size of the weights parameter is incorrect!"
-				assert np.min(self.parameters["weights"])> 0.05, msg_weights
+				#assert np.min(self.parameters["weights"])> 0.05, msg_weights
 				#-----------------------------------------------------------
 
 			assert self.parametrization == "central", msg_central
-
-			if self.prior == "FGMM":
-				msg_fgmm = "In FGMM there are only two components"
-				assert len(self.hyper["delta"]) == 2, msg_fgmm
 		#============================================================================
 
 		#====================== Location ==========================================================
@@ -500,58 +494,65 @@ class Inference:
 				self.names_coords,
 				self.hyper["alpha"]["loc"],
 				self.hyper["alpha"]["scl"]):
-				print("{0}: {1:2.1f} +/- {2:2.1f}".format(name,loc,scl))	
+				print("{0}: {1:2.1f} +/- {2:2.1f} pc".format(name,loc,scl))	
 			#---------------------------------------------------------------------------------
 
-		#-------------- Read from input file ----------------------------------
-		elif isinstance(self.parameters["location"],str):
-				#---- Extract parameters ----------------------
-				loc = pn.read_csv(self.parameters["location"],
-							usecols=["Parameter","mode"])
-				loc = loc[loc["Parameter"].str.contains("loc")]
-				#----------------------------------------------
-
-				#-------- Extraction is prior dependent ----------------
-				if "GMM" in self.prior:
-					assert int(loc.shape[0]/self.D) == n_components,\
-					"Mismatch in the number of components"
-
-					values = []
-					for i in range(n_components):
-						selection = loc["Parameter"].str.contains(
-									"[{0}]".format(i),regex=False)
-						values.append(loc.loc[selection,"mode"].values)
-
-					self.parameters["location"] = values
-
-				else:
-					#---- Set location  ----------------------------
-					self.parameters["location"] = loc["mode"].values
-					#-----------------------------------------------
-				#----------------------------------------------------------
-		#-------- Fixed value ------------------------
-		elif isinstance(self.parameters["location"],np.ndarray) or \
-			 isinstance(self.parameters["location"],list):
-
-				self.parameters["location"] = np.array(self.parameters["location"])
-				#--------- Verify location ---------------------------------
-				print("The location parameter is fixed to:")
-				if "GMM" in self.prior:
-					for i,loc in enumerate(self.parameters["location"]):
-						print(i,loc)
-						assert len(loc) == self.D, \
-							"ERROR: The size of the location is incorrect!"
-				else:
-					print(self.parameters["location"])
-					assert len(self.parameters["location"]) == self.D, \
-						"The location parameter's size is incorrect!"
-				#-----------------------------------------------------------
 		else:
-			sys.exit("ERROR: Unrecognized type of location parameter!"\
-					"Must be None, string, list ir numpy array!")
+			#-------------------------- Fixed value -----------------------------------------------------------
+			msg_loc = "ERROR: The size of the provided location parameter is incorrect!"
+			msg_gmm = "ERROR: The list type for fixing the location parameter is only valid for mixture models"
 
+			#-------------- Read from input file ----------------------------------
+			if isinstance(self.parameters["location"],str):
+				#---- Extract parameters ------------------------
+				pars = pn.read_csv(self.parameters["location"],
+							usecols=["Parameter","MAP"])
+				#------------------------------------------------
 
-		
+				
+				#------------------- Extraction --------------------------
+				if "GMM" in self.prior:
+					locs = []
+					for name in names_components:
+						selection = pars["Parameter"].str.contains(
+									"loc[{0}".format(name),regex=False)
+						loc = pars.loc[selection,"MAP"].values
+						assert loc.shape[0] == self.D, msg_loc
+						locs.append(loc)
+
+					self.parameters["location"] = locs
+
+				else:
+					mask_loc = pars["Parameter"].str.contains("loc")
+					loc = pars.loc[mask_loc,"MAP"]
+
+					self.parameters["location"] = np.array(loc.values)
+				#----------------------------------------------------------
+
+			print("The location parameter has been fixed to:")
+
+			if isinstance(self.parameters["location"],float):
+				assert self.D == 1,"ERROR: float type in location parameter is only valid in 1D"
+				self.parameters["location"] = np.array([self.parameters["location"]])
+			
+			if isinstance(self.parameters["location"],np.ndarray):
+				assert self.parameters["location"].shape[0] == self.D, msg_loc
+				for name,loc in zip(self.names_coords,self.parameters["location"]):
+					print("{0}: {1:2.1f} pc".format(name,loc))
+
+			#-------------- Mixture model ----------------------------
+			elif isinstance(self.parameters["location"],list):
+				assert "GMM" in self.prior, msg_gmm
+				for name,loc in zip(names_components,self.parameters["location"]):
+					print("Component {0}".format(name))
+					assert loc.shape[0] == self.D, msg_loc
+					for name,loc in zip(self.names_coords,loc):
+						print("{0}: {1:2.1f} pc".format(name,loc))		
+			#----------------------------------------------------------
+
+			else:
+				sys.exit("ERROR: Unrecognized type of location parameter!"\
+					"Must be None, string, float (1D), numpy array or list of numpy arrays (mixture models).")
 		#-----------------------------------------------------------------------
 		#==============================================================================================
 		
@@ -561,14 +562,20 @@ class Inference:
 				self.hyper["beta"] = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
 
 			print("The beta hyper-parameter has been set to:")
-			print(self.hyper["beta"])
+			for name,scl in zip(self.names_coords,self.hyper["beta"]):
+				print("{0}: {1:2.1f} pc".format(name,scl))	
+
 		else:
-			#-------------- Read from input file -----------------------------
+
+			#-------------------------- Fixed value -----------------------------------------------------------
+			msg_scl = "ERROR: The size of the provided scale parameter is incorrect!"
+			msg_gmm = "ERROR: The list type for fixing the scale parameter is only valid for mixture models"
+
 			if isinstance(self.parameters["scale"],str):
-				#---- Extract scale parameters ------------
-				scl = pn.read_csv(self.parameters["scale"],
-							usecols=["Parameter","mode"])
-				scl.fillna(value=1.0,inplace=True)
+				#---- Extract parameters ------------
+				pars = pn.read_csv(self.parameters["scale"],
+							usecols=["Parameter","MAP"])
+				pars.fillna(value=1.0,inplace=True)
 				#------------------------------------------
 
 				#-------- Extraction is prior dependent ----------------
@@ -576,75 +583,91 @@ class Inference:
 					stds = []
 					cors = []
 					covs = []
-					for i in range(n_components):
-						#---------- Select component parameters --------
-						mask_std = scl["Parameter"].str.contains(
-									"{0}_stds".format(i),regex=False)
-						mask_cor = scl["Parameter"].str.contains(
-									"{0}_corr".format(i),regex=False)
-						#-----------------------------------------------
-
-						#------Extract parameters -------------------
-						std = scl.loc[mask_std,"mode"].values
-						cor = scl.loc[mask_cor,"mode"].values
-						#--------------------------------------------
+					for name in names_components:
+						#------------- Stds ---------------------------
+						mask_std = pars["Parameter"].str.contains(
+									"std[{0}".format(name),regex=False)
+						std = pars.loc[mask_std,"MAP"].values
+						#------------------------------------------------
 
 						stds.append(std)
 
+						if self.D != 1:
+							#----------- Correlations ------------------------
+							mask_cor = pars["Parameter"].str.contains(
+										"corr[{0}".format(name),regex=False)
+							cor = pars.loc[mask_cor,"MAP"].values
+							#--------------------------------------------------
+
+							#---- Construct covariance --------------
+							std = np.diag(std)
+							cor = np.reshape(cor,(self.D,self.D))
+							cov = np.dot(std,cor.dot(std))
+							#-----------------------------------------
+
+							#--- Append -------
+							cors.append(cor)
+							covs.append(cov)
+							#------------------
+			
+					if self.D == 1:
+						self.parameters["scale"] = stds
+					else:
+						self.parameters["scale"] = covs
+
+				else:
+					#--------- Standard deviations --------------------
+					mask_stds = pars["Parameter"].str.contains("std")
+					stds = pars.loc[mask_stds,"MAP"].values
+					#--------------------------------------------------
+
+					if self.D == 1:
+						self.parameters["scale"] = np.array(stds)
+					else:
+						#----------- Correlations -----------------------
+						mask_corr = pars["Parameter"].str.contains('corr')
+						corr = pars.loc[mask_corr,"MAP"].values
+						#------------------------------------------------
+
 						#---- Construct covariance --------------
-						std = np.diag(std)
-						cor = np.reshape(cor,(self.D,self.D))
-						cov = np.dot(std,cor.dot(std))
+						stds = np.diag(stds)
+						corr = np.reshape(corr,(self.D,self.D))
+						cov = np.dot(stds,corr.dot(stds))
 						#-----------------------------------------
 
-						#--- Append -------
-						cors.append(cor)
-						covs.append(cov)
-						#------------------
-			
-					self.parameters["stds"] = stds
-					self.parameters["corr"] = cors
-					self.parameters["scale"] = covs
+						self.parameters["scale"] = np.array(cov)
 
-				else:
-					#---------- Select component parameters ---------
-					mask_stds = scl["Parameter"].str.contains('stds')
-					mask_corr = scl["Parameter"].str.contains('corr')
-					#-------------------------------------------------
-
-					#---- Extract parameters ----------------------
-					stds = scl.loc[mask_stds,"mode"].values
-					corr = scl.loc[mask_corr,"mode"].values
-					#----------------------------------------------
-
-					#---- Construct covariance --------------
-					stds = np.diag(stds)
-					corr = np.reshape(corr,(self.D,self.D))
-					cov = np.dot(stds,corr.dot(stds))
-					#-----------------------------------------
-
-					self.parameters["scale"] = cov
-				#-----------------------------------------------------
+					
 			#---------------------------------------------------------------------
 
-			#--------- Verify scale ----------------------------------------
-			print("The scale parameter is fixed to:")
-			if "GMM" in self.prior:
-				msg_scl = "The scale parameter's shape is incorrect!"
-				for i,scl in enumerate(self.parameters["scale"]):
+			print("The scale parameter has been fixed to:")
 
-					if self.D in [3,6]:
-						assert scl.shape == (self.D,self.D), msg_scl
-					else:
-						assert len(scl) == 1,msg_scl
-			else:
-				print(self.parameters["scale"])
-				if self.D in [3,6]:
-					assert self.parameters["scale"].shape == (self.D,self.D), \
-					msg_scl
+			if isinstance(self.parameters["scale"],float):
+				assert self.D == 1,"ERROR: float type in scale parameter is only valid in 1D"
+				self.parameters["scale"] = np.array([self.parameters["scale"]])
+
+			if isinstance(self.parameters["scale"],np.ndarray):
+				if self.D == 1:
+					assert self.parameters["scale"].shape[0] == 1, msg_scl
 				else:
-					assert len(self.parameters["scale"]) == 1, msg_scl
-			#----------------------------------------------------------------
+					assert self.parameters["scale"].shape == (self.D,self.D), msg_scl
+
+				print(self.parameters["scale"])
+
+			#-------------- Mixture model ----------------------------
+			elif isinstance(self.parameters["scale"],list):
+				assert "GMM" in self.prior, msg_gmm
+				for name,scl in zip(names_components,self.parameters["scale"]):
+					if self.D == 1:
+						assert scl.shape[0] == 1, msg_scl
+					else:
+						assert scl.shape == (self.D,self.D), msg_scl
+					print("Component {0}".format(name))
+					print(scl)
+			#----------------------------------------------------------	
+			else:
+				sys.exit("ERROR: Unrecognized type of scale parameter!"\
+					"Must be None, string, float (1D), numpy array or list of numpy arrays (mixture models).")
 		#==============================================================================================
 
 		#=========================== Initial values =======================================
@@ -953,7 +976,7 @@ class Inference:
 		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
 		cluster_variables = list(filter(lambda x: ( ("loc" in x) 
 											or ("corr" in x)
-											or ("stds" in x)
+											or ("std" in x)
 											or ("std" in x)
 											or ("weights" in x)
 											or ("beta" in x)
@@ -987,13 +1010,13 @@ class Inference:
 			if self.D in [3,6]:
 				if "corr" in var:
 					trace_variables.remove(var)
-				if "lnv" in var and "stds" not in var:
+				if "lnv" in var and "std" not in var:
 					trace_variables.remove(var)
 
 		for var in tmp_stats:
 			if self.D in [3,6]:
 				if not ("loc" in var 
-					or "stds" in var
+					or "std" in var
 					or "weights" in var
 					or "corr" in var 
 					or "omega" in var
@@ -1232,7 +1255,7 @@ class Inference:
 
 		#----------- Extract stds -------------------------------------------
 		if len(self.std_variables) == 0:
-			stds = np.array(self.parameters["stds"])
+			stds = np.array(self.parameters["std"])
 			stds = stds[:,np.newaxis,np.newaxis,:]
 			stds = np.tile(stds,(1,nc,ns,1))
 		else:

@@ -36,7 +36,7 @@ dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
-file_parameters = None
+file_parameters = dir_base + "6D_Gaussian_Galactic_central_joint_numpyro_0/Cluster_statistics.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -45,7 +45,7 @@ os.makedirs(dir_base,exist_ok=True)
 #============================================================================
 
 #=============== Tuning knobs ============================
-dimension = 1
+dimension = 6
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -59,12 +59,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 1000
+tuning_iters = 10
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 1000
+sample_iters = 10
 
 
 #----- Target_accept-------
@@ -126,7 +126,7 @@ velocity_model = "joint"
 #----------------------------------------------------------------------------------------
 
 #---------- NUTS Sampler ------------
-# This is the type of sample to use.
+# This is the type of sampler to use.
 # Check PyMC documentation for valid samplers and their installation
 # By default use the "pymc" sampler.
 nuts_sampler = "numpyro"
@@ -136,7 +136,7 @@ nuts_sampler = "numpyro"
 #========================= PRIORS ===========================================
 list_of_prior = [
 	{"type":"Gaussian",
-		"parameters":{"location":[85.8],"scale":None},
+		"parameters":{"location":None,"scale":None},
 		"hyper_parameters":{
 							"alpha":None,
 							"beta":None,
@@ -170,9 +170,9 @@ list_of_prior = [
 	# 						},
 	# 	"parametrization":"central"},
 	# {"type":"CGMM",     
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
+	# 	"parameters":{"location":file_parameters,
+	# 				  "scale":file_parameters,
+	# 				  "weights":file_parameters},
 	# 	"hyper_parameters":{
 	# 						"alpha":None,
 	# 						"beta":None, 
@@ -272,7 +272,7 @@ for prior in list_of_prior:
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"],
 			  )
-
+	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
 	kal.run(sample_iters=sample_iters,
@@ -280,6 +280,7 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
+			init_iters=int(1e4),
 			nuts_sampler=nuts_sampler,
 			posterior_predictive=True,
 			prior_predictive=True)
@@ -303,7 +304,7 @@ for prior in list_of_prior:
 	#--------------------------------
 
 	#--- Plot model -- 
-	kal.plot_model()
+	kal.plot_model(n_samples=10)
 	# -----------------
 
 	#----- Compute and save the posterior statistics ---------
