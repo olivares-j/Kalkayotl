@@ -1000,7 +1000,7 @@ class Model6D_linear(Model):
 
 		#=================== Velocity field ==============================
 		lnv = pytensor.shared(np.zeros((3,3)))
-		kappa = pm.Normal("kappa",mu=0.0,sigma=hyper_kappa,shape=3,dims="coordinate")
+		kappa = pm.Normal("kappa",mu=0.0,sigma=hyper_kappa,shape=3)
 		if velocity_model == "linear":
 			print("Working with the linear velocity model")
 			omega = pm.Normal("omega",mu=0.0,sigma=hyper_omega,shape=(2,3))
