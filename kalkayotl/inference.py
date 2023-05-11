@@ -776,7 +776,7 @@ class Inference:
 		print((30+13)*"+")
 
 	def run(self,sample_iters,tuning_iters,
-		target_accept=0.8,
+		target_accept=0.6,
 		chains=None,cores=None,
 		step=None,
 		file_chains=None,
@@ -785,10 +785,10 @@ class Inference:
 		prior_predictive=True,
 		posterior_predictive=False,
 		progressbar=True,
-		nuts_sampler="pymc",
+		nuts_sampler="numpyro",
 		init_absolute_tol=5e-3,
 		init_relative_tol=1e-5,
-		init_plot_iters=int(1e3),
+		init_plot_iters=int(1e4),
 		init_refine=False,
 		random_seed=None):
 		"""
@@ -879,18 +879,6 @@ class Inference:
 		initial_points = approx["initial_points"]
 		#-----------------------------------------
 
-		#--------------- Prepare step ---------------------------------------------
-		cov = sd_point**2
-		weight = 10
-		potential = pymc.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
-					len(cov), mu_point, sd_point**2, weight)
-
-		step = pm.NUTS(
-				potential=potential,
-				model=self.Model,
-				target_accept=target_accept)
-		#----------------------------------------------------------------------------
-
 		# -------- Fix problem with initial solution of cholesky cov-packed ----------
 		name_ccp = "_cholesky-cov-packed__" 
 		for vals in initial_points:
@@ -900,9 +888,25 @@ class Inference:
 		# TO BE REMOVED once pymc5 solves this issue
 		#----------------------------------------------------------------------------
 
-		print("Sampling the model ...")
 
-		with self.Model:
+		if nuts_sampler == "pymc":
+			#--------------- Prepare step ---------------------------------------------
+			# Only valid for nuts_sampler == "pymc". 
+			# The other samplers adapt steps independently.
+			potential = pymc.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
+						n=len(mu_point),
+						initial_mean=mu_point,
+						initial_diag=sd_point**2, 
+						initial_weight=10)
+
+			step = pm.NUTS(
+					potential=potential,
+					model=self.Model,
+					target_accept=target_accept
+					)
+			#----------------------------------------------------------------------------
+
+			print("Sampling the model ...")
 
 			#---------- Posterior -----------
 			trace = pm.sample(
@@ -915,10 +919,29 @@ class Inference:
 				cores=cores,
 				progressbar=progressbar,
 				discard_tuned_samples=True,
-				return_inferencedata=True
+				return_inferencedata=True,
+				model=self.Model
+				)
+			#--------------------------------
+		else:
+			#---------- Posterior -----------
+			trace = pm.sample(
+				draws=sample_iters,
+				initvals=initial_points,
+				step=None,
+				nuts_sampler=nuts_sampler,
+				tune=tuning_iters,
+				chains=chains, 
+				cores=cores,
+				progressbar=progressbar,
+				target_accept=target_accept,
+				discard_tuned_samples=True,
+				return_inferencedata=True,
+				model=self.Model
 				)
 			#--------------------------------
 
+		with self.Model:
 			#-------- Posterior predictive -----------------------------
 			if posterior_predictive:
 				posterior_pred = pm.sample_posterior_predictive(trace,
@@ -1995,6 +2018,7 @@ class Inference:
 			df_grp = az.summary(data,var_names=self.stats_variables,
 							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
+							round_to=3,
 							extend=True)
 			df_grp = df_map_grp.join(df_grp)
 
