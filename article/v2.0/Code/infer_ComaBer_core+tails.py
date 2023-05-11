@@ -1,21 +1,3 @@
-'''
-Copyright 2019 Javier Olivares Romero
-
-This file is part of Kalkayotl.
-
-	Kalkayotl is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
-
-	PyAspidistra is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with Kalkayotl.  If not, see <http://www.gnu.org/licenses/>.
-'''
 #------------ Load libraries -------------------
 from __future__ import absolute_import, unicode_literals, print_function
 import sys
@@ -32,11 +14,10 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core+Tails/"
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members+rvs_sample.csv"
-file_parameters = None
+file_data = dir_base + "members+rvs.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -45,7 +26,7 @@ os.makedirs(dir_base,exist_ok=True)
 #============================================================================
 
 #=============== Tuning knobs ============================
-dimension = 6
+dimension = 3
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -59,7 +40,7 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 4000
+tuning_iters = 3000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
@@ -71,7 +52,7 @@ sample_iters = 2000
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
 # Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
 # of the sampler but increases the computing time.
-# target_accept = 0.8
+target_accept = 0.95
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------
@@ -92,14 +73,12 @@ sampling_space = "physical"
 # Either "ICRS" or "Galactic"
 reference_system = "Galactic"
 
-radec_precision_arcsec = 1.0
-
 #--------- Zero point ------------
 # A dcictionary with zerpoints
 zero_points = {
 "ra":0.,
 "dec":0.,
-"parallax":-0.017,
+"parallax":-0.017,# This is Brown+2020 value
 "pmra":0.,
 "pmdec":0.,
 "radial_velocity":0.}  
@@ -128,37 +107,127 @@ velocity_model = "joint"
 #----------------------------------------------------------------------------------------
 
 #---------- NUTS Sampler ------------
-# This is the type of sample to use.
+# This is the type of sampler to use.
 # Check PyMC documentation for valid samplers and their installation
 # By default use the "pymc" sampler.
 nuts_sampler = "numpyro"
 
 #=========================================================================================
 
-#========================= PRIORS =========================================
-prior = {"type":"Gaussian",
-		"parameters":{"location":None,"scale":None},
+#========================= PRIORS ===========================================
+list_of_prior = [
+	# {"type":"Gaussian",
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"StudentT",
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						"nu":None,
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"GMM",     
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "weights":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"gamma":None,
+	# 						"delta":np.repeat(1,2),
+	# 						"eta":None,
+	# 						"n_components":2
+	# 						},
+	# 	"parametrization":"central"},
+	{"type":"CGMM",     
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None},
 		"hyper_parameters":{
 							"alpha":None,
-							"beta":None,
+							"beta":None, 
 							"gamma":None,
-							"delta":None,
-							"eta":None
+							"delta":np.repeat(1,2),
+							"eta":None,
+							"n_components":2
 							},
-		"parametrization":"central"}
+		"parametrization":"central"},
+	# {"type":"FGMM",      
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "weights":None,
+	# 				  "field_scale":[50.,50.,50.,10.,10.,10.][:dimension]
+	# 				  },
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"delta":np.repeat(1,2),
+	# 						"eta":None,
+	# 						"n_components":2
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"Uniform",
+	# 	"parameters":{"location":None,
+	# 				  "scale":None
+	# 				  },
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"King",
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "rt":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":10.,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"EFF",
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "gamma":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":10.,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						},
+	# 	"parametrization":"central"},
+
+	]
 #======================= Inference and Analysis =====================================================
 
-for target_accept in [0.95,0.8,0.7,0.6,0.5]:
-		
+#--------------------- Loop over prior types ------------------------------------
+for prior in list_of_prior:
+
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0f}arcsec_{5}".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}".format(
 		dimension,
 		prior["type"],
+		reference_system,
 		prior["parametrization"],
-		nuts_sampler,
-		radec_precision_arcsec,
-		target_accept
-		)
+		velocity_model,
+		nuts_sampler)
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -176,8 +245,7 @@ for target_accept in [0.95,0.8,0.7,0.6,0.5]:
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	kal.load_data(file_data,
-				radec_precision_arcsec=radec_precision_arcsec)
+	kal.load_data(file_data)
 
 	#------ Prepares the model -------------------
 	kal.setup(prior=prior["type"],
@@ -185,17 +253,19 @@ for target_accept in [0.95,0.8,0.7,0.6,0.5]:
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"],
 			  )
-
+	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	# kal.run(sample_iters=sample_iters,
-	# 		tuning_iters=tuning_iters,
-	# 		target_accept=target_accept,
-	# 		chains=chains,
-	# 		cores=cores,
-	# 		nuts_sampler=nuts_sampler,
-	# 		posterior_predictive=False,
-	# 		prior_predictive=False)
+	kal.run(sample_iters=sample_iters,
+			tuning_iters=tuning_iters,
+			target_accept=target_accept,
+			chains=chains,
+			cores=cores,
+			init_iters=int(2e5),
+			init_refine=False,
+			nuts_sampler=nuts_sampler,
+			posterior_predictive=True,
+			prior_predictive=True)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
@@ -212,7 +282,7 @@ for target_accept in [0.95,0.8,0.7,0.6,0.5]:
 	kal.plot_chains()
 
 	#--- Check Prior and Posterior ----
-	# kal.plot_prior_check()
+	kal.plot_prior_check()
 	#--------------------------------
 
 	#--- Plot model -- 
@@ -222,8 +292,8 @@ for target_accept in [0.95,0.8,0.7,0.6,0.5]:
 	#----- Compute and save the posterior statistics ---------
 	kal.save_statistics(hdi_prob=hdi_prob)
 
-	# kal.save_posterior_predictive()
+	kal.save_posterior_predictive()
 
 	#------- Save the samples into HDF5 file --------------
-	# kal.save_samples()
-	#=======================================================================================
+	kal.save_samples()
+#=======================================================================================
