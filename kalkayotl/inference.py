@@ -775,14 +775,17 @@ class Inference:
 
 		print((30+13)*"+")
 
-	def run(self,sample_iters,tuning_iters,
+	def run(self,
+		tuning_iters=4000,
+		sample_iters=2000,
 		target_accept=0.6,
-		chains=None,cores=None,
+		chains=2,
+		cores=2,
 		step=None,
 		file_chains=None,
 		init_method="advi+adapt_diag",
 		init_iters=int(5e5),
-		prior_predictive=True,
+		prior_predictive=False,
 		posterior_predictive=False,
 		progressbar=True,
 		nuts_sampler="numpyro",
