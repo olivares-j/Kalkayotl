@@ -1015,32 +1015,34 @@ class Model6D_linear(Model):
 		#===================== True values ============================================		
 		if prior == "Gaussian":
 			if parametrization == "central":
-				offset_pos = pm.MvNormal("offset_pos",mu=0.0,chol=chol_pos,shape=(n_sources,3))
-				offset_vel = pm.MvNormal("offset_vel",mu=0.0,chol=chol_vel,shape=(n_sources,3))
+				source_pos = pm.MvNormal("source_pos",mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
+				jitter_vel = pm.MvNormal("jitter_vel",mu=loc[3:],chol=chol_vel,shape=(n_sources,3))
+
+				offset_pos = source_pos - loc[:3]
 			else:
 				tau = pm.Normal("tau",mu=0,sigma=1,shape=(n_sources,6))
 
+				jitter_vel = loc[3:] + tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
 				offset_pos = tt.nlinalg.matrix_dot(tau[:,:3],chol_pos)
-				offset_vel = tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
-
-			source_pos = loc[:3] + offset_pos
-			source_vel = loc[3:] + offset_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
+				source_pos = loc[:3] + offset_pos
+				
+			source_vel = jitter_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
 
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"],shape=2)
 			if parametrization == "central":
-				offset_pos = pm.MvStudentT("offset_pos",nu=nu[0],mu=0.0,chol=chol_pos,shape=(n_sources,3))
-				offset_vel = pm.MvStudentT("offset_vel",nu=nu[1],mu=0.0,chol=chol_vel,shape=(n_sources,3))
+				source_pos = pm.MvStudentT("source_pos",nu=nu[0],mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
+				jitter_vel = pm.MvStudentT("jitter_vel",nu=nu[1],mu=loc[3:],chol=chol_vel,shape=(n_sources,3))
 
+				offset_pos = source_pos - loc[:3]
 			else:
-				tau_pos = pm.StudentT("tau_pos",nu=nu[0],mu=0,sigma=1,shape=(n_sources,3))
-				tau_vel = pm.StudentT("tau_vel",nu=nu[1],mu=0,sigma=1,shape=(n_sources,3))
+				tau = pm.StudentT("tau_pos",nu=nu[0],mu=0,sigma=1,shape=(n_sources,6))
 
+				jitter_vel = loc[3:] + tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
 				offset_pos = tt.nlinalg.matrix_dot(tau[:,:3],chol_pos)
-				offset_vel = tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
-
-			source_pos = loc[:3] + offset_pos
-			source_vel = loc[3:] + offset_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
+				source_pos = loc[:3] + offset_pos
+				
+			source_vel = jitter_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
 		
 		else:
 			sys.exit("The specified prior is not yet supported")
