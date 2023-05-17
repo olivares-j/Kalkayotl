@@ -1061,3 +1061,143 @@ class Model6D_linear(Model):
 		pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
 					tau=tau_data,observed=mu_data)
 		#-------------------------------------------------------------------------
+
+
+class Model3D_tails(Model):
+	'''
+	Model to infer the tidal tails distribution of a open clusters
+	'''
+	def __init__(self,
+		n_sources,
+		mu_data,
+		tau_data,
+		idx_observed,
+		dimension=3,
+		prior="TGMM",
+		parameters={"location":None,"scale":None},
+		hyper_alpha=None,
+		hyper_beta=None,
+		hyper_gamma=None,
+		hyper_delta=None,
+		hyper_tau=None,
+		hyper_eta=None,
+		hyper_nu=None,
+		transformation=None,
+		parametrization="non-central",
+		identifiers=None,
+		coordinates=["X","Y","Z"],
+		observables=["ra","dec","parallax"]):
+		super().__init__(name="{0}D".format(dimension),model=None)
+		self.add_coord("source_id",values=identifiers)
+		self.add_coord("coordinate",values=coordinates)
+		self.add_coord("observable",values=observables)
+
+		#------------------- Data ------------------------------------------------------
+		if n_sources == 0:
+			sys.exit("Data has length zero! You must provide at least one data point.")
+		#-------------------------------------------------------------------------------
+
+		assert prior == "TGMM", "Model3D_tails only accepts the TGMM prior"
+
+		print("Using {0} parametrization".format(parametrization))
+
+		#------------- Components -------------------------------------
+		n_components   = len(hyper_delta)
+		names_components = list(string.ascii_uppercase)[:n_components]
+		self.add_coord("component",values=names_components)
+		#--------------------------------------------------------------
+
+		#--------- Rotation parameters -------------------------------
+		perezsala = pm.Uniform("perezsala",lower=0, upper=1,shape=3)
+		#-------------------------------------------------------------
+
+		#----------- Location ------------------------------------------
+		loc_in_cluster = pt.zeros((3))
+		if parameters["location"] is None:
+			#------------ Inferred --------------------------------------
+			loc_i = pm.Normal("centre",
+						mu=hyper_alpha["loc"],
+						sigma=hyper_alpha["scl"],
+						shape=dimension)
+
+			loc  = pytensor.shared(np.zeros((n_components,dimension)))
+			for i in range(n_components):
+				loc  = tt.set_subtensor(loc[i],loc_i)
+			#------------------------------------------------------------
+
+		else:
+			#----------------- Fixed location ---------------------------
+			loc  = pytensor.shared(np.zeros((n_components,dimension)))
+			for i in range(n_components):
+				loc  = tt.set_subtensor(loc[i],
+						np.array(parameters["location"][i]))
+			#------------------------------------------------------------
+
+		#----------------------------------------------------------------
+		loc = pm.Deterministic("loc",loc,dims=("component","coordinate"))
+		#----------------------------------------------------------------
+
+		#------------------ Covariance matrices ----------------------------
+		corr = pytensor.shared(np.zeros((n_components,dimension,dimension)))
+		chol = pytensor.shared(np.zeros((n_components,dimension,dimension)))
+
+		if parameters["scale"] is None:
+			stds = pm.Gamma("std",
+						alpha=2.0,
+						beta=1.0/hyper_beta,
+						dims=("component","coordinate"))
+
+			for i in range(n_components):
+				# tensor like indentity, exept that the diagonal is sd_dist
+				choli = tt.eye(3) * stds[i]
+				corri = tt.eye(3)
+				chol  = tt.set_subtensor(chol[i],choli)
+				corr  = tt.set_subtensor(corr[i],corri)
+		else:
+			for i,name in enumerate(names_components):
+				#--------- Extract ---------------------------------
+				chol_i = np.linalg.cholesky(parameters["scale"][i])
+				cov = np.dot(chol_i, chol_i.T)
+				stds_i = np.sqrt(np.diag(cov))
+				inv_stds = 1. / stds_i
+				corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				#---------------------------------------------------
+
+				chol = tt.set_subtensor(chol[i],chol_i)
+				corr = tt.set_subtensor(corr[i],corr_i)
+				stds = tt.set_subtensor(stds[i],stds_i)
+
+			stds = pm.Deterministic("std", stds,
+						dims=("component","coordinate"))
+		corr = pm.Deterministic("corr", corr,
+						dims=("component","coordinate",))
+		#-----------------------------------------------------------------------
+
+		#------------ Weights -----------------------------------------
+		if parameters["weights"] is None:
+			weights = pm.Dirichlet("weights",a=hyper_delta)
+		else:
+			weights = pm.Deterministic("weights",parameters["weights"])
+		#--------------------------------------------------------------
+
+		#-------------------------- True values ------------------------------------------------
+		comps = [pm.MvNormal.dist(mu=loc_in_cluster,chol=chol[i]) for i in range(n_components)]
+		pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
+					shape=(n_sources,dimension),
+					dims=("source_id","coordinate"))
+		#---------------------------------------------------------------------------------------
+
+		#----------------------- Transformations---------------------------------------
+		# Transformation from cluster reference frame to Galactic or ICRS ones
+		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala, loc),
+										dims=("source_id","coordinate"))
+
+		true = pm.Deterministic("true",transformation(source),
+										dims=("source_id","observable"))
+		#-----------------------------------------------------------------------------
+
+		#----------------------- Likelihood ----------------------------------------
+		pm.MvNormal('obs',	mu=pm.math.flatten(true)[idx_observed], 
+							tau=tau_data,
+							observed=mu_data)
+		#---------------------------------------------------------------------------
