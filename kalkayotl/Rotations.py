@@ -1,7 +1,7 @@
 import sys
 import numpy as np
-import theano
-from theano import tensor as tt
+import pytensor
+from pytensor import tensor as tt
 
 #--------------------------- Rotation from cluster to Galactic -----------------------------
 # Quaternions

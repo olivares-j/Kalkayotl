@@ -35,7 +35,7 @@ from kalkayotl.inference import Inference
 dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members+rvs.csv"
+file_data = dir_base + "members+rvs_sample.csv"
 file_parameters = dir_base + "6D_Gaussian_Galactic_central_joint_numpyro_0/Cluster_statistics.csv"
 #----------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ os.makedirs(dir_base,exist_ok=True)
 #============================================================================
 
 #=============== Tuning knobs ============================
-dimension = 6
+dimension = 3
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -59,12 +59,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 10
+tuning_iters = 3000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 10
+sample_iters = 1000
 
 
 #----- Target_accept-------
@@ -135,16 +135,16 @@ nuts_sampler = "numpyro"
 
 #========================= PRIORS ===========================================
 list_of_prior = [
-	{"type":"Gaussian",
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
-							"eta":None
-							},
-		"parametrization":"central"},
+	# {"type":"Gaussian",
+	# 	"parameters":{"location":None,"scale":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None
+	# 						},
+	# 	"parametrization":"central"},
 	# {"type":"StudentT",
 	# 	"parameters":{"location":None,"scale":None},
 	# 	"hyper_parameters":{
@@ -232,6 +232,19 @@ list_of_prior = [
 	# 						"eta":None,
 	# 						},
 	# 	"parametrization":"central"},
+	{"type":"TGMM",      
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None
+					  },
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"delta":np.repeat(1,2),
+							"eta":None,
+							"n_components":2
+							},
+		"parametrization":"central"},
 
 	]
 #======================= Inference and Analysis =====================================================
@@ -280,7 +293,7 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e4),
+			init_iters=int(1e5),
 			nuts_sampler=nuts_sampler,
 			posterior_predictive=True,
 			prior_predictive=True)
@@ -304,7 +317,7 @@ for prior in list_of_prior:
 	#--------------------------------
 
 	#--- Plot model -- 
-	kal.plot_model(n_samples=10)
+	kal.plot_model()
 	# -----------------
 
 	#----- Compute and save the posterior statistics ---------

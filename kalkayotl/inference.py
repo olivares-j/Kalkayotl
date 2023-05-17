@@ -50,7 +50,7 @@ import matplotlib.ticker as ticker
 #------------------------------------------------------------------
 
 #------------ Local libraries ------------------------------------------
-from kalkayotl.Models import Model1D,Model3D6D,Model6D_linear
+from kalkayotl.Models import Model1D,Model3D6D,Model6D_linear,Model3D_tails
 from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM,get_principal,my_mode
 # from kalkayotl.Evidence import Evidence1D
 from kalkayotl.Transformations import astrometry_and_rv_to_phase_space
@@ -709,6 +709,9 @@ class Inference:
 				assert self.hyper["gamma"] is not None, msg_gamma
 		else:
 			self.hyper["gamma"] = None
+
+		if self.prior == "TGMM":
+			assert self.D == 3, "Tails GMM is only valid for 3D models"
 		#===========================================================================================================
 
 		if self.D == 1:
@@ -723,6 +726,27 @@ class Inference:
 								hyper_beta=self.hyper["beta"],
 								hyper_gamma=self.hyper["gamma"],
 								hyper_delta=self.hyper["delta"],
+								hyper_nu=self.hyper["nu"],
+								transformation=self.forward,
+								parametrization=self.parametrization,
+								identifiers=self.ID,
+								coordinates=self.names_coords,
+								observables=self.names_mu)
+
+		elif self.D == 3 and self.prior == "TGMM":
+			self.Model = Model3D_tails(
+								n_sources=self.n_sources,
+								mu_data=self.mu_data,
+								tau_data=self.tau_data,
+								idx_observed=self.idx_data,
+								dimension=self.D,
+								prior=self.prior,
+								parameters=self.parameters,
+								hyper_alpha=self.hyper["alpha"],
+								hyper_beta=self.hyper["beta"],
+								hyper_gamma=self.hyper["gamma"],
+								hyper_delta=self.hyper["delta"],
+								hyper_eta=self.hyper["eta"],
 								hyper_nu=self.hyper["nu"],
 								transformation=self.forward,
 								parametrization=self.parametrization,
@@ -750,6 +774,8 @@ class Inference:
 								identifiers=self.ID,
 								coordinates=self.names_coords,
 								observables=self.names_mu)
+
+		
 
 		elif self.D == 6 and self.velocity_model != "joint":
 			self.Model = Model6D_linear(n_sources=self.n_sources,

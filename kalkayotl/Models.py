@@ -23,8 +23,7 @@ import string
 from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
-
-# from kalkayotl.Priors import EDSD,EFF,King
+from kalkayotl.Rotations import cluster_to_galactic
 
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -1112,7 +1111,6 @@ class Model3D_tails(Model):
 		#-------------------------------------------------------------
 
 		#----------- Location ------------------------------------------
-		loc_in_cluster = pt.zeros((3))
 		if parameters["location"] is None:
 			#------------ Inferred --------------------------------------
 			loc_i = pm.Normal("centre",
@@ -1180,16 +1178,16 @@ class Model3D_tails(Model):
 			weights = pm.Deterministic("weights",parameters["weights"])
 		#--------------------------------------------------------------
 
-		#-------------------------- True values ------------------------------------------------
-		comps = [pm.MvNormal.dist(mu=loc_in_cluster,chol=chol[i]) for i in range(n_components)]
+		#-------------------------- True values -------------------------------------
+		comps = [pm.MvNormal.dist(mu=0.0,chol=chol[i]) for i in range(n_components)]
 		pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
-		#---------------------------------------------------------------------------------------
+		#----------------------------------------------------------------------------
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala, loc),
+		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala, loc[0]),
 										dims=("source_id","coordinate"))
 
 		true = pm.Deterministic("true",transformation(source),
