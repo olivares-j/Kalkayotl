@@ -1,0 +1,1 @@
+rsync -av -r -e ssh --exclude='*.nc' --exclude='*.h5' --exclude="posterior_predictive.csv" dance13:/raid/jromero/Kalkayotl/Synthetic/ /home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/Gaussian_joint/

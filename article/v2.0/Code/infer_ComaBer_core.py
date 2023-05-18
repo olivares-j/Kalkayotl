@@ -124,7 +124,7 @@ indep_measures = False
 # "independent": independently models positions and velocities.
 # "constant": models the velocity as expanding or contracting field
 # "linear": models the velocity field as a linear function of position.
-velocity_model = "joint"
+velocity_model = "linear"
 #----------------------------------------------------------------------------------------
 
 #---------- NUTS Sampler ------------
@@ -148,16 +148,17 @@ prior = {"type":"Gaussian",
 		"parametrization":"central"}
 #======================= Inference and Analysis =====================================================
 
-for target_accept in [0.95,0.8,0.7,0.6,0.5]:
+for target_accept in [0.5,0.6,0.7,0.8,0.9,0.95]:
 		
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0f}arcsec_{5}".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0f}arcsec_{5}_{6}".format(
 		dimension,
 		prior["type"],
 		prior["parametrization"],
 		nuts_sampler,
 		radec_precision_arcsec,
-		target_accept
+		target_accept,
+		velocity_model
 		)
 	#------------------------------------------------------------
 
@@ -188,14 +189,14 @@ for target_accept in [0.95,0.8,0.7,0.6,0.5]:
 
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	# kal.run(sample_iters=sample_iters,
-	# 		tuning_iters=tuning_iters,
-	# 		target_accept=target_accept,
-	# 		chains=chains,
-	# 		cores=cores,
-	# 		nuts_sampler=nuts_sampler,
-	# 		posterior_predictive=False,
-	# 		prior_predictive=False)
+	kal.run(sample_iters=sample_iters,
+			tuning_iters=tuning_iters,
+			target_accept=target_accept,
+			chains=chains,
+			cores=cores,
+			nuts_sampler=nuts_sampler,
+			posterior_predictive=False,
+			prior_predictive=False)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
