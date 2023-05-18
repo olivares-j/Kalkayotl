@@ -1027,6 +1027,7 @@ class Inference:
 		#------- Variable names -----------------------------------------------------------
 		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
 		cluster_variables = list(filter(lambda x: ( ("loc" in x) 
+											or ("perezsala" in x)
 											or ("corr" in x)
 											or ("std" in x)
 											or ("std" in x)
@@ -1070,6 +1071,7 @@ class Inference:
 				if not ("loc" in var 
 					or "std" in var
 					or "weights" in var
+					or "perezsala" in var
 					or "corr" in var 
 					or "omega" in var
 					or "kappa" in var):
@@ -1255,9 +1257,14 @@ class Inference:
 		else:
 			sys.exit("Group not recognized")
 
+		if self.prior == "TGMM":
+			source_variables = ["3D::pos_cls"]
+		else:
+			source_variables = self.source_variables
+
 		#================ Sources ============================================
 		#------------ Extract sources ---------------------------------------
-		srcs = np.array([data[var].values for var in self.source_variables])
+		srcs = np.array([data[var].values for var in source_variables])
 		#--------------------------------------------------------------------
 
 		#------ Organize sources ---------
@@ -1412,6 +1419,9 @@ class Inference:
 							co.dot(np.diag(st)))
 		#----------------------------------------------
 		#===========================================================================
+
+		if self.prior == "TGMM":
+			locs = np.zeros_like(locs)
 
 		return srcs,amps,locs,covs
 
@@ -2139,13 +2149,13 @@ class Inference:
 
 	def save_posterior_predictive(self,
 		file_chains=None,
-		file_type="csv"
 		):
 		var_name = str(self.D)+"D::true"
 
 		file_chains = self.file_chains if (file_chains is None) else file_chains
-		file_out = self.dir_out+"/posterior_predictive"
+		file_base = self.dir_out+"/posterior_predictive"
 
+		#--------------- Extract observables -----------------------------------------------
 		dfg = self.trace.posterior_predictive[var_name].to_dataframe().groupby("observable")
 		dfs = []
 		for obs,df in dfg.__iter__():
@@ -2153,11 +2163,32 @@ class Inference:
 			df.rename(columns={var_name:obs},inplace=True)
 			dfs.append(df)
 		df = pn.concat(dfs,axis=1,ignore_index=False)
+		#-----------------------------------------------------------------------------------
 
-		if file_type == "hdf":
-			df.to_hdf(file_out+".h5",key="posterior_predictive")
-		elif file_type == "csv":
-			df.to_csv(file_out+".csv",index=True)
+		#--------- Save H5 samples ---------------------------
+		df.to_hdf(file_base + ".h5",key="posterior_predictive")
+		#-----------------------------------------------------
+
+		#---------- Groupby source id ------------------------
+		dfg = df.groupby("source_id")
+
+		dfs = []
+		for name, df in dfg.__iter__():
+			tmp = pn.merge(
+						left=df.mean(axis=0).to_frame().T,
+						right=df.std(axis=0).to_frame().T,
+						left_index=True,right_index=True,
+						suffixes=("","_error")).set_index(
+						np.array(name).reshape(1)).rename_axis(
+						index="source_id")
+			dfs.append(tmp)
+		df = pn.concat(dfs,axis=0,ignore_index=False)
+		#-------------------------------------------------------
+		
+
+		#------------ Save to CSV ---------------
+		df.to_csv(file_base + ".csv",index=True)
+		#-----------------------------------------
 		
 
 	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,

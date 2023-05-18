@@ -32,10 +32,10 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core+Tails/"
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members+rvs_sample.csv"
+file_data = dir_base + "members+rvs.csv"
 file_parameters = dir_base + "6D_Gaussian_Galactic_central_joint_numpyro_0/Cluster_statistics.csv"
 #----------------------------------------------------------------------------
 
@@ -277,7 +277,7 @@ for prior in list_of_prior:
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	kal.load_data(file_data)
+	kal.load_data(file_data,radec_precision_arcsec=5.*60.)
 
 	#------ Prepares the model -------------------
 	kal.setup(prior=prior["type"],
@@ -288,15 +288,15 @@ for prior in list_of_prior:
 	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	kal.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			chains=chains,
-			cores=cores,
-			init_iters=int(1e5),
-			nuts_sampler=nuts_sampler,
-			posterior_predictive=True,
-			prior_predictive=True)
+	# kal.run(sample_iters=sample_iters,
+	# 		tuning_iters=tuning_iters,
+	# 		target_accept=target_accept,
+	# 		chains=chains,
+	# 		cores=cores,
+	# 		init_iters=int(1e6),
+	# 		nuts_sampler=nuts_sampler,
+	# 		posterior_predictive=True,
+	# 		prior_predictive=True)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------

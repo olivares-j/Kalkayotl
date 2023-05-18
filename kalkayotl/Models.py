@@ -1179,15 +1179,19 @@ class Model3D_tails(Model):
 		#--------------------------------------------------------------
 
 		#-------------------------- True values -------------------------------------
-		comps = [pm.MvNormal.dist(mu=0.0,chol=chol[i]) for i in range(n_components)]
+		comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]) for i in range(n_components)]
 		pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
+
+		# source = pm.Mixture("source",w=weights,comp_dists=comps,
+		# 			shape=(n_sources,dimension),
+		# 			dims=("source_id","coordinate"))
 		#----------------------------------------------------------------------------
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala, loc[0]),
+		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala,self.centre),
 										dims=("source_id","coordinate"))
 
 		true = pm.Deterministic("true",transformation(source),
