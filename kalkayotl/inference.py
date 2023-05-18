@@ -2148,8 +2148,7 @@ class Inference:
 				grp_src.create_dataset(name, data=data)
 
 	def save_posterior_predictive(self,
-		file_chains=None,
-		):
+		file_chains=None):
 		var_name = str(self.D)+"D::true"
 
 		file_chains = self.file_chains if (file_chains is None) else file_chains
@@ -2185,7 +2184,6 @@ class Inference:
 		df = pn.concat(dfs,axis=0,ignore_index=False)
 		#-------------------------------------------------------
 		
-
 		#------------ Save to CSV ---------------
 		df.to_csv(file_base + ".csv",index=True)
 		#-----------------------------------------
