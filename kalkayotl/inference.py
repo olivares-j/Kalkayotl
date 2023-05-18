@@ -2112,14 +2112,13 @@ class Inference:
 				grp_src.create_dataset(name, data=data)
 
 	def save_posterior_predictive(self,
-		file_chains=None,
-		file_type="csv"
-		):
+		file_chains=None):
 		var_name = str(self.D)+"D::true"
 
 		file_chains = self.file_chains if (file_chains is None) else file_chains
-		file_out = self.dir_out+"/posterior_predictive"
+		file_base = self.dir_out+"/posterior_predictive"
 
+		#--------------- Extract observables -----------------------------------------------
 		dfg = self.trace.posterior_predictive[var_name].to_dataframe().groupby("observable")
 		dfs = []
 		for obs,df in dfg.__iter__():
@@ -2127,11 +2126,31 @@ class Inference:
 			df.rename(columns={var_name:obs},inplace=True)
 			dfs.append(df)
 		df = pn.concat(dfs,axis=1,ignore_index=False)
+		#-----------------------------------------------------------------------------------
 
-		if file_type == "hdf":
-			df.to_hdf(file_out+".h5",key="posterior_predictive")
-		elif file_type == "csv":
-			df.to_csv(file_out+".csv",index=True)
+		#--------- Save H5 samples ---------------------------
+		df.to_hdf(file_base + ".h5",key="posterior_predictive")
+		#-----------------------------------------------------
+
+		#---------- Groupby source id ------------------------
+		dfg = df.groupby("source_id")
+
+		dfs = []
+		for name, df in dfg.__iter__():
+			tmp = pn.merge(
+						left=df.mean(axis=0).to_frame().T,
+						right=df.std(axis=0).to_frame().T,
+						left_index=True,right_index=True,
+						suffixes=("","_error")).set_index(
+						np.array(name).reshape(1)).rename_axis(
+						index="source_id")
+			dfs.append(tmp)
+		df = pn.concat(dfs,axis=0,ignore_index=False)
+		#-------------------------------------------------------
+		
+		#------------ Save to CSV ---------------
+		df.to_csv(file_base + ".csv",index=True)
+		#-----------------------------------------
 		
 
 	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,
