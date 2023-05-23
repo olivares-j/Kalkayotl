@@ -560,6 +560,20 @@ class Inference:
 		if self.parameters["scale"] is None:
 			if self.hyper["beta"] is None:
 				self.hyper["beta"] = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
+			else:
+				if isinstance(self.hyper["beta"],float):
+					assert self.D == 1,\
+						"ERROR: float type in beta hyper-parameter is only valid in 1D"
+					self.hyper["beta"] = np.array([self.hyper["beta"]])
+				elif isinstance(self.hyper["beta"],list):
+					assert len(self.hyper["beta"]) == self.D,\
+						"ERROR: incorrect length of hyperparameter beta!"
+					self.hyper["beta"] = np.array(self.hyper["beta"])
+				elif isinstance(self.hyper["beta"],np.ndarray):
+					assert self.hyper["beta"].ndim == 1 and self.hyper["beta"].shape[0] == self.D,\
+						"ERROR: incorrect shape of hyperparameter beta!"
+				else:
+					sys.exit("ERROR:Unrecognized type of hyper_beta")
 
 			print("The beta hyper-parameter has been set to:")
 			for name,scl in zip(self.names_coords,self.hyper["beta"]):
