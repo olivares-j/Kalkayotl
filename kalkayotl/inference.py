@@ -1248,12 +1248,10 @@ class Inference:
 		srcs = np.array([data[var].values for var in self.source_variables])
 		#--------------------------------------------------------------------
 
-		#------ Organize sources ---------
+		#------ Organize sources -----
 		srcs = srcs.squeeze(axis=0)
 		srcs = np.moveaxis(srcs,2,0)
-		if self.D == 1:
-			srcs = np.expand_dims(srcs,3)
-		#----------------------------------
+		#-----------------------------
 
 		#------ Dimensions -----
 		n,nc,ns,nd = srcs.shape
@@ -1313,7 +1311,7 @@ class Inference:
 				stds[:,:,:,3:] = stds_vel
 			else:
 				stds = np.array([data[var].values for var in self.std_variables])
-		#--------------------------------------------------------------------
+		#------------------------------------------------------------------------
 
 		#----------- Extract correlations -------------------------------
 		if len(self.std_variables) == 0:
@@ -1335,6 +1333,8 @@ class Inference:
 							cors_pos.shape[2],6,6))
 				cors[:,:,:,:3,:3] = cors_pos
 				cors[:,:,:,3:,3:] = cors_vel
+			elif self.D == 1:
+				cors = np.ones_like(stds)
 			else:
 				cors = np.array([data[var].values for var in self.cor_variables])
 		#------------------------------------------------------------------------
@@ -1418,11 +1418,17 @@ class Inference:
 
 			#------ Loop over sources ----------------------------------
 			log_lk = np.zeros((srcs.shape[0],pos_amps.shape[0],pos_amps.shape[1]))
-			for i,src in enumerate(srcs):
-				for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
-					for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
-						log_lk[i,j,k] = st.multivariate_normal(mean=loc,cov=cov,
-											allow_singular=True).logpdf(dt)
+			if self.D == 1:
+				for i,src in enumerate(srcs):
+					for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
+						for k,(amp,loc,scl) in enumerate(zip(amps,locs,np.sqrt(covs))):
+							log_lk[i,j,k] = st.norm.logpdf(dt,loc=loc,scale=scl)
+			else:
+				for i,src in enumerate(srcs):
+					for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
+						for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
+							log_lk[i,j,k] = st.multivariate_normal(mean=loc,cov=cov,
+												allow_singular=True).logpdf(dt)
 
 			idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
 
@@ -1981,7 +1987,7 @@ class Inference:
 		df_source.insert(loc=0,column="parameter",value=idx)
 		#---------------------------------------------------------------
 
-		if self.D in [3,6] :
+		if self.D in [1,3,6] :
 			#---------- Classify sources -------------------
 			if not hasattr(self,"df_groups"):
 				if self.ds_posterior.sizes["draw"] > 100:
@@ -2018,13 +2024,14 @@ class Inference:
 			df_source = df_source.join(self.df_groups)
 			#----------------------------------------------
 
-			#------ Add distance ---------------------------------------------------------
-			df_source["MAP_distance"] = df_source[["MAP_X","MAP_Y","MAP_Z"]].apply(
-				lambda x: distance(*x),axis=1)
+			if self.D > 1:
+				#------ Add distance ---------------------------------------------------------
+				df_source["MAP_distance"] = df_source[["MAP_X","MAP_Y","MAP_Z"]].apply(
+					lambda x: distance(*x),axis=1)
 
-			df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
-				lambda x: distance(*x),axis=1)
-			#----------------------------------------------------------------------------
+				df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
+					lambda x: distance(*x),axis=1)
+				#----------------------------------------------------------------------------
 
 		#---------- Save source data frame ----------------------
 		df_source.to_csv(path_or_buf=source_csv,index_label=self.id_name)

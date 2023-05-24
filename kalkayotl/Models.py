@@ -122,7 +122,7 @@ class Model1D(Model):
 			elif parameters["scale"] is None and prior == "FGMM":
 				stds = pytensor.shared(np.zeros((n_components,dimension)))
 
-				stds_i = pm.Gamma("stds_cls",
+				stds_i = pm.Gamma("sds_cls",
 							alpha=2.0,
 							beta=1./hyper_beta,
 							shape=(n_components-1,dimension))
@@ -166,7 +166,8 @@ class Model1D(Model):
 							alpha=2.0,
 							beta=1./hyper_beta,
 							shape=dimension,
-							dims="coordinate")
+							dims="coordinate",
+							initval=[200.])
 			else:
 				std = pm.Deterministic("std",
 						pytensor.shared(parameters["scale"]),
