@@ -800,7 +800,6 @@ class Inference:
 		init_method="advi+adapt_diag",
 		init_iters=int(5e5),
 		prior_predictive=False,
-		posterior_predictive=False,
 		progressbar=True,
 		nuts_sampler="numpyro",
 		init_absolute_tol=5e-3,
@@ -842,7 +841,7 @@ class Inference:
 			cb = [pm.callbacks.CheckParametersConvergence(
 					tolerance=init_absolute_tol, diff="absolute"),
 				  pm.callbacks.CheckParametersConvergence(
-				  	tolerance=init_relative_tol, diff="relative")]
+					tolerance=init_relative_tol, diff="relative")]
 
 			approx = pm.fit(
 				start=start,
@@ -958,24 +957,19 @@ class Inference:
 				)
 			#--------------------------------
 
-		with self.Model:
-			#-------- Posterior predictive -----------------------------
-			if posterior_predictive:
-				posterior_pred = pm.sample_posterior_predictive(trace,
-						var_names=[self.Model.name+"::true"])
-				trace.extend(posterior_pred)
-			#--------------------------------------------------------
-
-			#-------- Prior predictive ----------------------------------
-			if prior_predictive:
-				prior_pred = pm.sample_prior_predictive(
-							samples=sample_iters)
-				trace.extend(prior_pred)
-			#-------------------------------------------------------------
-
-			#--------- Save with arviz ------------
-			az.to_netcdf(trace,file_chains)
-			#-------------------------------------
+		#-------- Prior predictive -------------------
+		if prior_predictive:
+			print("Prior predictive ...")
+			prior_pred = pm.sample_prior_predictive(
+						samples=sample_iters,
+						model=self.Model)
+			trace.extend(prior_pred)
+		#---------------------------------------------
+			
+		#--------- Save with arviz ------------
+		print("Saving inference data ...")
+		az.to_netcdf(trace,file_chains)
+		#-------------------------------------
 
 
 	def load_trace(self,file_chains=None):
@@ -1033,6 +1027,7 @@ class Inference:
 		cluster_loc_var = cluster_variables.copy()
 		cluster_std_var = cluster_variables.copy()
 		cluster_cor_var = cluster_variables.copy()
+		cluster_ppc_var = cluster_variables.copy()
 
 		#----------- Case specific variables -------------
 		tmp_srces = source_variables.copy()
@@ -1041,6 +1036,7 @@ class Inference:
 		tmp_loc   = cluster_variables.copy()
 		tmp_stds  = cluster_variables.copy()
 		tmp_corr  = cluster_variables.copy()
+		tmp_ppc   = cluster_variables.copy()
 
 		for var in tmp_srces:
 			if "_pos" in var or "_vel" in var:
@@ -1075,6 +1071,10 @@ class Inference:
 			if "corr" not in var:
 				cluster_cor_var.remove(var)
 
+		for var in tmp_ppc:
+			if "corr" in var:
+				cluster_ppc_var.remove(var)
+
 		#----------------------------------------------------
 
 		self.source_variables  = source_variables
@@ -1084,7 +1084,7 @@ class Inference:
 		self.loc_variables     = cluster_loc_var
 		self.std_variables     = cluster_std_var
 		self.cor_variables     = cluster_cor_var
-		self.chk_variables     = sum([cluster_loc_var,cluster_std_var],[])
+		self.chk_variables     = cluster_ppc_var
 
 		# print(self.source_variables)
 		# print(self.cluster_variables)
@@ -2133,7 +2133,7 @@ class Inference:
 		file_base = self.dir_out+"/posterior_predictive"
 
 		#--------------- Extract observables -----------------------------------------------
-		dfg = self.trace.posterior_predictive[var_name].to_dataframe().groupby("observable")
+		dfg = self.trace.posterior[var_name].to_dataframe().groupby("observable")
 		dfs = []
 		for obs,df in dfg.__iter__():
 			df.reset_index("observable",drop=True,inplace=True)
