@@ -1,1 +1,1 @@
-rsync -av -r -e ssh --exclude='*.nc' --exclude='*.h5' dance13:/raid/jromero/Kalkayotl/Synthetic/3D* /home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/Gaussian_joint/
+rsync -av -r -e ssh --exclude='*.nc' --exclude='*.h5' dance13:/raid/jromero/Kalkayotl/Synthetic/* /home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/Gaussian_joint/

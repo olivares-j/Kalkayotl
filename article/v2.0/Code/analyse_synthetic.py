@@ -32,8 +32,8 @@ dimension = "3D"
 
 # dill.load_session(str(sys.argv[1]))
 dill.load_session("./globals_{0}.pkl".format(family))
-list_of_n_stars = [100]
-list_of_distances = [100.,200.,400.,800.,1600.]
+list_of_n_stars = [400]
+list_of_distances = [100.,200.,400.]#,800.,1600.]
 list_of_seeds = [0,1,2,3,4]
 
 #---------------------- Directories and data -------------------------------
@@ -48,11 +48,11 @@ file_plot_grp = dir_plots + "Analysis_" + family + "_group-level.pdf"
 file_plot_cnv = dir_plots + "Analysis_" + family + "_convergence.pdf"
 file_plot_rho = dir_plots + "Analysis_" + family + "_correlation.pdf"
 
-do_all_dta = False
-do_plt_src = False
+do_all_dta = True
+do_plt_cnv = True
 do_plt_grp = False
-do_plt_cnv = False
-do_plt_rho = True
+do_plt_src = False
+do_plt_rho = False
 #---------------------------------------------------------------------------
 
 coordinates = ["X","Y","Z"]
@@ -272,6 +272,24 @@ else:
 
 
 #=========================== Plots =======================================
+if do_plt_cnv:
+	#-------------- Convergence ----------------------------------------------
+	pdf = PdfPages(filename=file_plot_cnv)
+	for st in sts_cnv:
+		fg = sns.FacetGrid(data=df_grp,
+						col="Parameter",
+						sharey=False,
+						margin_titles=True,
+						col_wrap=3,
+						hue="n_stars")
+		fg.map(sns.scatterplot,"distance",st["key"])
+		fg.add_legend()
+		fg.set_axis_labels("Distance [pc]",st["name"])
+		fg.set(xscale="log")
+		pdf.savefig(bbox_inches='tight')
+		plt.close()
+	pdf.close()
+	#-------------------------------------------------------------------------
 if do_plt_grp:
 	#---------------- Group-level --------------------------------------------
 	pdf = PdfPages(filename=file_plot_grp)
@@ -312,24 +330,6 @@ if do_plt_src:
 		fg.add_legend()
 		fg.set_axis_labels("Distance [pc]",st["name"])
 		fg.set(ylim=st["ylim"],xscale="log")
-		pdf.savefig(bbox_inches='tight')
-		plt.close()
-	pdf.close()
-	#-------------------------------------------------------------------------
-if do_plt_cnv:
-	#-------------- Convergence ----------------------------------------------
-	pdf = PdfPages(filename=file_plot_cnv)
-	for st in sts_cnv:
-		fg = sns.FacetGrid(data=df_grp,
-						col="Parameter",
-						sharey=False,
-						margin_titles=True,
-						col_wrap=3,
-						hue="n_stars")
-		fg.map(sns.scatterplot,"distance",st["key"])
-		fg.add_legend()
-		fg.set_axis_labels("Distance [pc]",st["name"])
-		fg.set(xscale="log")
 		pdf.savefig(bbox_inches='tight')
 		plt.close()
 	pdf.close()

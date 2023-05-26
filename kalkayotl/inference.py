@@ -117,7 +117,7 @@ class Inference:
 		self.file_chains      = self.dir_out+"/Chains.nc"
 		self.file_start       = self.dir_out+"/Initialization.pkl"
 
-		self.asec2deg = 1.0/(60.*60.)
+		self.mas2deg  = 1.0/(60.*60.*1000.)
 
 		self.idx_pma    = 3
 		self.idx_pmd    = 4
@@ -208,7 +208,7 @@ class Inference:
 
 	def load_data(self,file_data,
 		corr_func="Lindegren+2020",
-		radec_precision_arcsec=1.0,
+		sky_error_factor=1.e6,
 		*args,
 		**kwargs):
 		"""
@@ -240,11 +240,16 @@ class Inference:
 						thresh=len(self.names_nan))
 		#----------------------------------------------
 
-		#--------- mas to degrees -------------------------
-		# Fixes RA Dec uncertainties to 1 arcsec
-		data["ra_error"]  = radec_precision_arcsec*self.asec2deg
-		data["dec_error"] = radec_precision_arcsec*self.asec2deg
-		#--------------------------------------------------
+		#--- Sky uncertainty from mas to degrees ------
+		data["ra_error"]  *= self.mas2deg
+		data["dec_error"] *= self.mas2deg
+		#------------------------------------------
+
+		#--- Increase sky uncertainty ----------
+		data["ra_error"]  *= sky_error_factor
+		data["dec_error"] *= sky_error_factor
+		#--------------------------------------
+
 
 		#---------- Zero-points --------------------
 		for key,val in self.zero_points.items():
@@ -1111,6 +1116,10 @@ class Inference:
 		print("Effective sample size:")
 		for var in self.ds_posterior.data_vars:
 			print("{0} : {1:2.4f}".format(var,np.mean(ess[var].values)))
+
+		print("Step size:")
+		for i,val in enumerate(self.trace.sample_stats["step_size"].mean(dim="draw")):
+			print("Chain {0}: {1:3.8f}".format(i,val))
 
 	def plot_chains(self,
 		file_plots=None,
