@@ -801,16 +801,17 @@ class Inference:
 		chains=2,
 		cores=2,
 		step=None,
+		step_size=1e-2,
 		file_chains=None,
 		init_method="advi+adapt_diag",
 		init_iters=int(5e5),
-		prior_predictive=False,
-		progressbar=True,
-		nuts_sampler="numpyro",
 		init_absolute_tol=5e-3,
 		init_relative_tol=1e-5,
 		init_plot_iters=int(1e4),
 		init_refine=False,
+		prior_predictive=False,
+		progressbar=True,
+		nuts_sampler="numpyro",
 		random_seed=None):
 		"""
 		Performs the MCMC run.
@@ -941,6 +942,7 @@ class Inference:
 				progressbar=progressbar,
 				discard_tuned_samples=True,
 				return_inferencedata=True,
+				nuts_sampler_kwargs={"step_size":step_size},
 				model=self.Model
 				)
 			#--------------------------------
@@ -958,6 +960,7 @@ class Inference:
 				target_accept=target_accept,
 				discard_tuned_samples=True,
 				return_inferencedata=True,
+				nuts_sampler_kwargs={"step_size":step_size},
 				model=self.Model
 				)
 			#--------------------------------
