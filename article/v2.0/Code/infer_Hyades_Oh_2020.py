@@ -78,11 +78,11 @@ prior = {"type":"Gaussian",
 # 		"parametrization":"central"}
 
 #======================= Inference and Analysis =====================================================
-for reference_system in reference_systems:
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1E}".format(
+for rs in reference_systems:
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0E}".format(
 							dimension,
 							prior["type"],
-							reference_system,
+							rs,
 							velocity_model,
 							sky_error_factor)
 
@@ -92,7 +92,7 @@ for reference_system in reference_systems:
 					dir_out=dir_prior,
 					zero_points=zero_points,
 					indep_measures=indep_measures,
-					reference_system=reference_system,
+					reference_system=rs,
 					sampling_space=sampling_space,
 					velocity_model=velocity_model)
 
