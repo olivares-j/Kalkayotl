@@ -32,8 +32,8 @@ dimension = "3D"
 
 # dill.load_session(str(sys.argv[1]))
 dill.load_session("./globals_{0}.pkl".format(family))
-list_of_n_stars = [400]
-list_of_distances = [100.,200.,400.]#,800.,1600.]
+list_of_n_stars = [100,200,400]
+list_of_distances = [100,200,400,800,1600]
 list_of_seeds = [0,1,2,3,4]
 
 #---------------------- Directories and data -------------------------------
@@ -41,18 +41,18 @@ dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/"
 dir_data  = dir_main + "Gaussian_joint/"
 dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/"
 base_data = dir_data  + family + "_n{0}_d{1}_s{2}.csv"
-base_dir  = dir_data  + dimension + "_" + family + "_n{0}_d{1}_s{2}_central/"
+base_dir  = dir_data  + dimension + "_" + family + "_n{0}_d{1}_s{2}_{3}/"
 file_data_all = dir_data  + "data_for_plot.h5"
 file_plot_src = dir_plots + "Analysis_" + family + "_source-level.pdf"
 file_plot_grp = dir_plots + "Analysis_" + family + "_group-level.pdf"
 file_plot_cnv = dir_plots + "Analysis_" + family + "_convergence.pdf"
 file_plot_rho = dir_plots + "Analysis_" + family + "_correlation.pdf"
 
-do_all_dta = True
-do_plt_cnv = True
-do_plt_grp = False
-do_plt_src = False
-do_plt_rho = False
+do_all_dta = False
+do_plt_cnv = False
+do_plt_grp = True
+do_plt_src = True
+do_plt_rho = True
 #---------------------------------------------------------------------------
 
 coordinates = ["X","Y","Z"]
@@ -111,8 +111,15 @@ if do_all_dta:
 	for n,n_stars in enumerate(list_of_n_stars):
 		for d,distance in enumerate(list_of_distances):
 			for s,seed in enumerate(list_of_seeds):
+				#------------- Parametrization --------------------
+				if distance <= 1000.:
+					parametrization = "central"
+				else:
+					parametrization = "non-central"
+				#-------------------------------------------
+
 				#------------- Files ------------------------------
-				dir_chains = base_dir.format(n_stars,int(distance),seed)
+				dir_chains = base_dir.format(n_stars,int(distance),seed,parametrization)
 				file_obs_grp   = dir_chains  + "Cluster_statistics.csv"
 				file_obs_src   = dir_chains  + "Sources_statistics.csv"
 				file_true_src  = base_data.format(n_stars,int(distance),seed)
@@ -205,9 +212,9 @@ if do_all_dta:
 				df_sts["n_stars"] = n_stars
 				df_src["n_stars"] = n_stars
 
-				df_grp["distance"] = distance
-				df_sts["distance"] = distance
-				df_src["distance"] = distance
+				df_grp["distance"] = distance#+10*seed
+				df_sts["distance"] = distance#+10*seed
+				df_src["distance"] = distance#+10*seed
 
 				df_grp["seed"] = seed
 				df_sts["seed"] = seed
@@ -285,7 +292,7 @@ if do_plt_cnv:
 		fg.map(sns.scatterplot,"distance",st["key"])
 		fg.add_legend()
 		fg.set_axis_labels("Distance [pc]",st["name"])
-		fg.set(xscale="log")
+		# fg.set(xscale="log")
 		pdf.savefig(bbox_inches='tight')
 		plt.close()
 	pdf.close()
@@ -307,7 +314,7 @@ if do_plt_grp:
 				alpha=0.1)
 		fg.add_legend()
 		fg.set_axis_labels("Distance [pc]",st["name"])
-		fg.set(ylim=st["ylim"],xscale="log")
+		# fg.set(ylim=st["ylim"],xscale="log")
 		pdf.savefig(bbox_inches='tight')
 		plt.close()
 	pdf.close()
@@ -329,7 +336,7 @@ if do_plt_src:
 				alpha=0.1)
 		fg.add_legend()
 		fg.set_axis_labels("Distance [pc]",st["name"])
-		fg.set(ylim=st["ylim"],xscale="log")
+		# fg.set(ylim=st["ylim"],xscale="log")
 		pdf.savefig(bbox_inches='tight')
 		plt.close()
 	pdf.close()

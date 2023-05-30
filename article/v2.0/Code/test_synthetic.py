@@ -13,10 +13,10 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/Gaussian_linear/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/Gaussian_joint/"
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "Gaussian_n50.csv"
+file_data = dir_base + "Gaussian_n200_d800_s0.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -25,14 +25,14 @@ os.makedirs(dir_base,exist_ok=True)
 #============================================================================
 
 #=============== Tuning knobs ============================
-dimension = 6
+dimension = 3
 chains = 2
 cores  = 2
-tuning_iters = 4000
+tuning_iters = 2000
 sample_iters = 2000
+target_accept = 0.65
 sampling_space = "physical"
 reference_system = "Galactic"
-radec_precision_arcsec = 1.0
 
 #--------- Zero point ------------
 # A dcictionary with zerpoints
@@ -46,7 +46,7 @@ zero_points = {
 #--------------------------------
 
 indep_measures = False
-velocity_model = "linear"
+velocity_model = "joint"
 nuts_sampler = "numpyro"
 
 #=========================================================================================
@@ -64,82 +64,78 @@ prior = {"type":"Gaussian",
 		"parametrization":"non-central"}
 #======================= Inference and Analysis =====================================================
 
-#--------------------- Loop over prior types ------------------------------------
-for target_accept in [0.6]:
 
-	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}".format(
-		dimension,
-		prior["type"],
-		prior["parametrization"],
-		velocity_model,
-		radec_precision_arcsec,
-		target_accept)
-	#------------------------------------------------------------
+#------ Output directories for each prior -------------------
+dir_prior = dir_base +  "{0}D_{1}_n{2}_d{3}_s{4}_{5}_test".format(
+	dimension,
+	prior["type"],
+	200,
+	800,
+	0,
+	prior["parametrization"])
+#------------------------------------------------------------
 
-	#---------- Create prior directory -------------
-	os.makedirs(dir_prior,exist_ok=True)
-	#------------------------------------------------
+#---------- Create prior directory -------------
+os.makedirs(dir_prior,exist_ok=True)
+#------------------------------------------------
 
-	#--------- Initialize the inference module -------
-	kal = Inference(dimension=dimension,
-					dir_out=dir_prior,
-					zero_points=zero_points,
-					indep_measures=indep_measures,
-					reference_system=reference_system,
-					sampling_space=sampling_space,
-					velocity_model=velocity_model)
+#--------- Initialize the inference module -------
+kal = Inference(dimension=dimension,
+				dir_out=dir_prior,
+				zero_points=zero_points,
+				indep_measures=indep_measures,
+				reference_system=reference_system,
+				sampling_space=sampling_space,
+				velocity_model=velocity_model)
 
-	#-------- Load the data set --------------------
-	# It will use the Gaia column names by default.
-	kal.load_data(file_data,
-					radec_precision_arcsec=radec_precision_arcsec)
+#-------- Load the data set --------------------
+# It will use the Gaia column names by default.
+kal.load_data(file_data,sky_error_factor=1e6)
 
-	#------ Prepares the model -------------------
-	kal.setup(prior=prior["type"],
-			  parameters=prior["parameters"],
-			  hyper_parameters=prior["hyper_parameters"],
-			  parametrization=prior["parametrization"],
-			  )
-	#============ Sampling with HMC ======================================
-	#------- Run the sampler ---------------------
-	kal.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			chains=chains,
-			cores=cores,
-			init_iters=int(1e5),
-			nuts_sampler=nuts_sampler,
-			posterior_predictive=True,
-			prior_predictive=True)
-	#-------------------------------------
+#------ Prepares the model -------------------
+kal.setup(prior=prior["type"],
+		  parameters=prior["parameters"],
+		  hyper_parameters=prior["hyper_parameters"],
+		  parametrization=prior["parametrization"],
+		  )
+#============ Sampling with HMC ======================================
+#------- Run the sampler ---------------------
+kal.run(sample_iters=sample_iters,
+		tuning_iters=tuning_iters,
+		target_accept=target_accept,
+		chains=chains,
+		cores=cores,
+		init_iters=int(1e5),
+		nuts_sampler=nuts_sampler,
+		prior_predictive=True)
+#-------------------------------------
 
-	# -------- Load the chains --------------------------------
-	# This is useful if you have already computed the chains
-	# and want to re-analyse (in that case comment the p1d.run() line)
-	kal.load_trace()
+# -------- Load the chains --------------------------------
+# This is useful if you have already computed the chains
+# and want to re-analyse (in that case comment the p1d.run() line)
+kal.load_trace()
 
-	# ------- Re-analyse the convergence of the sampler---
-	kal.convergence()
+# ------- Re-analyse the convergence of the sampler---
+kal.convergence()
 
-	#-------- Plot the trace of the chains ------------------------------------
-	# If you provide the list of IDs (string list) it will plot the traces
-	# of the provided sources. If IDs keyword removed only plots the population parameters.
-	kal.plot_chains()
+#-------- Plot the trace of the chains ------------------------------------
+# If you provide the list of IDs (string list) it will plot the traces
+# of the provided sources. If IDs keyword removed only plots the population parameters.
+kal.plot_chains()
 
-	#--- Check Prior and Posterior ----
-	kal.plot_prior_check()
-	#--------------------------------
+#--- Check Prior and Posterior ----
+kal.plot_prior_check()
+#--------------------------------
 
-	#--- Plot model -- 
-	kal.plot_model()
-	# -----------------
+#--- Plot model -- 
+kal.plot_model()
+# -----------------
 
-	#----- Compute and save the posterior statistics ---------
-	kal.save_statistics()
+#----- Compute and save the posterior statistics ---------
+kal.save_statistics()
 
-	kal.save_posterior_predictive()
+kal.save_posterior_predictive()
 
-	#------- Save the samples into HDF5 file --------------
-	kal.save_samples()
+#------- Save the samples into HDF5 file --------------
+kal.save_samples()
 #=======================================================================================

@@ -6,11 +6,11 @@ os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
 
-# dir_base = "/raid/jromero/Kalkayotl/Hyades/Oh_2020/Core/"
-# dir_kalkayotl  = "/home/jromero/Repos/Kalkayotl/" 
+dir_base = "/home/jromero/Repos/Kalkayotl/article/v2.0/Hyades/Oh_2020/Core/"
+dir_kalkayotl  = "/home/jromero/Repos/Kalkayotl/" 
 
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Hyades/Oh_2020/Core/"
-dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
+# dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Hyades/Oh_2020/Core/"
+# dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
 
 #----- Import the module -------------------------------
 sys.path.append(dir_kalkayotl)
@@ -30,9 +30,10 @@ os.makedirs(dir_base,exist_ok=True)
 dimension = 6
 chains    = 2
 cores     = 2
-tuning_iters  = 3000
+tuning_iters  = 2000
 sample_iters  = 2000
-target_accept = 0.95
+target_accept = 0.65
+sky_error_factor = 1e6
 
 sampling_space   = "physical"
 indep_measures   = False
@@ -45,16 +46,14 @@ zero_points = {
 "parallax":-0.029, # Lindegren A&A 616, A2 (2018)
 "pmra":0.,
 "pmdec":0.,
-"radial_velocity":0.}  
+"radial_velocity":0.}
+
+reference_systems = ["ICRS"],#"Galactic"
 #--------------------------------
 
 prior = {"type":"Gaussian",
 		"parameters":{"location":None,"scale":None},
 		"hyper_parameters":{
-							# "alpha":{
-							# 	"loc":[-43.37,0.40,-17.46,-41.73,-19.29,-1.06],
-							# 	"scl":[5.,5.,5.,5.,5.,5.]
-							# 	},
 							"alpha":None,
 							"beta":[10.,10.,10.,1.,1.,1.],
 							"gamma":None,
@@ -79,12 +78,13 @@ prior = {"type":"Gaussian",
 # 		"parametrization":"central"}
 
 #======================= Inference and Analysis =====================================================
-for reference_system in ["ICRS","Galactic"]:
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}".format(
+for reference_system in reference_systems:
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1e}".format(
 							dimension,
 							prior["type"],
 							reference_system,
-							velocity_model)
+							velocity_model,
+							sky_error_factor)
 
 	os.makedirs(dir_prior,exist_ok=True)
 
@@ -98,29 +98,28 @@ for reference_system in ["ICRS","Galactic"]:
 
 	kal.load_data(file_data,
 					corr_func="Lindegren+2018",
-					radec_precision_arcsec=5.0,)
+					sky_error_factor=sky_error_factor)
 
 	kal.setup(prior=prior["type"],
 			  parameters=prior["parameters"],
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"])
 
-	# kal.run(sample_iters=sample_iters,
-	# 		tuning_iters=tuning_iters,
-	# 		target_accept=target_accept,
-	# 		chains=chains,
-	# 		cores=cores,
-	# 		init_iters=int(2e6),
-	# 		init_refine=True,
-	# 		nuts_sampler=nuts_sampler,
-	# 		posterior_predictive=True,
-	# 		prior_predictive=True)
+	kal.run(sample_iters=sample_iters,
+			tuning_iters=tuning_iters,
+			target_accept=target_accept,
+			chains=chains,
+			cores=cores,
+			init_iters=int(1e6),
+			step_size=1e-2,
+			nuts_sampler=nuts_sampler,
+			prior_predictive=True)
 
-	# kal.load_trace()
-	# kal.convergence()
-	# kal.plot_chains()
-	# kal.plot_prior_check()
-	# kal.plot_model()
-	# kal.save_statistics()
-	# kal.save_samples()
+	kal.load_trace()
+	kal.convergence()
+	kal.plot_chains()
+	kal.plot_prior_check()
+	kal.plot_model()
+	kal.save_statistics()
+	kal.save_samples()
 #=======================================================================================
