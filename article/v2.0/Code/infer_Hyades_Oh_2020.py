@@ -48,7 +48,7 @@ zero_points = {
 "pmdec":0.,
 "radial_velocity":0.}
 
-reference_systems = ["ICRS"] ,#"Galactic"
+rss = list(["ICRS"]) ,#"Galactic"
 #--------------------------------
 
 prior = {"type":"Gaussian",
@@ -78,7 +78,7 @@ prior = {"type":"Gaussian",
 # 		"parametrization":"central"}
 
 #======================= Inference and Analysis =====================================================
-for rs in reference_systems:
+for rs in rss:
 	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0E}".format(
 							dimension,
 							prior["type"],
