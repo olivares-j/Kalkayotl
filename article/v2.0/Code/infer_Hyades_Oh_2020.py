@@ -18,7 +18,7 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members_core_GDR2.csv"
+file_data = dir_base + "members_core_clean.csv"
 file_parameters = None
 #----------------------------------------------------------------------------
 
