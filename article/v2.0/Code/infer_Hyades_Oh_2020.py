@@ -110,7 +110,7 @@ for rs in rss:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e6),
+			init_iters=int(1e5),
 			step_size=1e-2,
 			nuts_sampler=nuts_sampler,
 			prior_predictive=True)

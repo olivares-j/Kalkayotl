@@ -49,7 +49,7 @@ file_plot_cnv = dir_plots + "Analysis_" + family + "_convergence.pdf"
 file_plot_rho = dir_plots + "Analysis_" + family + "_correlation.pdf"
 
 do_all_dta = False
-do_plt_cnv = False
+do_plt_cnv = True
 do_plt_grp = True
 do_plt_src = True
 do_plt_rho = True
