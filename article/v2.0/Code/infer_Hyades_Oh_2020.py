@@ -48,7 +48,7 @@ zero_points = {
 "pmdec":0.,
 "radial_velocity":0.}
 
-rss = list(["ICRS"]) ,#"Galactic"
+rss = ["ICRS","Galactic"]
 #--------------------------------
 
 prior = {"type":"Gaussian",
