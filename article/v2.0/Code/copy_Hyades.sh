@@ -1,0 +1,1 @@
+rsync -av -r -e ssh --exclude='*.nc' --exclude='*.h5' dance14:/home/jromero/Repos/Kalkayotl/article/v2.0/Hyades/Oh_2020/Core/* /home/jolivares/Repos/Kalkayotl/article/v2.0/Hyades/Oh_2020/Core/

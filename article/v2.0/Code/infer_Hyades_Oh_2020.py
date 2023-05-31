@@ -37,7 +37,7 @@ sky_error_factor = 1e6
 
 sampling_space   = "physical"
 indep_measures   = False
-velocity_model   = "joint"
+velocity_model   = "linear"
 nuts_sampler     = "numpyro"
 
 zero_points = {
@@ -110,8 +110,8 @@ for rs in rss:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e5),
-			step_size=1e-2,
+			init_iters=int(5e5),
+			step_size=3e-2,
 			nuts_sampler=nuts_sampler,
 			prior_predictive=True)
 
