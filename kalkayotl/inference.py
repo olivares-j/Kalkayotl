@@ -116,6 +116,7 @@ class Inference:
 		self.file_obs         = self.dir_out+"/Observations.nc"
 		self.file_chains      = self.dir_out+"/Chains.nc"
 		self.file_start       = self.dir_out+"/Initialization.pkl"
+		self.file_prior       = self.dir_out+"/Prior.nc"
 
 		self.mas2deg  = 1.0/(60.*60.*1000.)
 
@@ -795,16 +796,15 @@ class Inference:
 		print((30+13)*"+")
 
 	def run(self,
-		tuning_iters=4000,
+		tuning_iters=2000,
 		sample_iters=2000,
 		target_accept=0.6,
 		chains=2,
 		cores=2,
 		step=None,
 		step_size=1e-2,
-		file_chains=None,
 		init_method="advi+adapt_diag",
-		init_iters=int(5e5),
+		init_iters=int(1e5),
 		init_absolute_tol=5e-3,
 		init_relative_tol=1e-5,
 		init_plot_iters=int(1e4),
@@ -820,164 +820,172 @@ class Inference:
 		tuning_iters (integer):    Number of burning iterations.
 		"""
 
-		file_chains = self.file_chains if (file_chains is None) else file_chains
+		if not os.path.exists(self.file_chains):
+			#================== Optimization =============================================
+			if os.path.exists(self.file_start):
+				print("Reading initial positions ...")
+				in_file = open(self.file_start, "rb")
+				approx = dill.load(in_file)
+				in_file.close()
+				start = approx["initial_points"][0]
+			else:
+				approx = None
+				start = self.starting_points
+				print("Finding initial positions ...")
 
-		#================== Optimization =============================================
-		if os.path.exists(self.file_start):
-			print("Reading initial positions ...")
-			in_file = open(self.file_start, "rb")
-			approx = dill.load(in_file)
-			in_file.close()
-			start = approx["initial_points"][0]
-		else:
-			approx = None
-			start = self.starting_points
-			print("Finding initial positions ...")
+			if approx is None or (approx is not None and init_refine):
+				# -------- Fix problem with initial solution of cholesky cov-packed ----------
+				name_ccp = "_cholesky-cov-packed__" 
+				for key,value in start.copy().items():
+					if name_ccp in key:
+						del start[key]
+				# TO BE REMOVED once pymc5 solves this issue
+				#----------------------------------------------------------------------------
 
-		if approx is None or (approx is not None and init_refine):
+				random_seed_list = pymc.util._get_seeds_per_chain(random_seed, chains)
+				cb = [pm.callbacks.CheckParametersConvergence(
+						tolerance=init_absolute_tol, diff="absolute"),
+					  pm.callbacks.CheckParametersConvergence(
+						tolerance=init_relative_tol, diff="relative")]
+
+				approx = pm.fit(
+					start=start,
+					random_seed=random_seed_list[0],
+					n=init_iters,
+					method="advi",
+					model=self.Model,
+					callbacks=cb,
+					progressbar=True,
+					#test_optimizer=pm.adagrad#_window
+					)
+
+				#------------- Plot Loss ----------------------------------
+				plt.figure()
+				plt.plot(approx.hist[-init_plot_iters:])
+				plt.xlabel("Last {0} iterations".format(init_plot_iters))
+				# plt.yscale("log")
+				plt.ylabel("Average Loss")
+				plt.savefig(self.dir_out+"/Initializations.png")
+				plt.close()
+				#-----------------------------------------------------------
+
+				approx_sample = approx.sample(
+					draws=chains, 
+					random_seed=random_seed_list[0],
+					return_inferencedata=False
+					)
+
+				initial_points = [approx_sample[i] for i in range(chains)]
+				sd_point = approx.std.eval()
+				mu_point = approx.mean.get_value()
+				approx = {
+					"initial_points":initial_points,
+					"mu_point":mu_point,
+					"sd_point":sd_point
+					}
+
+				out_file = open(self.file_start, "wb")
+				dill.dump(approx, out_file)
+				out_file.close()
+
+				#------------------ Save initial point ------------------------------
+				df = pn.DataFrame(data=initial_points[0]["{0}D::true".format(self.D)],
+					columns=self.names_mu)
+				df.to_csv(self.dir_out+"/initial_point.csv",index=False)
+				#---------------------------------------------------------------------
+
+			#----------- Extract ---------------------
+			mu_point = approx["mu_point"]
+			sd_point = approx["sd_point"]
+			initial_points = approx["initial_points"]
+			#-----------------------------------------
+
 			# -------- Fix problem with initial solution of cholesky cov-packed ----------
 			name_ccp = "_cholesky-cov-packed__" 
-			for key,value in start.copy().items():
-				if name_ccp in key:
-					del start[key]
+			for vals in initial_points:
+				for key,value in vals.copy().items():
+					if name_ccp in key:
+						del vals[key]
 			# TO BE REMOVED once pymc5 solves this issue
 			#----------------------------------------------------------------------------
 
-			random_seed_list = pymc.util._get_seeds_per_chain(random_seed, chains)
-			cb = [pm.callbacks.CheckParametersConvergence(
-					tolerance=init_absolute_tol, diff="absolute"),
-				  pm.callbacks.CheckParametersConvergence(
-					tolerance=init_relative_tol, diff="relative")]
+			#================================================================================
 
-			approx = pm.fit(
-				start=start,
-				random_seed=random_seed_list[0],
-				n=init_iters,
-				method="advi",
-				model=self.Model,
-				callbacks=cb,
-				progressbar=True,
-				#test_optimizer=pm.adagrad#_window
-				)
+			#=================== Sampling ==================================================
+			if nuts_sampler == "pymc":
+				#--------------- Prepare step ---------------------------------------------
+				# Only valid for nuts_sampler == "pymc". 
+				# The other samplers adapt steps independently.
+				potential = pymc.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
+							n=len(mu_point),
+							initial_mean=mu_point,
+							initial_diag=sd_point**2, 
+							initial_weight=10)
 
-			#------------- Plot Loss ----------------------------------
-			plt.figure()
-			plt.plot(approx.hist[-init_plot_iters:])
-			plt.xlabel("Last {0} iterations".format(init_plot_iters))
-			# plt.yscale("log")
-			plt.ylabel("Average Loss")
-			plt.savefig(self.dir_out+"/Initializations.png")
-			plt.close()
-			#-----------------------------------------------------------
+				step = pm.NUTS(
+						potential=potential,
+						model=self.Model,
+						target_accept=target_accept
+						)
+				#----------------------------------------------------------------------------
 
-			approx_sample = approx.sample(
-				draws=chains, 
-				random_seed=random_seed_list[0],
-				return_inferencedata=False
-				)
+				print("Sampling the model ...")
 
-			initial_points = [approx_sample[i] for i in range(chains)]
-			sd_point = approx.std.eval()
-			mu_point = approx.mean.get_value()
-			approx = {
-				"initial_points":initial_points,
-				"mu_point":mu_point,
-				"sd_point":sd_point
-				}
-
-			out_file = open(self.file_start, "wb")
-			dill.dump(approx, out_file)
-			out_file.close()
-
-			#------------------ Save initial point ------------------------------
-			df = pn.DataFrame(data=initial_points[0]["{0}D::true".format(self.D)],
-				columns=self.names_mu)
-			df.to_csv(self.dir_out+"/initial_point.csv",index=False)
-			#---------------------------------------------------------------------
-
-		#----------- Extract ---------------------
-		mu_point = approx["mu_point"]
-		sd_point = approx["sd_point"]
-		initial_points = approx["initial_points"]
-		#-----------------------------------------
-
-		# -------- Fix problem with initial solution of cholesky cov-packed ----------
-		name_ccp = "_cholesky-cov-packed__" 
-		for vals in initial_points:
-			for key,value in vals.copy().items():
-				if name_ccp in key:
-					del vals[key]
-		# TO BE REMOVED once pymc5 solves this issue
-		#----------------------------------------------------------------------------
-
-
-		if nuts_sampler == "pymc":
-			#--------------- Prepare step ---------------------------------------------
-			# Only valid for nuts_sampler == "pymc". 
-			# The other samplers adapt steps independently.
-			potential = pymc.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
-						n=len(mu_point),
-						initial_mean=mu_point,
-						initial_diag=sd_point**2, 
-						initial_weight=10)
-
-			step = pm.NUTS(
-					potential=potential,
-					model=self.Model,
-					target_accept=target_accept
+				#---------- Posterior -----------
+				trace = pm.sample(
+					draws=sample_iters,
+					initvals=initial_points,
+					step=step,
+					nuts_sampler=nuts_sampler,
+					tune=tuning_iters,
+					chains=chains, 
+					cores=cores,
+					progressbar=progressbar,
+					discard_tuned_samples=True,
+					return_inferencedata=True,
+					nuts_sampler_kwargs={"step_size":step_size},
+					model=self.Model
 					)
-			#----------------------------------------------------------------------------
+				#--------------------------------
+			else:
+				#---------- Posterior -----------
+				trace = pm.sample(
+					draws=sample_iters,
+					initvals=initial_points,
+					step=None,
+					nuts_sampler=nuts_sampler,
+					tune=tuning_iters,
+					chains=chains, 
+					cores=cores,
+					progressbar=progressbar,
+					target_accept=target_accept,
+					discard_tuned_samples=True,
+					return_inferencedata=True,
+					nuts_sampler_kwargs={"step_size":step_size},
+					model=self.Model
+					)
+				#--------------------------------
 
-			print("Sampling the model ...")
+			#--------- Save with arviz ------------
+			print("Saving posterior samples ...")
+			az.to_netcdf(trace,self.file_chains)
+			#-------------------------------------
+			del trace
+			#================================================================================
 
-			#---------- Posterior -----------
-			trace = pm.sample(
-				draws=sample_iters,
-				initvals=initial_points,
-				step=step,
-				nuts_sampler=nuts_sampler,
-				tune=tuning_iters,
-				chains=chains, 
-				cores=cores,
-				progressbar=progressbar,
-				discard_tuned_samples=True,
-				return_inferencedata=True,
-				nuts_sampler_kwargs={"step_size":step_size},
-				model=self.Model
-				)
-			#--------------------------------
-		else:
-			#---------- Posterior -----------
-			trace = pm.sample(
-				draws=sample_iters,
-				initvals=initial_points,
-				step=None,
-				nuts_sampler=nuts_sampler,
-				tune=tuning_iters,
-				chains=chains, 
-				cores=cores,
-				progressbar=progressbar,
-				target_accept=target_accept,
-				discard_tuned_samples=True,
-				return_inferencedata=True,
-				nuts_sampler_kwargs={"step_size":step_size},
-				model=self.Model
-				)
-			#--------------------------------
+		
+		if prior_predictive and not os.path.exists(self.file_prior):
+				#-------- Prior predictive -------------------
+				print("Sampling prior predictive ...")
+				prior_pred = pm.sample_prior_predictive(
+							samples=sample_iters,
+							model=self.Model)
+				print("Saving prior predictive ...")
+				az.to_netcdf(prior_pred,self.file_prior)
+				#---------------------------------------------
 
-		#-------- Prior predictive -------------------
-		if prior_predictive:
-			print("Prior predictive ...")
-			prior_pred = pm.sample_prior_predictive(
-						samples=sample_iters,
-						model=self.Model)
-			trace.extend(prior_pred)
-		#---------------------------------------------
-			
-		#--------- Save with arviz ------------
-		print("Saving inference data ...")
-		az.to_netcdf(trace,file_chains)
-		#-------------------------------------
+		print("Sampling done!")
+		
 
 
 	def load_trace(self,file_chains=None):
@@ -995,24 +1003,36 @@ class Inference:
 
 		#---------Load posterior ---------------------------------------------------
 		try:
-			self.trace = az.from_netcdf(file_chains)
+			posterior = az.from_netcdf(file_chains)
 		except ValueError:
 			sys.exit("ERROR at loading {0}".format(file_chains))
-		#------------------------------------------------------------------------
-		
-		#---------Load posterior ---------------------------------------------------
-		try:
-			self.ds_posterior = self.trace.posterior
-		except ValueError:
-			sys.exit("There is no posterior group in {0}".format(file_chains))
 		#------------------------------------------------------------------------
 
 		#----------- Load prior -------------------------------------------------
 		try:
-			self.ds_prior = self.trace.prior
+			prior = az.from_netcdf(self.file_prior)
 		except:
-			self.ds_prior = None
+			prior = None
 		#-------------------------------------------------------------------------
+
+		if prior is not None:
+			posterior.extend(prior)
+
+		self.trace = posterior
+
+		#---------Load posterior ---------------------------------------------------
+		try:
+			self.ds_posterior = self.trace.posterior
+		except ValueError:
+			sys.exit("There is no posterior in trace")
+		#------------------------------------------------------------------------
+
+		#---------Load posterior ---------------------------------------------------
+		try:
+			self.ds_prior = self.trace.prior
+		except ValueError:
+			sys.exit("There is no prior in trace")
+		#------------------------------------------------------------------------
 
 		#------- Variable names -----------------------------------------------------------
 		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
@@ -1227,7 +1247,6 @@ class Inference:
 
 	def plot_prior_check(self,
 		file_plots=None,
-		file_chains=None,
 		figsize=None,
 		):
 		"""
@@ -1235,14 +1254,12 @@ class Inference:
 		"""
 
 		print("Plotting checks ...")
-		file_chains = self.file_chains if (file_chains is None) else file_chains
 		file_plots = self.dir_out+"/Prior_check.pdf" if (file_plots is None) else file_plots
 
-		trace = az.from_netcdf(file_chains)
 		pdf = PdfPages(filename=file_plots)
 		for var in self.chk_variables:
 			plt.figure(0,figsize=figsize)
-			az.plot_dist_comparison(trace,var_names=var)
+			az.plot_dist_comparison(self.trace,var_names=var)
 			pdf.savefig(bbox_inches='tight')
 			plt.close(0)
 		pdf.close()
@@ -1543,7 +1560,7 @@ class Inference:
 			#----------------------------------
 
 			#--------- Indicators ------------
-			exp = kappa.mean(axis=1)
+			exp = kappa.mean(axis=1)*1000.
 			if self.velocity_model == "linear":
 				omega = np.column_stack([
 						0.5*(T[:,2,1]-T[:,1,2]),
