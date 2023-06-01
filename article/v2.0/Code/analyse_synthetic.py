@@ -32,7 +32,7 @@ dimension = "3D"
 
 # dill.load_session(str(sys.argv[1]))
 dill.load_session("./globals_{0}.pkl".format(family))
-list_of_n_stars = [100]
+list_of_n_stars = [100,200,400]
 list_of_distances = [100,200,400]
 list_of_seeds = [0,1,2,3,4]
 
@@ -50,9 +50,9 @@ file_plot_rho = dir_plots + "Analysis_" + family + "_correlation.pdf"
 
 do_all_dta = True
 do_plt_cnv = True
-do_plt_grp = False
-do_plt_src = False
-do_plt_rho = False
+do_plt_grp = True
+do_plt_src = True
+do_plt_rho = True
 #---------------------------------------------------------------------------
 
 coordinates = ["X","Y","Z"]

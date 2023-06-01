@@ -13,10 +13,14 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/Gaussian_joint/"
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/Gaussian_linear/"
+
+n_stars = 100
+distance = 200
+seed = 0
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "Gaussian_n200_d800_s0.csv"
+file_data = dir_base + "Gaussian_n{0}_d{1}_s{2}.csv".format(n_stars,distance,seed)
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -25,7 +29,7 @@ os.makedirs(dir_base,exist_ok=True)
 #============================================================================
 
 #=============== Tuning knobs ============================
-dimension = 3
+dimension = 6
 chains = 2
 cores  = 2
 tuning_iters = 2000
@@ -46,7 +50,7 @@ zero_points = {
 #--------------------------------
 
 indep_measures = False
-velocity_model = "joint"
+velocity_model = "linear"
 nuts_sampler = "numpyro"
 
 #=========================================================================================
@@ -61,7 +65,7 @@ prior = {"type":"Gaussian",
 							"delta":None,
 							"eta":None
 							},
-		"parametrization":"non-central"}
+		"parametrization":"central"}
 #======================= Inference and Analysis =====================================================
 
 
@@ -69,9 +73,9 @@ prior = {"type":"Gaussian",
 dir_prior = dir_base +  "{0}D_{1}_n{2}_d{3}_s{4}_{5}_test".format(
 	dimension,
 	prior["type"],
-	200,
-	800,
-	0,
+	n_stars,
+	distance,
+	seed,
 	prior["parametrization"])
 #------------------------------------------------------------
 
@@ -105,7 +109,7 @@ kal.run(sample_iters=sample_iters,
 		target_accept=target_accept,
 		chains=chains,
 		cores=cores,
-		init_iters=int(1e5),
+		init_iters=int(5e5),
 		nuts_sampler=nuts_sampler,
 		prior_predictive=True)
 #-------------------------------------
@@ -134,7 +138,7 @@ kal.plot_model()
 #----- Compute and save the posterior statistics ---------
 kal.save_statistics()
 
-kal.save_posterior_predictive()
+# kal.save_posterior_predictive()
 
 #------- Save the samples into HDF5 file --------------
 kal.save_samples()
