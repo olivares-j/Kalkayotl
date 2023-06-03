@@ -1013,10 +1013,11 @@ class Inference:
 			prior = az.from_netcdf(self.file_prior)
 		except:
 			prior = None
-		#-------------------------------------------------------------------------
-
+			self.ds_prior = None
+		
 		if prior is not None:
 			posterior.extend(prior)
+		#-------------------------------------------------------------------------
 
 		self.trace = posterior
 
@@ -1025,13 +1026,6 @@ class Inference:
 			self.ds_posterior = self.trace.posterior
 		except ValueError:
 			sys.exit("There is no posterior in trace")
-		#------------------------------------------------------------------------
-
-		#---------Load posterior ---------------------------------------------------
-		try:
-			self.ds_prior = self.trace.prior
-		except ValueError:
-			sys.exit("There is no prior in trace")
 		#------------------------------------------------------------------------
 
 		#------- Variable names -----------------------------------------------------------
