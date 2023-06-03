@@ -41,7 +41,7 @@ photometric_args = {
 dill.dump_session("./globals_{0}.pkl".format(model))
 
 dir_repos = "/home/jromero/Repos"
-dir_main  = "/raid/jromero/Kalkayotl/Synthetic/Gaussian_{0}/".format(velocity_model)
+dir_main  = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(model,velocity_model)
 
 #----- Amasijo -------------------
 path_amasijo   = dir_repos + "/Amasijo/"

@@ -5,13 +5,17 @@ import os
 os.environ["MKL_NUM_THREADS"] = "1" # Avoids overlapping of processes
 os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
+import pandas as pd
 import h5py
 import dill
+import time
 
 dill.load_session(str(sys.argv[1]))
+# list_of_n_stars = [400]
+# list_of_distances = [1600.]
+# list_of_seeds = [1,2]
 
 dir_kalkayotl = "/home/jromero/Repos/Kalkayotl/"
-dir_base = "/raid/jromero/Kalkayotl/Synthetic/"
 
 #----- Import the module -------------------------------
 sys.path.append(dir_kalkayotl)
@@ -19,25 +23,28 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #----------------- Knobs ------------------------------
-dimension = 3
+dimension = 6
 chains = 2
 cores  = 2
-tuning_iters = 2000
-sample_iters = 1500
-target_accept = 0.95
+tuning_iters = 3000
+sample_iters = 2000
+target_accept = 0.65
 sampling_space = "physical"
 reference_system = "Galactic"
 zero_points = {
 "ra":0.,
 "dec":0.,
-"parallax":-0.017,# This is Brown+2020 value
+"parallax":0.0,# This is Brown+2020 value
 "pmra":0.,
 "pmdec":0.,
 "radial_velocity":0.}  
 indep_measures = False
-velocity_model = "joint"
+velocity_model = "linear"
 nuts_sampler = "numpyro"
+sky_error_factor=1e6
 #--------------------------------------------------
+
+dir_base = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}".format(model,velocity_model)
 
 #========================= Cases ===========================================
 if model == "Gaussian":
@@ -50,7 +57,7 @@ if model == "Gaussian":
 							"delta":None,
 							"eta":None
 							},
-		"parametrization":"central"}
+		}
 elif model == "StudentT":
 	case = {
 		"parameters":{"location":None,"scale":None},
@@ -61,8 +68,8 @@ elif model == "StudentT":
 							"delta":None,
 							"eta":None,
 							"nu":None,
-							},
-		"parametrization":"non-central"}
+							}
+			}
 	# {"type":"GMM",     
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
@@ -108,17 +115,23 @@ else:
 #===============================================================================
 
 #--------------------- Loop over case types ------------------------------------
+execution_times = []
 for distance in list_of_distances:
 	for n_stars in list_of_n_stars:
 		for seed in list_of_seeds:
-			
-			name = "{0}D_{1}_n{2}_d{3}_s{4}_{5}".format(
+			if distance <= 500:
+				parametrization = "central"
+			else:
+				parametrization = "non-central"
+		
+			name = "{0}D_{1}_n{2}_d{3}_s{4}_{5}_{6:1.0E}".format(
 				dimension,
 				model,
 				int(n_stars),
 				int(distance),
 				seed,
-				case["parametrization"])
+				parametrization,
+				sky_error_factor)
 			print(20*"-"+"  "+name+"  "+20*"-")
 
 			#------ Directory and data file -------------------
@@ -136,29 +149,28 @@ for distance in list_of_distances:
 			os.makedirs(dir_case,exist_ok=True)
 
 			try:
+				t0 = time.time()
 				kal = Inference(dimension=dimension,
 								dir_out=dir_case,
 								zero_points=zero_points,
 								indep_measures=indep_measures,
-								reference_system=reference_system)
-
-				kal.load_data(file_data)
+								reference_system=reference_system,
+								sampling_space=sampling_space,
+								velocity_model=velocity_model)
+				kal.load_data(file_data,sky_error_factor=sky_error_factor)
 				kal.setup(prior=model,
 						  parameters=case["parameters"],
 						  hyper_parameters=case["hyper_parameters"],
-						  parametrization=case["parametrization"],
-						  sampling_space=sampling_space,
-						  velocity_model=velocity_model)
+						  parametrization=parametrization)
 
 				kal.run(sample_iters=sample_iters,
 						tuning_iters=tuning_iters,
 						target_accept=target_accept,
-						init_absolute_tol=1e-2,
-						init_relative_tol=1e-2,
 						chains=chains,
 						cores=cores,
+						init_iters=int(1e6),
+						step_size=1.e-1,
 						nuts_sampler=nuts_sampler,
-						posterior_predictive=True,
 						prior_predictive=True)
 				kal.load_trace()
 				kal.convergence()
@@ -168,7 +180,12 @@ for distance in list_of_distances:
 				kal.save_statistics()
 				kal.save_posterior_predictive()
 				kal.save_samples()
+				t1 = time.time()
+				execution_times.append(t1-t0)
 			except Exception as e:
 				print(e)
 				print(10*"*"+" ERROR "+10*"*")
+
 #=======================================================================================
+df_times = pd.DataFrame(data={"Time":execution_times})
+df_times.to_csv("./times_linear.csv")
