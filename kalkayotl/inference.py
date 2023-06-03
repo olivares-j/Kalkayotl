@@ -802,7 +802,7 @@ class Inference:
 		chains=2,
 		cores=2,
 		step=None,
-		step_size=1e-2,
+		step_size=None,
 		init_method="advi+adapt_diag",
 		init_iters=int(1e5),
 		init_absolute_tol=5e-3,
@@ -819,6 +819,16 @@ class Inference:
 		sample_iters (integer):    Number of MCMC iterations.
 		tuning_iters (integer):    Number of burning iterations.
 		"""
+
+		#------- Step_size ----------
+		if step_size is None:
+			if self.D == 1:
+				step_size = 1.e-1
+			elif self.D == 3:
+				step_size = 1.e-2
+			else:
+				step_size = 1.e-3
+		#---------------------------
 
 		if not os.path.exists(self.file_chains):
 			#================== Optimization =============================================
