@@ -33,7 +33,7 @@ dimension = "3D"
 # dill.load_session(str(sys.argv[1]))
 dill.load_session("./globals_{0}.pkl".format(family))
 list_of_n_stars = [100,200,400]
-list_of_distances = [100,200,400]
+list_of_distances = [100,200,400,800,1600]
 list_of_seeds = [0,1,2,3,4]
 
 #---------------------- Directories and data -------------------------------
@@ -42,11 +42,11 @@ dir_data  = dir_main + "Gaussian_joint/"
 dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/"
 base_data = dir_data  + family + "_n{0}_d{1}_s{2}.csv"
 base_dir  = dir_data  + dimension + "_" + family + "_n{0}_d{1}_s{2}_{3}/"
-file_data_all = dir_data  + "data_for_plot.h5"
-file_plot_src = dir_plots + "Analysis_" + family + "_source-level.pdf"
-file_plot_grp = dir_plots + "Analysis_" + family + "_group-level.pdf"
-file_plot_cnv = dir_plots + "Analysis_" + family + "_convergence.pdf"
-file_plot_rho = dir_plots + "Analysis_" + family + "_correlation.pdf"
+file_data_all = dir_data  + "Data_{0}_{1}.h5".format(dimension,family)
+file_plot_src = dir_plots + "Analysis_{0}_{1}_source-level.pdf".format(dimension,family)
+file_plot_grp = dir_plots + "Analysis_{0}_{1}_group-level.pdf".format(dimension,family)
+file_plot_cnv = dir_plots + "Analysis_{0}_{1}_convergence.pdf".format(dimension,family)
+file_plot_rho = dir_plots + "Analysis_{0}_{1}_correlation.pdf".format(dimension,family)
 
 do_all_dta = True
 do_plt_cnv = True
