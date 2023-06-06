@@ -1027,6 +1027,7 @@ class Inference:
 		
 		if prior is not None:
 			posterior.extend(prior)
+			self.ds_prior = posterior.prior
 		#-------------------------------------------------------------------------
 
 		self.trace = posterior
