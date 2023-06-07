@@ -30,7 +30,7 @@ os.makedirs(dir_base,exist_ok=True)
 dimension = 6
 chains    = 2
 cores     = 2
-tuning_iters  = 2000
+tuning_iters  = 3000
 sample_iters  = 2000
 target_accept = 0.65
 sky_error_factor = 1e6
@@ -109,9 +109,9 @@ for rs in rss:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(5e5),
+			init_iters=int(5e6),
 			init_refine=True,
-			step_size=6e-4,
+			step_size=3e-4,
 			nuts_sampler=nuts_sampler,
 			prior_predictive=True)
 

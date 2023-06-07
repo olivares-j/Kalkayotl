@@ -11,9 +11,12 @@ import dill
 import time
 
 dill.load_session(str(sys.argv[1]))
-# list_of_n_stars = [400]
-# list_of_distances = [1600.]
-# list_of_seeds = [1,2]
+print(list_of_n_stars)
+print(list_of_distances)
+print(list_of_seeds)
+print(model)
+print(velocity_model)
+sys.exit()
 
 dir_kalkayotl = "/home/jromero/Repos/Kalkayotl/"
 
@@ -39,12 +42,11 @@ zero_points = {
 "pmdec":0.,
 "radial_velocity":0.}  
 indep_measures = False
-velocity_model = "linear"
 nuts_sampler = "numpyro"
 sky_error_factor=1e6
 #--------------------------------------------------
 
-dir_base = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}".format(model,velocity_model)
+dir_base = "/home/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(model,velocity_model)
 
 #========================= Cases ===========================================
 if model == "Gaussian":
@@ -169,7 +171,7 @@ for distance in list_of_distances:
 						chains=chains,
 						cores=cores,
 						init_iters=int(1e6),
-						step_size=1.e-1,
+						step_size=None,
 						nuts_sampler=nuts_sampler,
 						prior_predictive=True)
 				kal.load_trace()
