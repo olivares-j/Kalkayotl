@@ -30,8 +30,8 @@ os.makedirs(dir_base,exist_ok=True)
 dimension = 6
 chains    = 2
 cores     = 2
-tuning_iters  = 1000
-sample_iters  = 1000
+tuning_iters  = 2000
+sample_iters  = 2000
 target_accept = 0.65
 sky_error_factor = 1e6
 
