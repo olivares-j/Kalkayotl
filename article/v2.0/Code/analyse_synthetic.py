@@ -27,26 +27,30 @@ from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 import dill
 
-family = "Gaussian"
-dimension = "3D"
-
 # dill.load_session(str(sys.argv[1]))
-dill.load_session("./globals_{0}.pkl".format(family))
+dill.load_session("./globals_Gaussian.pkl")
 list_of_n_stars = [100,200,400]
-list_of_distances = [100,200,400,800,1600]
-list_of_seeds = [0,1,2,3,4]
+list_of_distances = [100,200]
+list_of_seeds = [0,1,2,3]
+family = "Gaussian"
+dimension = 6
+velocity_model = "linear"
 
 #---------------------- Directories and data -------------------------------
 dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/"
-dir_data  = dir_main + "Gaussian_joint/"
 dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/"
+
+dir_data  = "{0}{1}_{2}/".format(dir_main,family,velocity_model)
 base_data = dir_data  + family + "_n{0}_d{1}_s{2}.csv"
-base_dir  = dir_data  + dimension + "_" + family + "_n{0}_d{1}_s{2}_{3}/"
-file_data_all = dir_data  + "Data_{0}_{1}.h5".format(dimension,family)
-file_plot_src = dir_plots + "Analysis_{0}_{1}_source-level.pdf".format(dimension,family)
-file_plot_grp = dir_plots + "Analysis_{0}_{1}_group-level.pdf".format(dimension,family)
-file_plot_cnv = dir_plots + "Analysis_{0}_{1}_convergence.pdf".format(dimension,family)
-file_plot_rho = dir_plots + "Analysis_{0}_{1}_correlation.pdf".format(dimension,family)
+base_dir  = dir_data  + "{0}D_{1}".format(dimension,family) + "_n{0}_d{1}_s{2}_{3}_1E+06/"
+base_plt  = "{0}{1}_{2}/".format(dir_plots,family,velocity_model)
+
+
+file_plot_src = base_plt + "{0}D_{1}_{2}_source-level.pdf".format(dimension,family,velocity_model)
+file_plot_grp = base_plt + "{0}D_{1}_{2}_group-level.pdf".format(dimension,family,velocity_model)
+file_plot_cnv = base_plt + "{0}D_{1}_{2}_convergence.pdf".format(dimension,family,velocity_model)
+file_plot_rho = base_plt + "{0}D_{1}_{2}_correlation.pdf".format(dimension,family,velocity_model)
+file_data_all = dir_data  + "Data.h5"
 
 do_all_dta = True
 do_plt_cnv = True
@@ -55,7 +59,7 @@ do_plt_src = True
 do_plt_rho = True
 #---------------------------------------------------------------------------
 
-coordinates = ["X","Y","Z"]
+coordinates = ["X","Y","Z","U","V","W"][:dimension]
 true_src_columns = sum([["source_id"],coordinates],[])
 obs_src_columns = sum([["source_id"],
 					["mean_"+c for c in coordinates],
@@ -65,8 +69,8 @@ obs_src_columns = sum([["source_id"],
 
 obs_grp_columns = ["Parameter","mean","hdi_2.5%","hdi_97.5%","ess_bulk","r_hat"]
 true_grp_names = sum([
-					["{0}::loc[{1}]".format(dimension,c) for c in coordinates],
-					["{0}::std[{1}]".format(dimension,c) for c in coordinates],
+					["{0}D::loc[{1}]".format(dimension,c) for c in coordinates],
+					["{0}D::std[{1}]".format(dimension,c) for c in coordinates],
 					],[])
 
 #----------------------- Gaussian ---------------------------------------------------------------
@@ -137,9 +141,11 @@ if do_all_dta:
 				df_obs_grp = pn.read_csv(file_obs_grp,usecols=obs_grp_columns)
 				df_obs_grp.set_index("Parameter",inplace=True)
 
-				true_pos_loc = np.array([distance,0.0,0.0])
-				true_pos_all = np.hstack([true_pos_loc,true_pos_sds])
-				df_true_grp = pn.DataFrame(data=true_pos_all,
+				true_loc = np.array([distance,0.0,0.0,10.,10.,10.])[:dimension]
+				true_sds = np.array([9.,9.,9.,1.,1.,1.])[:dimension]
+				true_parameters = np.hstack([true_loc,true_sds])
+
+				df_true_grp = pn.DataFrame(data=true_parameters,
 								columns=["true"],
 								index=true_grp_names).rename_axis(
 								index="Parameter")
@@ -168,7 +174,7 @@ if do_all_dta:
 
 				#----------------------------- Sources statistics ---------------------------------------------------
 				df_src["r_ctr"] = df_src.apply(lambda x: np.sqrt(np.sum((
-												np.array([x["X"],x["Y"],x["Z"]])-true_pos_loc)**2)),
+												np.array([x[coord] for coord in coordinates])-true_loc)**2)),
 												axis = 1)
 				
 				dfs_sts_tmp = []
@@ -179,7 +185,7 @@ if do_all_dta:
 					up   = "hdi_97.5%_{0}".format(coord)
 
 
-					df_src[coord+"_ctr"] = df_src.apply(lambda x: (x[coord] - true_pos_loc[i]),  axis = 1)
+					df_src[coord+"_ctr"] = df_src.apply(lambda x: (x[coord] - true_loc[i]),  axis = 1)
 					df_src[coord+"_err"] = df_src.apply(lambda x: (x[mean] - x[coord]),  axis = 1)
 					df_src[coord+"_unc"] = df_src.apply(lambda x: (x[up]-x[low]),  axis = 1)
 					df_src[coord+"_in_"] = df_src.apply(lambda x: 100.*((x[coord] >= x[low]) & (x[coord] <= x[up])),

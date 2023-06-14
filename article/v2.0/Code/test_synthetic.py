@@ -16,8 +16,8 @@ from kalkayotl.inference import Inference
 dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/Gaussian_linear/"
 
 n_stars = 100
-distance = 200
-seed = 0
+distance = 800
+seed = 3
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "Gaussian_n{0}_d{1}_s{2}.csv".format(n_stars,distance,seed)

@@ -271,6 +271,7 @@ class Inference:
 			observed.fillna(value={
 				"radial_velocity":mean_observed["radial_velocity"]},
 				inplace=True)
+		observed["parallax"] = observed["parallax"].clip(1e-3,np.inf)
 		self.observed = observed.to_numpy()
 		#-------------------------------------------------------
 
@@ -810,6 +811,7 @@ class Inference:
 		init_plot_iters=int(1e4),
 		init_refine=False,
 		prior_predictive=False,
+		prior_iters=500,
 		progressbar=True,
 		nuts_sampler="numpyro",
 		random_seed=None):
@@ -988,7 +990,7 @@ class Inference:
 				#-------- Prior predictive -------------------
 				print("Sampling prior predictive ...")
 				prior_pred = pm.sample_prior_predictive(
-							samples=sample_iters,
+							samples=prior_iters,
 							model=self.Model)
 				print("Saving prior predictive ...")
 				az.to_netcdf(prior_pred,self.file_prior)
