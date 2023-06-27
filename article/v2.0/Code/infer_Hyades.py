@@ -7,7 +7,8 @@ import numpy as np
 import h5py
 
 user = "jolivares"
-authors = "Cantat_2018"
+authors = "Oh_2020"
+case = "GDR3"
 
 dir_kalkayotl  = "/home/{0}/Repos/Kalkayotl/".format(user) 
 
@@ -17,8 +18,8 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #----------- Directories and files -------------------------------
-dir_oc = "/home/{0}/Repos/Kalkayotl/article/v2.0/Praesepe/".format(user)
-dir_base = "{0}{1}/".format(dir_oc,authors)
+dir_oc = "/home/{0}/Repos/Kalkayotl/article/v2.0/Hyades/".format(user)
+dir_base = "{0}{1}/{2}/".format(dir_oc,authors,case)
 file_data = "{0}members.csv".format(dir_base)
 #---------------------------------------------------------
 
@@ -40,15 +41,27 @@ indep_measures   = False
 velocity_model   = "linear"
 nuts_sampler     = "numpyro"
 
-zero_points = {
-"ra":0.,
-"dec":0.,
-"parallax":-0.017,
-"pmra":0.,
-"pmdec":0.,
-"radial_velocity":0.}
+if case == "GDR3":
+	zero_points = {
+	"ra":0.,
+	"dec":0.,
+	"parallax":-0.017,
+	"pmra":0.,
+	"pmdec":0.,
+	"radial_velocity":0.}
+	correlation = "Lindegren+2020"
 
-rss = ["Galactic",]
+elif case == "GDR2":
+	zero_points = {
+	"ra":0.,
+	"dec":0.,
+	"parallax":-0.029, # Lindegren A&A 616, A2 (2018)
+	"pmra":0.,
+	"pmdec":0.,
+	"radial_velocity":0.}
+	correlation = "Lindegren+2018"
+
+rss = ["Galactic","ICRS"]
 #--------------------------------
 
 prior = {"type":"Gaussian",
@@ -66,12 +79,12 @@ prior = {"type":"Gaussian",
 # 		"parameters":{"location":None,
 # 					  "scale":None,
 # 					  "weights":None,
-# 					  "field_scale":[20.,20.,20.,10.,10.,10.]
+# 					  "field_scale":[5.,5.,5.,10,10,10]
 # 					  },
 # 		"hyper_parameters":{
 # 							"alpha":None,
 # 							"beta":None, 
-# 							"delta":np.repeat(1,2),
+# 							"delta":np.array([8,2]),
 # 							"eta":None,
 # 							"n_components":2
 # 							},
@@ -97,6 +110,7 @@ for rs in rss:
 					velocity_model=velocity_model)
 
 	kal.load_data(file_data,
+					corr_func=correlation,
 					sky_error_factor=sky_error_factor)
 
 	kal.setup(prior=prior["type"],
@@ -109,7 +123,7 @@ for rs in rss:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e6),
+			init_iters=int(3e5),
 			init_refine=True,
 			step_size=None,
 			nuts_sampler=nuts_sampler,
@@ -120,6 +134,7 @@ for rs in rss:
 	kal.plot_chains()
 	kal.plot_prior_check()
 	kal.plot_model()
+	# kal.save_statistics(hdi_prob=0.94)
 	kal.save_statistics()
-	kal.save_samples()
+	# kal.save_samples()
 #=======================================================================================
