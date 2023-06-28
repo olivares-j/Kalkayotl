@@ -7,7 +7,8 @@ import numpy as np
 import h5py
 
 user = "jolivares"
-authors = "Cantat_2018"
+# authors = "Cantat_2018"
+authors = "Hao_2022"
 
 dir_kalkayotl  = "/home/{0}/Repos/Kalkayotl/".format(user) 
 
@@ -37,8 +38,8 @@ sky_error_factor = 1e6
 
 sampling_space   = "physical"
 indep_measures   = False
-velocity_model   = "linear"
-nuts_sampler     = "numpyro"
+velocity_model   = "joint"
+nuts_sampler     = "pymc"
 
 zero_points = {
 "ra":0.,
@@ -51,31 +52,31 @@ zero_points = {
 rss = ["Galactic",]
 #--------------------------------
 
-prior = {"type":"Gaussian",
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
-							"eta":None
-							},
-		"parametrization":"central"}
-
-# prior = {"type":"FGMM",      
-# 		"parameters":{"location":None,
-# 					  "scale":None,
-# 					  "weights":None,
-# 					  "field_scale":[20.,20.,20.,10.,10.,10.]
-# 					  },
+# prior = {"type":"Gaussian",
+# 		"parameters":{"location":None,"scale":None},
 # 		"hyper_parameters":{
 # 							"alpha":None,
-# 							"beta":None, 
-# 							"delta":np.repeat(1,2),
-# 							"eta":None,
-# 							"n_components":2
+# 							"beta":None,
+# 							"gamma":None,
+# 							"delta":None,
+# 							"eta":None
 # 							},
 # 		"parametrization":"central"}
+
+prior = {"type":"FGMM",      
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None,
+					  "field_scale":[20.,20.,20.,5.,5.,5.]
+					  },
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"delta":np.array([8,2]),
+							"eta":None,
+							"n_components":2
+							},
+		"parametrization":"central"}
 
 #======================= Inference and Analysis =====================================================
 for rs in rss:
@@ -109,7 +110,7 @@ for rs in rss:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e6),
+			init_iters=int(1e5),
 			init_refine=True,
 			step_size=None,
 			nuts_sampler=nuts_sampler,
