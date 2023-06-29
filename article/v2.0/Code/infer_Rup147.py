@@ -7,8 +7,7 @@ import numpy as np
 import h5py
 
 user = "jolivares"
-# authors = "Cantat_2018"
-authors = "GG&Lodieu"
+authors = ["GG+2023","Olivares+2019"]
 
 dir_kalkayotl  = "/home/{0}/Repos/Kalkayotl/".format(user) 
 
@@ -18,14 +17,9 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #----------- Directories and files -------------------------------
-dir_oc = "/home/{0}/Repos/Kalkayotl/article/v2.0/Praesepe/".format(user)
-dir_base = "{0}{1}/".format(dir_oc,authors)
-file_data = "{0}members.csv".format(dir_base)
+dir_oc = "/home/{0}/Repos/Kalkayotl/article/v2.0/Rup147/".format(user)
+dir_oc = "/raid/jromero/Kalkayotl/Rup147/"
 #---------------------------------------------------------
-
-#------- Creates directory if it does not exists -------
-os.makedirs(dir_base,exist_ok=True)
-#-------------------------------------------------------
 
 #=============== Tuning knobs ============================
 dimension = 6
@@ -38,8 +32,8 @@ sky_error_factor = 1e6
 
 sampling_space   = "physical"
 indep_measures   = False
-velocity_model   = "linear"
-nuts_sampler     = "numpyro"
+velocity_model   = "joint"
+nuts_sampler     = "pymc"
 
 zero_points = {
 "ra":0.,
@@ -49,37 +43,39 @@ zero_points = {
 "pmdec":0.,
 "radial_velocity":0.}
 
-rss = ["Galactic",]
+rs = "Galactic"
 #--------------------------------
 
-prior = {"type":"Gaussian",
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
-							"eta":None
-							},
-		"parametrization":"central"}
-
-# prior = {"type":"FGMM",      
-# 		"parameters":{"location":None,
-# 					  "scale":None,
-# 					  "weights":None,
-# 					  "field_scale":[20.,20.,20.,5.,5.,5.]
-# 					  },
+# prior = {"type":"Gaussian",
+# 		"parameters":{"location":None,"scale":None},
 # 		"hyper_parameters":{
 # 							"alpha":None,
-# 							"beta":None, 
-# 							"delta":np.array([8,2]),
-# 							"eta":None,
-# 							"n_components":2
+# 							"beta":None,
+# 							"gamma":None,
+# 							"delta":None,
+# 							"eta":None
 # 							},
 # 		"parametrization":"central"}
 
+prior = {"type":"FGMM",      
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None,
+					  "field_scale":[20.,20.,20.,5.,5.,5.]
+					  },
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"delta":np.array([8,2]),
+							"eta":None,
+							"n_components":2
+							},
+		"parametrization":"central"}
+
 #======================= Inference and Analysis =====================================================
-for rs in rss:
+for author in authors:
+	dir_base = "{0}{1}/".format(dir_oc,author)
+	file_data = "{0}members.csv".format(dir_base)
 	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0E}".format(
 							dimension,
 							prior["type"],

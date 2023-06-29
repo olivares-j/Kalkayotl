@@ -21,7 +21,7 @@ file_plot_cnv = dir_plots + "Hyades_convergence.png"
 file_plot_grp = dir_plots + "Hyades_group-level.png"
 file_plot_lnr = dir_plots + "Hyades_linear.png"
 
-do_all_dta = False
+do_all_dta = True
 do_plt_cnv = False
 #---------------------------------------------------------------------------
 
