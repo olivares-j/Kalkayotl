@@ -118,23 +118,27 @@ for rs in rss:
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"])
 
-	kal.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			chains=chains,
-			cores=cores,
-			init_iters=int(3e5),
-			init_refine=True,
-			step_size=None,
-			nuts_sampler=nuts_sampler,
-			prior_predictive=False)
+	# kal.run(sample_iters=sample_iters,
+	# 		tuning_iters=tuning_iters,
+	# 		target_accept=target_accept,
+	# 		chains=chains,
+	# 		cores=cores,
+	# 		init_iters=int(3e5),
+	# 		init_refine=True,
+	# 		step_size=None,
+	# 		nuts_sampler=nuts_sampler,
+	# 		prior_predictive=False)
 
 	kal.load_trace()
-	kal.convergence()
-	kal.plot_chains()
-	kal.plot_prior_check()
-	kal.plot_model()
-	# kal.save_statistics(hdi_prob=0.94)
+	# kal.convergence()
+	# kal.plot_chains()
+	# kal.plot_prior_check()
+	# kal.plot_model()
+	# kal.save_statistics(hdi_prob=0.682689492137)
+	# kal.save_statistics(hdi_prob=0.954499736104)
+	# kal.save_statistics(hdi_prob=0.997300203937)
+	# kal.save_statistics(hdi_prob=0.999936657516)
+	# kal.save_statistics(hdi_prob=0.999999426697)
 	kal.save_statistics()
 	# kal.save_samples()
 #=======================================================================================

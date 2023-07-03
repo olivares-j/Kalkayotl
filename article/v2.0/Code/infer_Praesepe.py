@@ -6,9 +6,8 @@ os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
 
-user = "jolivares"
-# authors = "Cantat_2018"
-authors = "GG&Lodieu"
+user = "jromero"
+authors = ["GG+2023_core","GG+Lodieu"]
 
 dir_kalkayotl  = "/home/{0}/Repos/Kalkayotl/".format(user) 
 
@@ -19,8 +18,6 @@ from kalkayotl.inference import Inference
 
 #----------- Directories and files -------------------------------
 dir_oc = "/home/{0}/Repos/Kalkayotl/article/v2.0/Praesepe/".format(user)
-dir_base = "{0}{1}/".format(dir_oc,authors)
-file_data = "{0}members.csv".format(dir_base)
 #---------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -49,7 +46,7 @@ zero_points = {
 "pmdec":0.,
 "radial_velocity":0.}
 
-rss = ["Galactic",]
+rs = "Galactic"
 #--------------------------------
 
 prior = {"type":"Gaussian",
@@ -79,7 +76,9 @@ prior = {"type":"Gaussian",
 # 		"parametrization":"central"}
 
 #======================= Inference and Analysis =====================================================
-for rs in rss:
+for author in authors:
+	dir_base = "{0}{1}/".format(dir_oc,authors)
+	file_data = "{0}members.csv".format(dir_base)
 	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0E}".format(
 							dimension,
 							prior["type"],
