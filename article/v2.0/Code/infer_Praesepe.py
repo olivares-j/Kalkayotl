@@ -73,7 +73,7 @@ prior = {"type":"Gaussian",
 
 #======================= Inference and Analysis =====================================================
 for author in authors:
-	dir_base = "{0}{1}/".format(dir_oc,authors)
+	dir_base = "{0}{1}/".format(dir_oc,author)
 	file_data = "{0}members.csv".format(dir_base)
 
 	#------- Creates directory if it does not exists -------
