@@ -20,10 +20,6 @@ from kalkayotl.inference import Inference
 dir_oc = "/home/{0}/Repos/Kalkayotl/article/v2.0/Praesepe/".format(user)
 #---------------------------------------------------------
 
-#------- Creates directory if it does not exists -------
-os.makedirs(dir_base,exist_ok=True)
-#-------------------------------------------------------
-
 #=============== Tuning knobs ============================
 dimension = 6
 chains    = 2
@@ -79,6 +75,11 @@ prior = {"type":"Gaussian",
 for author in authors:
 	dir_base = "{0}{1}/".format(dir_oc,authors)
 	file_data = "{0}members.csv".format(dir_base)
+
+	#------- Creates directory if it does not exists -------
+	os.makedirs(dir_base,exist_ok=True)
+	#-------------------------------------------------------
+
 	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0E}".format(
 							dimension,
 							prior["type"],
