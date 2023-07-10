@@ -4,20 +4,22 @@ import numpy as np
 import dill
 os.environ["ISOCHRONES"] = "/raid/jromero/isochrones/"
 
-list_of_distances = [100.,200.,800.,1600.]
+list_of_distances = [100.,200.,400.,800.,1600.]
 list_of_n_stars   = [100,200,400]
 list_of_seeds     = [0,1,2,3,4]
 true_pos_sds      = np.array([9.,9.,9.])
 true_vel_loc      = np.array([10.,10.,10.])
 true_vel_sds      = np.array([1.,1.,1.])
-model             = "Gaussian"
+model             = "StudentT"
 velocity_model    = "linear"
 
 astrometric_args = {
 			"position":{"family":model,
+						"nu":10.0,
 						"location":np.array([0.0,0.0,0.0]),
 						"covariance":np.diag(true_pos_sds**2)},
 			"velocity":{"family":model,
+						"nu":10.0,
 						"location":true_vel_loc,
 						"covariance":np.diag(true_vel_sds**2)
 						}
@@ -38,8 +40,8 @@ photometric_args = {
 "mass_prior":"Uniform"
 }
 
-dill.dump_session("./globals_{0}.pkl".format(model))
-
+dill.dump_session("./globals_{0}_{1}.pkl".format(model,velocity_model))
+# sys.exit()
 dir_repos = "/home/jromero/Repos"
 dir_main  = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(model,velocity_model)
 
