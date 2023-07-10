@@ -191,4 +191,4 @@ for distance in list_of_distances:
 
 #=======================================================================================
 df_times = pd.DataFrame(data={"Time":execution_times})
-df_times.to_csv("./times_{0}.csv".format(velocity_model))
+df_times.to_csv("./times_{0}_{1}.csv".format(model,velocity_model))
