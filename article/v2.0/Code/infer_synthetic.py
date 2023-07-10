@@ -16,7 +16,7 @@ print(list_of_distances)
 print(list_of_seeds)
 print(model)
 print(velocity_model)
-sys.exit()
+# sys.exit()
 
 dir_kalkayotl = "/home/jromero/Repos/Kalkayotl/"
 
@@ -46,7 +46,7 @@ nuts_sampler = "numpyro"
 sky_error_factor=1e6
 #--------------------------------------------------
 
-dir_base = "/home/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(model,velocity_model)
+dir_base = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(model,velocity_model)
 
 #========================= Cases ===========================================
 if model == "Gaussian":
@@ -171,9 +171,10 @@ for distance in list_of_distances:
 						chains=chains,
 						cores=cores,
 						init_iters=int(1e6),
+						init_refine=True,
 						step_size=None,
 						nuts_sampler=nuts_sampler,
-						prior_predictive=True)
+						prior_predictive=False)
 				kal.load_trace()
 				kal.convergence()
 				kal.plot_chains()
@@ -190,4 +191,4 @@ for distance in list_of_distances:
 
 #=======================================================================================
 df_times = pd.DataFrame(data={"Time":execution_times})
-df_times.to_csv("./times_linear.csv")
+df_times.to_csv("./times_{0}.csv".format(velocity_model))
