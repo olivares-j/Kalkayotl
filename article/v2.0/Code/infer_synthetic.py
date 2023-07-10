@@ -46,7 +46,7 @@ nuts_sampler = "numpyro"
 sky_error_factor=1e6
 #--------------------------------------------------
 
-dir_base = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(model,velocity_model)
+dir_base = "/home/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(model,velocity_model)
 
 #========================= Cases ===========================================
 if model == "Gaussian":
