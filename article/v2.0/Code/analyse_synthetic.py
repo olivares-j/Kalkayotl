@@ -29,12 +29,12 @@ import dill
 
 # dill.load_session(str(sys.argv[1]))
 dill.load_session("./globals_Gaussian.pkl")
-list_of_n_stars = [200]#[100,200,400]
-list_of_distances = [400]#[100,200,400,800,1600]
-list_of_seeds = [0]
+list_of_n_stars = [100,200,400]
+list_of_distances = [100,200,400,800,1600]
+list_of_seeds = [0,1,2,3,4]
 family = "Gaussian"
 dimension = 6
-velocity_model = "joint"
+velocity_model = "linear"
 append = "" if (dimension == 3) and (velocity_model == "joint") else "_1E+06"
 
 #---------------------- Directories and data -------------------------------
