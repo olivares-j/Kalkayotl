@@ -7,7 +7,7 @@ import numpy as np
 import h5py
 
 user = "jromero"
-authors = ["GG+2023","Tarricq+2022"]
+authors = ["GG+2023_rvs","Tarricq+2022_rvs"]
 
 dir_kalkayotl  = "/home/{0}/Repos/Kalkayotl/".format(user) 
 
@@ -32,8 +32,8 @@ sky_error_factor = 1e6
 
 sampling_space   = "physical"
 indep_measures   = False
-velocity_model   = "joint"
-nuts_sampler     = "pymc"
+velocity_model   = "linear"
+nuts_sampler     = "numpyro"
 
 zero_points = {
 "ra":0.,
@@ -46,31 +46,31 @@ zero_points = {
 rs = "Galactic"
 #--------------------------------
 
-# prior = {"type":"Gaussian",
-# 		"parameters":{"location":None,"scale":None},
-# 		"hyper_parameters":{
-# 							"alpha":None,
-# 							"beta":None,
-# 							"gamma":None,
-# 							"delta":None,
-# 							"eta":None
-# 							},
-# 		"parametrization":"central"}
-
-prior = {"type":"FGMM",      
-		"parameters":{"location":None,
-					  "scale":None,
-					  "weights":None,
-					  "field_scale":[20.,20.,20.,5.,5.,5.]
-					  },
+prior = {"type":"Gaussian",
+		"parameters":{"location":None,"scale":None},
 		"hyper_parameters":{
 							"alpha":None,
-							"beta":None, 
-							"delta":np.array([8,2]),
-							"eta":None,
-							"n_components":2
+							"beta":None,
+							"gamma":None,
+							"delta":None,
+							"eta":None
 							},
 		"parametrization":"central"}
+
+# prior = {"type":"FGMM",      
+# 		"parameters":{"location":None,
+# 					  "scale":None,
+# 					  "weights":None,
+# 					  "field_scale":[20.,20.,20.,5.,5.,5.]
+# 					  },
+# 		"hyper_parameters":{
+# 							"alpha":None,
+# 							"beta":None, 
+# 							"delta":np.array([8,2]),
+# 							"eta":None,
+# 							"n_components":2
+# 							},
+# 		"parametrization":"central"}
 
 # prior = {"type":"GMM",      
 # 		"parameters":{"location":None,
