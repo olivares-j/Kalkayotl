@@ -19,6 +19,8 @@ groups = [
 {"name":"BetaPic", "age":20,  "author":"Miret-Roig_2020"},
 {"name":"Alessi13","age":40,  "author":"Galli+2021_core"},
 # {"name":"Alessi13","age":40,  "author":"GG+2023_core"},
+{"name":"Stock2",  "age":400, "author":"GG+2023_rvs"},
+{"name":"Stock2",  "age":400, "author":"Tarricq+2022_rvs"},
 {"name":"Hyades",  "age":640, "author":"Oh_2020/GDR3"},
 {"name":"Praesepe","age":670, "author":"Hao+2022_core"},
 {"name":"Praesepe","age":670, "author":"GG+2023_core"},
