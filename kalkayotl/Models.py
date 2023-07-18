@@ -24,6 +24,7 @@ from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
 from kalkayotl.Rotations import cluster_to_galactic
+from kalkayotl.cust_dist import TailsDist
 
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -1178,7 +1179,15 @@ class Model3D_tails(Model):
 			weights = pm.Deterministic("weights",parameters["weights"])
 		#--------------------------------------------------------------
 
+		#------------ Tails params ------------------------------------
+		alpha_l = pm.Normal("alpha_l", sigma=hyper_alpha["scl"], shape=dimension)
+		alpha_r = pm.Normal("alpha_r", sigma=hyper_alpha["scl"], shape=dimension)
+		beta_l = pm.HalfNormal("beta_l", sigma=hyper_beta, shape=dimension)
+		beta_r = pm.HalfNormal("beta_r", sigma=hyper_beta, shape=dimension)
+		#--------------------------------------------------------------
+		
 		#-------------------------- True values -------------------------------------
+		#comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]) if i == 0 else TailsDist.dist(name="TailsDist", mu=tt.zeros(3), alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r) for i in range(n_components)]
 		comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]) for i in range(n_components)]
 		pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
 					shape=(n_sources,dimension),
@@ -1191,7 +1200,7 @@ class Model3D_tails(Model):
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala,self.centre),
+		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala, self.centre),
 										dims=("source_id","coordinate"))
 
 		true = pm.Deterministic("true",transformation(source),
