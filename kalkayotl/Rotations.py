@@ -204,7 +204,7 @@ def test_unif_rotation(size_val, confidence):
 	# std_z = np.std(count_z)
 	# np.testing.assert_(std_z < (mean_z * 0.06), msg='Fail at Z coord')
 
-	ks_test_z = stats.kstest(rotated_list[:,1], stats.uniform(loc=-1, scale=2).cdf)
+	ks_test_z = stats.kstest(rotated_list[:,2], stats.uniform(loc=-1, scale=2).cdf)
 	np.testing.assert_(ks_test_z.pvalue > (1 - confidence), msg='Fail at Y coord')
 	print("                          OK                            ")
 	print("--------------------------------------------------------")
