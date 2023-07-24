@@ -16,6 +16,8 @@ print(list_of_distances)
 print(list_of_seeds)
 print(model)
 print(velocity_model)
+print(factor_kappa)
+print(factor_omega)
 # sys.exit()
 
 dir_kalkayotl = "/home/jromero/Repos/Kalkayotl/"
@@ -46,7 +48,8 @@ nuts_sampler = "numpyro"
 sky_error_factor=1e6
 #--------------------------------------------------
 
-dir_base = "/home/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(model,velocity_model)
+dir_base = "/home/jromero/Kalkayotl/Synthetic/{0}_{1}_fk{2}_fo{3}/".format(
+	model,velocity_model,factor_kappa,factor_omega)
 
 #========================= Cases ===========================================
 if model == "Gaussian":

@@ -19,8 +19,10 @@ groups = [
 {"name":"BetaPic", "age":20,  "author":"Miret-Roig_2020"},
 {"name":"Alessi13","age":40,  "author":"Galli+2021_core"},
 # {"name":"Alessi13","age":40,  "author":"GG+2023_core"},
-{"name":"Stock2",  "age":400, "author":"GG+2023_rvs"},
-{"name":"Stock2",  "age":400, "author":"Tarricq+2022_rvs"},
+# {"name":"Stock2",  "age":400, "author":"GG+2023_rvs"},
+# {"name":"Stock2",  "age":400, "author":"GG+2023_rvs_clean"},
+{"name":"Stock2",  "age":400, "author":"GG+2023_rvs_core"},
+{"name":"Stock2",  "age":400, "author":"Tarricq+2022_rvs_core"},
 {"name":"Hyades",  "age":640, "author":"Oh_2020/GDR3"},
 {"name":"Praesepe","age":670, "author":"Hao+2022_core"},
 {"name":"Praesepe","age":670, "author":"GG+2023_core"},
@@ -32,12 +34,18 @@ groups = [
 
 parameters = [
 "kappa",
+"omega",
+"Txx",
 "omega_x",
+"Tyy",
 "omega_y",
+"Tzz",
 "omega_z"
 ]
 mapper_lnr = {}
 for par in parameters:
+	if par == "omega":
+		mapper_lnr["Rot [m.s-1.pc-1]"] = par
 	mapper_lnr[par+" [m.s-1.pc-1]"] = par
 #-----------------------------------------------------------------------
 
@@ -49,12 +57,14 @@ dfs_grp = []
 for group in groups:
 	#------------- Files -------------------------------------------------
 	dir_chains = dir_main.format(group["name"],group["author"]) + dir_run
-	file_lnr   = dir_chains  + "Lindegren_velocity_statistics.csv"
+	file_lnd   = dir_chains  + "Lindegren_velocity_statistics.csv"
+	file_lnr   = dir_chains  + "Linear_velocity_statistics.csv"
 	#---------------------------------------------------------------------
 
 	#---------------- Read parameters ----------------------------
-	df_grp = pn.read_csv(file_lnr)
-	print(df_grp.columns)
+	df_grp = pn.concat([pn.read_csv(file_lnr),pn.read_csv(file_lnd)],
+						ignore_index=True)
+	print(df_grp)
 	df_grp.set_index("Parameter",inplace=True)
 	df_grp.rename(index=mapper_lnr,inplace=True)
 	df_grp.reset_index(inplace=True)
@@ -81,10 +91,11 @@ df_all.reset_index(inplace=True)
 #=========================== Plots =======================================
 #---------------- Group-level --------------------------------------------
 fg = sns.FacetGrid(data=df_all,
-				row="Parameter",
+				col="Parameter",
 				sharey=False,
 				sharex=True,
 				margin_titles=False,
+				col_wrap=2,
 				hue="Group",
 				)
 fg.map(sns.scatterplot,"Age","mean",s=50)

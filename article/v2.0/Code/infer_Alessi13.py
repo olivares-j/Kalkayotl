@@ -14,7 +14,7 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #----------- Directories and files -------------------------------
-authors = "GG+2023_core"
+authors = "Galli+2021_core"
 dir_case = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Alessi13/"
 dir_base = "{0}{1}/".format(dir_case,authors)
 file_data = "{0}members.csv".format(dir_base)

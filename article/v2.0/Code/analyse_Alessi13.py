@@ -12,14 +12,14 @@ family = "Gaussian"
 dimension = "6D"
 
 #---------------------- Directories and data -------------------------------
-dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Stock2/"
-dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/Stock2/"
+dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Alessi13/"
+dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/Alessi13/"
 dir_run   = "/6D_Gaussian_Galactic_linear_1E+06/"
-authors = ["GG+2023_rvs","GG+2023_rvs_core","Tarricq+2022_rvs","Tarricq+2022_rvs_core"]
+authors = ["GG+2023","GG+2023_core","Galli+2021","Galli+2021_core"]
 file_data_all = dir_main  + "Data.h5"
-file_plot_cnv = dir_plots + "Stock2_convergence.png"
-file_plot_grp = dir_plots + "Stock2_group-level.png"
-file_plot_lnr = dir_plots + "Stock2_linear.png"
+file_plot_cnv = dir_plots + "Alessi13_convergence.png"
+file_plot_grp = dir_plots + "Alessi13_group-level.png"
+file_plot_lnr = dir_plots + "Alessi13_linear.png"
 
 do_all_dta = True
 do_plt_cnv = False

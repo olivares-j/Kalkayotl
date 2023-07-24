@@ -4,14 +4,16 @@ import numpy as np
 import dill
 os.environ["ISOCHRONES"] = "/raid/jromero/isochrones/"
 
-list_of_distances = [100.,200.,400.,800.,1600.]
-list_of_n_stars   = [100,200,400]
+list_of_distances = [100.,200.,400.,800.]
+list_of_n_stars   = [25,50,100]
 list_of_seeds     = [0,1,2,3,4]
 true_pos_sds      = np.array([9.,9.,9.])
 true_vel_loc      = np.array([10.,10.,10.])
 true_vel_sds      = np.array([1.,1.,1.])
-model             = "StudentT"
+model             = "Gaussian"
 velocity_model    = "linear"
+factor_kappa      = 0.5
+factor_omega      = 0.5
 
 astrometric_args = {
 			"position":{"family":model,
@@ -26,8 +28,8 @@ astrometric_args = {
 					}
 
 if velocity_model == "linear":
-	astrometric_args["velocity"]["kappa"] = np.ones(3)
-	astrometric_args["velocity"]["omega"] = np.array([
+	astrometric_args["velocity"]["kappa"] = factor_kappa*np.ones(3)
+	astrometric_args["velocity"]["omega"] = factor_omega*np.array([
 											[-1,-1,-1],
 											[1,1,1]
 											])
@@ -40,10 +42,12 @@ photometric_args = {
 "mass_prior":"Uniform"
 }
 
-dill.dump_session("./globals_{0}_{1}.pkl".format(model,velocity_model))
+dill.dump_session("./globals_{0}_{1}_fk{2}_fo{3}.pkl".format(
+	model,velocity_model,factor_kappa,factor_omega))
 # sys.exit()
 dir_repos = "/home/jromero/Repos"
-dir_main  = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(model,velocity_model)
+dir_main  = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}_fk{2}_fo{3}/".format(
+	model,velocity_model,factor_kappa,factor_omega)
 
 #----- Amasijo -------------------
 path_amasijo   = dir_repos + "/Amasijo/"
@@ -51,6 +55,7 @@ sys.path.append(path_amasijo)
 from Amasijo import Amasijo
 #---------------------------------
 
+os.makedirs(dir_main,exist_ok=True)
 
 for distance in list_of_distances:
 	for n_stars in list_of_n_stars:
