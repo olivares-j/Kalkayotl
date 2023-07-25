@@ -1184,12 +1184,14 @@ class Model3D_tails(Model):
 		alpha_r = pm.Normal("alpha_r", sigma=hyper_alpha["scl"])
 		beta_l = pm.HalfNormal("beta_l", sigma=hyper_beta)
 		beta_r = pm.HalfNormal("beta_r", sigma=hyper_beta)
+		weight_tails = pm.Uniform("weight") 
 		#--------------------------------------------------------------
 		
 		#-------------------------- True values -------------------------------------
-		comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]) if i == 0 else TailsDist.dist(name="TailsDist", mu=tt.zeros(3), std=chol[i], alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r) for i in range(n_components)]
+		#comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]) if i == 0 else TailsDist.dist(name="TailsDist", mu=tt.zeros(3), std=chol[i], alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r) for i in range(n_components)]
 		#comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]) for i in range(n_components)]
 		#comps = [TailsDist.dist(name="TailsDist", mu=tt.zeros(3), std=chol[i], alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r) for i in range(n_components)]
+		comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]), TailsDist.dist(name="TailsDist", mu=tt.zeros(3), std=chol[i], weight=weight_tails, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r)]
 		pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
