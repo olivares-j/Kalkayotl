@@ -64,7 +64,6 @@ for group in groups:
 	#---------------- Read parameters ----------------------------
 	df_grp = pn.concat([pn.read_csv(file_lnr),pn.read_csv(file_lnd)],
 						ignore_index=True)
-	print(df_grp)
 	df_grp.set_index("Parameter",inplace=True)
 	df_grp.rename(index=mapper_lnr,inplace=True)
 	df_grp.reset_index(inplace=True)
