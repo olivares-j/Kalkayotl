@@ -1,13 +1,13 @@
 # Kalkayotl
 <a href="https://ascl.net/2011.003"><img src="https://img.shields.io/badge/ascl-2011.003-blue.svg?colorB=262255" alt="ascl:2011.003" /></a>
 
-Kalkayotl is a Bayesian inference code designed to obtain samples of the joint posterior distribution of cluster parameters (so far only location and scale) and distances to the cluster stars.
+Kalkayotl is a Bayesian inference code designed to obtain samples of the joint posterior distribution of cluster parameters and individual positions and velocities of the cluster stars.
 
-**Note that there is not yet a manual of the code since the 3D and 6D versions are currently under development. In the meantime, please read carefully the example.py file and its comments as well as the Tutorial.ipynb file. These files explain the use of the code in its current first release. Specific details of the prior families and the undertaken assumptions are given in the associated [paper](
+**Note that there is not yet a manual of the code since the 3D and 6D versions are currently under development. In the meantime, please read carefully the example.py file and its comments as well as the Tutorial.ipynb file. These files explain the use of the code in its current release. Specific details of the prior families and the undertaken assumptions are given in the associated [paper](
 https://www.aanda.org/articles/aa/pdf/2020/12/aa37846-20.pdf).**
 
 ## Updates
-
+- This is the 2.0 version which now allows 6D modelling of stellar systems.
 - The parallax spatial correlation of Lindegren et al. 2020 (Gaia eDR3) is now included as the default one in version 1.1.
 
 
@@ -17,23 +17,24 @@ https://www.aanda.org/articles/aa/pdf/2020/12/aa37846-20.pdf).**
 1. Get the code from https://github.com/olivares-j/Kalkayotl, you can fork, clone, or download. For the 1D version (1.0 and 1.1 releases) use the master branch. For the 3D and 6D versions use the dev branch.
 
 
-2. I strongly recommend creating an independent conda environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.9.
+2. I strongly recommend creating an independent conda environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.11.
 You can do this by Anaconda with the following command:
 
 **Linux users**
 ```
-conda create -n kalkayotl -c conda-forge python==3.11 pymc==5.1.0 h5py==3.8 arviz==0.14 astropy==5.2.1 pandas==1.5.3
-
+conda create -n kalkayotl -c conda-forge python==3.10 pymc==5.4.1 h5py==3.8.0 arviz==0.15.1 astropy==5.3 pandas==2.0.2
+```
+The previous line will provide the basic functionality. If you want to accelerate through GPUs and more efficiten HMC samplers do: 
+```
 conda install jaxlib=*=*cuda* jax cuda-nvcc -c conda-forge -c nvidia
 
 conda install -c conda-forge blackjax numpyro
 ```
 **Mac OS users**
+NOT YET TESTED
 ```
-conda create -n kalkayotl -c conda-forge clang=4.0.1 python=3.6.10 pymc3=3.8 matplotlib=3.1.3 dynesty=1.0.0 arviz=0.5.1
+conda create -n kalkayotl -c conda-forge
 ```
-Note: PyMC3 may have problems to run in old operative systems (e.g. MAC OS < 10.14)
-
 The option `kalkayotl` is the name of the environment and you can choose another name.
 
 Newer versions of these libraries may cause conflicts amongst them, stick to these.
@@ -43,12 +44,12 @@ Newer versions of these libraries may cause conflicts amongst them, stick to the
 ```conda activate kalkayotl```
 
 
-4. Test pymc3 installation:
+4. Test pymc installation:
 
 Open a python console and type:
-```import pymc3```
+```import pymc```
 
-It should be loaded silently. However, if an error occurs follow the [PyMC3](https://docs.pymc.io/) installation instructions.
+It should be loaded silently. However, if an error occurs follow the [PyMC](https://docs.pymc.io/) installation instructions.
 
 If you have a warning about the mkl-service library, install it by typing:
 `conda install mkl-service`
@@ -61,10 +62,10 @@ conda install -c conda-forge jupyterlab
 
 5. Install Kalkayotl:
 
-Once you have successfully installed PyMC3 move to the Kalkayotl directory (the one you forked, cloned, or downloaded in step 1) and type:
+Once you have successfully installed PyMC move to the Kalkayotl directory (the one you forked, cloned, or downloaded in step 1) and type:
 
 ```
-pip install dist/Kalkayotl-1.1.tar.gz
+pip install dist/Kalkayotl-X.x.tar.gz
 ```
 
 Test the installation by running
@@ -73,7 +74,7 @@ Test the installation by running
 python example.py
 ```
 
-It will compute cluster and star distances using the Ruprecht_147.csv data from the Example folder. You must get the outputs (chains, statistics, and plots) within the same Example folder. If you have no errors then you are ready to move to the next section. If errors appear, identify if they are related to Kalkayotl, PyMC3, or the dependencies. If they are related to PyMC3 or the dependencies follow the specific instructions in their web pages. If it is related to the installation of Kalkayotl, then submit an issue explaining the error. 
+It will compute cluster and star distances using the Ruprecht_147.csv data from the Example folder. You must get the outputs (chains, statistics, and plots) within the same Example folder. If you have no errors then you are ready to move to the next section. If errors appear, identify if they are related to Kalkayotl, PyMC, or the dependencies. If they are related to PyMC or the dependencies follow the specific instructions in their web pages. If it is related to the installation of Kalkayotl, then submit an issue explaining the error. 
 
 
 
