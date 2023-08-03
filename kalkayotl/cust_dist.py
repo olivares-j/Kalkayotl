@@ -13,7 +13,7 @@ import arviz as az
 ################################## Tails Dist ####################################
 def tails_logp(value, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r):
     value_aux = tt.zeros_like(value[:,0])
-    value_aux = value_aux + pm.logp(pm.MvNormal.dist(mu=mu[::2], cov=chol), value[:,::2])
+    value_aux = value_aux + pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol), value[:,::2])
     value_l = value[:,1][value[:,1] < mu[1]]
     value_r = value[:,1][value[:,1] >= mu[1]]
     left_res = value_aux[value[:,1] < mu[1]] + weight*pm.logp(pm.Gamma.dist(alpha=alpha_l, beta=beta_l),-(value_l - mu[1]))
@@ -25,7 +25,7 @@ def tails_logp(value, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r):
 def tails_random(mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, rng=None, size=None):
     size = list(size)
     res = tt.zeros(size)
-    res_xz = rng.multivariate_normal(mean=mu[::2], cov=chol, size=size[0])
+    res_xz = rng.multivariate_normal(mean=mu[::2], cov=np.dot(chol,chol.T), size=size[0])
     res = tt.set_subtensor(res[:,0], res_xz[:,0])
     res = tt.set_subtensor(res[:,2], res_xz[:,1])
     size_y_l = size[0]
@@ -48,7 +48,7 @@ class TailsDist():
 
 def np_tails_logp(value, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r):
     value_aux = np.zeros_like(value[:,0])
-    value_aux = value_aux + sp.stats.multivariate_normal.logpdf(x=value[:,::2], mean=mu[::2], cov=chol)
+    value_aux = value_aux + sp.stats.multivariate_normal.logpdf(x=value[:,::2], mean=mu[::2], cov=np.dot(chol,chol.T))
     value_l = value[:,1][value[:,1] < mu[1]].copy()
     value_r = value[:,1][value[:,1] >= mu[1]].copy()
     value_aux[value[:,1] < mu[1]] = value_aux[value[:,1] < mu[1]] + weight*sp.stats.gamma.logpdf(x=-(value_l - mu[1]), a=alpha_l, scale=1/beta_l)
@@ -58,7 +58,7 @@ def np_tails_logp(value, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r):
 def np_tails_random(mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, rng=None, size=None):
     size = list(size)
     res = np.zeros(size)
-    res_xz = rng.multivariate_normal(mean=mu[::2], cov=chol, size=size[0])
+    res_xz = rng.multivariate_normal(mean=mu[::2], cov=np.dot(chol,chol.T), size=size[0])
     res[:,0] = res_xz[:,0]
     res[:,2] = res_xz[:,1]
     size_y_l = size[0]
@@ -87,7 +87,7 @@ def test_tails_random_np(verbose:bool=False, confidence:float=0.90):
     rand_extr = np_tails_random(mu=mu, chol=chol, weight=weight, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r, rng=np.random.default_rng(np.random.randint(1000)), size=size)
     print("========= Testing NP Random of TailsDist ===============")
     rand_extr_xz = rand_extr[:,::2]
-    sp_rand_extr_xz = stats.multivariate_normal.rvs(mean=mu[::2], cov=chol, size=(size[0]))
+    sp_rand_extr_xz = stats.multivariate_normal.rvs(mean=mu[::2], cov=np.dot(chol,chol.T), size=(size[0]))
     print("------------------------ X ---------------------------")
     ks_test_x = stats.ks_2samp(rand_extr_xz[:,0], sp_rand_extr_xz[:,0])
     np.testing.assert_(ks_test_x.pvalue > (1 - confidence), msg='Fail at X Coords')
@@ -163,7 +163,7 @@ def test_tails_logp_np():
     rand_extr_l = -(rand_extr_l - mu[1])
     rand_extr_r = rand_extr_r - mu[1]
     sp_log_extr = np.zeros_like(rand_extr_y)
-    sp_log_extr = sp_log_extr + stats.multivariate_normal.logpdf(rand_extr_xz, mean=mu[::2], cov=chol)
+    sp_log_extr = sp_log_extr + stats.multivariate_normal.logpdf(rand_extr_xz, mean=mu[::2], cov=np.dot(chol,chol.T))
     sp_log_extr[rand_extr_y < mu[1]] = sp_log_extr[rand_extr_y < mu[1]] + weight*stats.gamma.logpdf(rand_extr_l, a=alpha_l, scale=1/beta_l)
     sp_log_extr[rand_extr_y >= mu[1]] = sp_log_extr[rand_extr_y >= mu[1]] + (1-weight)*stats.gamma.logpdf(rand_extr_r, a=alpha_r, scale=1/beta_r)
     np.testing.assert_allclose(sp_log_extr, log_extr, rtol=1e-10, atol=0, err_msg='Fail at NP Logp')
@@ -188,7 +188,7 @@ def test_tails_random(verbose:bool=False, confidence:float=0.90):
     f = pytensor.function([], tails_random(mu=mu, chol=chol, weight=weight, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r, rng=np.random.default_rng(np.random.randint(1000)), size=size))
     rand_extr = f()
     rand_extr_xz = rand_extr[:,::2]
-    sp_rand_extr_xz = stats.multivariate_normal.rvs(mean=mu[::2], cov=chol, size=(size[0]))
+    sp_rand_extr_xz = stats.multivariate_normal.rvs(mean=mu[::2], cov=np.dot(chol,chol.T), size=(size[0]))
     print("------------------------- X ----------------------------")
     ks_test_x = stats.ks_2samp(rand_extr_xz[:,0], sp_rand_extr_xz[:,0])
     np.testing.assert_(ks_test_x.pvalue > (1 - confidence), msg='Fail at X Coords')
@@ -266,7 +266,7 @@ def test_tails_logp():
     rand_extr_l = -(rand_extr_l - mu[1])
     rand_extr_r = rand_extr_r - mu[1]
     sp_log_extr = np.zeros_like(rand_extr_y)
-    sp_log_extr = sp_log_extr + stats.multivariate_normal.logpdf(rand_extr_xz, mean=mu[::2], cov=chol)
+    sp_log_extr = sp_log_extr + stats.multivariate_normal.logpdf(rand_extr_xz, mean=mu[::2], cov=np.dot(chol,chol.T))
     sp_log_extr[rand_extr_y < mu[1]] = sp_log_extr[rand_extr_y < mu[1]] + weight*stats.gamma.logpdf(rand_extr_l, a=alpha_l, scale=1/beta_l)
     sp_log_extr[rand_extr_y >= mu[1]] = sp_log_extr[rand_extr_y >= mu[1]] + (1-weight)*stats.gamma.logpdf(rand_extr_r, a=alpha_r, scale=1/beta_r)
     np.testing.assert_allclose(sp_log_extr, log_extr, rtol=1e-10, atol=0, err_msg='Fail at Logp')
@@ -277,8 +277,8 @@ if __name__ == "__main__":
     verbose = True
     #test_tails_random_np(verbose=verbose, confidence=0.80)
     #test_tails_logp_np()
-    #test_tails_random(verbose=verbose, confidence=0.80)
-    #test_tails_logp()
+    test_tails_random(verbose=verbose, confidence=0.80)
+    test_tails_logp()
     # with pm.Model() as m:
     #     alpha_l = pm.HalfNormal("alpha_l", sigma=10, dtype='float64')
     #     alpha_r = pm.HalfNormal("alpha_r", sigma=10, dtype='float64')
