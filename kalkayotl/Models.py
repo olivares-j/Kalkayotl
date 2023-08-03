@@ -24,7 +24,7 @@ from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
 from kalkayotl.Rotations import cluster_to_galactic
-from kalkayotl.cust_dist import TailsDist
+from kalkayotl.cust_dist import TailsDist, tails_logp, tails_random
 
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -1188,13 +1188,12 @@ class Model3D_tails(Model):
 		#--------------------------------------------------------------
 		
 		#-------------------------- True values -------------------------------------
-		#comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]) if i == 0 else TailsDist.dist(name="TailsDist", mu=tt.zeros(3), std=chol[i], alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r) for i in range(n_components)]
-		#comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]) for i in range(n_components)]
-		#comps = [TailsDist.dist(name="TailsDist", mu=tt.zeros(3), std=chol[i], alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r) for i in range(n_components)]
-		comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]), TailsDist.dist(name="TailsDist", mu=tt.zeros(3), std=chol[i], weight=weight_tails, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r)]
-		pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
-					shape=(n_sources,dimension),
-					dims=("source_id","coordinate"))
+		# comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[0]), TailsDist.dist(name="TailsDist", mu=tt.zeros(3), chol=chol[1,::2], weight=weight_tails, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r)]
+		# pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
+		# 			shape=(n_sources,dimension),
+		# 			dims=("source_id","coordinate"))
+		#pos_cls = pm.MvNormal("pos_cls",mu=tt.zeros(3),chol=chol[0], shape=(n_sources,dimension), dims=("source_id","coordinate"))
+		pos_cls = pm.CustomDist("pos_cls", tt.zeros(3), chol[1,::2,::2], weight_tails, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, shape=(n_sources,dimension), dims=("source_id","coordinate"))
 
 		# source = pm.Mixture("source",w=weights,comp_dists=comps,
 		# 			shape=(n_sources,dimension),
