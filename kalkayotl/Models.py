@@ -1199,11 +1199,16 @@ class Model3D_tails(Model):
 		#--------------------------------------------------------------
 
 		#------------ Tails params ------------------------------------
-		alpha_l = pm.Normal("alpha_l", sigma=hyper_alpha["scl"])
-		alpha_r = pm.Normal("alpha_r", sigma=hyper_alpha["scl"])
-		beta_l = pm.HalfNormal("beta_l", sigma=hyper_beta)
-		beta_r = pm.HalfNormal("beta_r", sigma=hyper_beta)
-		weight_tails = pm.Uniform("weight") 
+		# alpha_l = pm.Normal("alpha_l", sigma=hyper_alpha["scl"][1])
+		# alpha_r = pm.Normal("alpha_r", sigma=hyper_alpha["scl"][1])
+		# beta_l = pm.HalfNormal("beta_l", sigma=hyper_beta[1])
+		# beta_r = pm.HalfNormal("beta_r", sigma=hyper_beta[1])
+		# weight_tails = pm.Uniform("weight") 
+		alpha_l = np.random.randint(5, 15)
+		alpha_r = np.random.randint(5, 15)
+		beta_l = np.random.random()+1e-2
+		beta_r = np.random.random()+1e-2
+		weight_tails = np.random.random()
 		#--------------------------------------------------------------
 		
 		#-------------------------- True values -------------------------------------

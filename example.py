@@ -26,17 +26,17 @@ import numpy as np
 import h5py
 
 #----- Import the module -------------------------------
-dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
+dir_kalkayotl  = "/home/minu99/Documentos/Github/Kalkayotl/" 
 sys.path.append(dir_kalkayotl)
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core+Tails/"
+dir_base = "/home/minu99/Documentos/GitHub/Kalkayotl/article/v2.0/ComaBer/Core/" 
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
-file_parameters = dir_base + "6D_Gaussian_Galactic_central_joint_numpyro_0/Cluster_statistics.csv"
+file_parameters = None #dir_base + "6D_Gaussian_Galactic_central_joint_numpyro_0/Cluster_statistics.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
@@ -59,12 +59,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 3000
+tuning_iters = 2#000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 1000
+sample_iters = 5#00
 
 
 #----- Target_accept-------
@@ -244,7 +244,8 @@ list_of_prior = [
 							"eta":None,
 							"n_components":2
 							},
-		"parametrization":"central"},
+		"parametrization":"central",
+		"velocity_model":"joint"},
 
 	]
 #======================= Inference and Analysis =====================================================
@@ -253,13 +254,14 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}_{6}_test".format(
 		dimension,
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
-		velocity_model,
-		nuts_sampler)
+		prior["velocity_model"],
+		tuning_iters,
+		target_accept)
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -288,15 +290,15 @@ for prior in list_of_prior:
 	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	# kal.run(sample_iters=sample_iters,
-	# 		tuning_iters=tuning_iters,
-	# 		target_accept=target_accept,
-	# 		chains=chains,
-	# 		cores=cores,
-	# 		init_iters=int(1e6),
-	# 		nuts_sampler=nuts_sampler,
-	# 		posterior_predictive=True,
-	# 		prior_predictive=True)
+	kal.run(sample_iters=sample_iters,
+			tuning_iters=tuning_iters,
+			target_accept=target_accept,
+			chains=chains,
+			cores=cores,
+			init_iters=int(1e6),
+			nuts_sampler=nuts_sampler,
+			posterior_predictive=True,
+			prior_predictive=True)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
