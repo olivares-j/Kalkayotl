@@ -1217,7 +1217,7 @@ class Model3D_tails(Model):
 		# 			shape=(n_sources,dimension),
 		# 			dims=("source_id","coordinate"))
 		#pos_cls = pm.MvNormal("pos_cls",mu=tt.zeros(3),chol=chol_0, shape=(n_sources,dimension), dims=("source_id","coordinate"))
-		pos_cls = pm.CustomDist("pos_cls", tt.zeros(3), chol_1, weight_tails, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, shape=(n_sources,dimension), dims=("source_id","coordinate"))
+		pos_cls = pm.CustomDist("pos_cls", tt.zeros(3), chol_0, weight_tails, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, shape=(n_sources,dimension), dims=("source_id","coordinate"))
 
 		# source = pm.Mixture("source",w=weights,comp_dists=comps,
 		# 			shape=(n_sources,dimension),

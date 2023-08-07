@@ -30,18 +30,19 @@ def tails_logp(value, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r):
 
 def tails_random(mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, rng=None, size=None):
     size = list(size)
-    res = tt.zeros(size)
-    res_xz = rng.multivariate_normal(mean=mu[::2], cov=np.dot(chol,chol.T), size=size[0])
-    res = tt.set_subtensor(res[:,0], res_xz[:,0])
-    res = tt.set_subtensor(res[:,2], res_xz[:,1])
-    size_y_l = size[0]
-    size_y_r = size[0]
-    size_y_l = int(weight*size_y_l)
-    size_y_r = int(size[0]-size_y_l)
-    left_res = mu[1] - rng.gamma(shape=alpha_l, scale=1/beta_l, size=size_y_l)
-    right_res = mu[1] + rng.gamma(shape=alpha_r, scale=1/beta_r, size=size_y_r)
-    res_y = tt.concatenate([left_res, right_res],axis=0)
-    res = tt.set_subtensor(res[:,1], res_y)
+    # res = tt.zeros(size)
+    # res_xz = rng.multivariate_normal(mean=mu[::2], cov=np.dot(chol,chol.T), size=size[0])
+    # res = tt.set_subtensor(res[:,0], res_xz[:,0])
+    # res = tt.set_subtensor(res[:,2], res_xz[:,1])
+    # size_y_l = size[0]
+    # size_y_r = size[0]
+    # size_y_l = int(weight*size_y_l)
+    # size_y_r = int(size[0]-size_y_l)
+    # left_res = mu[1] - rng.gamma(shape=alpha_l, scale=1/beta_l, size=size_y_l)
+    # right_res = mu[1] + rng.gamma(shape=alpha_r, scale=1/beta_r, size=size_y_r)
+    # res_y = tt.concatenate([left_res, right_res],axis=0)
+    # res = tt.set_subtensor(res[:,1], res_y)
+    res = rng.multivariate_normal(mean=mu, cov=np.dot(chol,chol.T), size=size[0])
     return res
 
 class TailsDist():
