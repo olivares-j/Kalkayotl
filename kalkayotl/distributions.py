@@ -88,7 +88,37 @@ class edsd_gen(rv_continuous):
 
 
 edsd = edsd_gen(a=0.0,name='edsd')
-#===============================================================
+
+#=============== GDD generator ===============================
+class ggd_gen(rv_continuous):
+	"GGD distribution"
+	def _pdf(self, x,L,alpha,beta):
+		fac1 = 1.0 / gamma_function((beta+1.0)/alpha)
+		fac2 = alpha / np.power(L, beta+1.0)
+		fac3 = np.power(r, beta)
+		fac4 = np.exp(-np.power(r/L, alpha))
+		return fac1*fac2*fac3*fac4
+
+	def _cdf(self, x,L,alpha,beta):
+		result = gamma_incomplete((beta+1.0)/alpha,np.power(r/L,alpha))
+		return result
+
+	def _rvs(self,L,alpha,beta):
+		sz, rndm = self._size, self._random_state
+		u = rndm.random_sample(size=sz)
+
+		v = np.zeros_like(u)
+
+		for i in range(sz[0]):
+
+			sol = root_scalar(lambda x : self._cdf(x,L,alpha,beta) - u[i],
+				bracket=[0,1.e10],
+				method='brentq')
+			v[i] = sol.root
+		return v
+    
+    
+ggd = ggd_gen(name='ggd')
 
 #=============== King generator ===============================
 class king_gen(rv_continuous):
