@@ -14,12 +14,18 @@ import arviz as az
 def tails_logp(value, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r):
     value_aux = tt.zeros_like(value[:,0])
     value_aux = value_aux + pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol), value[:,::2])
-    value_l = value[:,1][value[:,1] < mu[1]]
-    value_r = value[:,1][value[:,1] >= mu[1]]
-    left_res = value_aux[value[:,1] < mu[1]] + weight*pm.logp(pm.Gamma.dist(alpha=alpha_l, beta=beta_l),-(value_l - mu[1]))
-    right_res = value_aux[value[:,1] >= mu[1]] + (1-weight)*pm.logp(pm.Gamma.dist(alpha=alpha_r, beta=beta_r),value_r - mu[1])
-    value_aux = tt.set_subtensor(value_aux[value[:,1] < mu[1]], left_res)
-    value_aux = tt.set_subtensor(value_aux[value[:,1] >= mu[1]], right_res)
+    value_l = weight*pm.logp(pm.Gamma.dist(alpha=alpha_l, beta=beta_l), -(value[:,1] - mu[1]))
+    left_res = tt.where(value[:,1] < mu[1], value_l, 0)
+    value_r = (1-weight)*pm.logp(pm.Gamma.dist(alpha=alpha_r, beta=beta_r), value[:,1] - mu[1])
+    right_res = tt.where(value[:,1] >= mu[1], value_r, 0)
+    value_aux = value_aux + left_res
+    value_aux = value_aux + right_res
+    # value_l = value[:,1][value[:,1] < mu[1]]
+    # value_r = value[:,1][value[:,1] >= mu[1]]
+    # left_res = value_aux[value[:,1] < mu[1]] + weight*pm.logp(pm.Gamma.dist(alpha=alpha_l, beta=beta_l),-(value_l - mu[1]))
+    # right_res = value_aux[value[:,1] >= mu[1]] + (1-weight)*pm.logp(pm.Gamma.dist(alpha=alpha_r, beta=beta_r),value_r - mu[1])
+    # value_aux = tt.set_subtensor(value_aux[value[:,1] < mu[1]], left_res)
+    # value_aux = tt.set_subtensor(value_aux[value[:,1] >= mu[1]], right_res)
     return value_aux
 
 def tails_random(mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, rng=None, size=None):
@@ -269,7 +275,7 @@ def test_tails_logp():
     sp_log_extr = sp_log_extr + stats.multivariate_normal.logpdf(rand_extr_xz, mean=mu[::2], cov=np.dot(chol,chol.T))
     sp_log_extr[rand_extr_y < mu[1]] = sp_log_extr[rand_extr_y < mu[1]] + weight*stats.gamma.logpdf(rand_extr_l, a=alpha_l, scale=1/beta_l)
     sp_log_extr[rand_extr_y >= mu[1]] = sp_log_extr[rand_extr_y >= mu[1]] + (1-weight)*stats.gamma.logpdf(rand_extr_r, a=alpha_r, scale=1/beta_r)
-    np.testing.assert_allclose(sp_log_extr, log_extr, rtol=1e-10, atol=0, err_msg='Fail at Logp')
+    np.testing.assert_allclose(log_extr, sp_log_extr, rtol=1e-10, atol=0, err_msg='Fail at Logp')
     print("                          OK                            ")
     print("--------------------------------------------------------")
 
