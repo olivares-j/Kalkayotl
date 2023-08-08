@@ -583,6 +583,32 @@ def test_edsd(n=1000,L=100.):
 	plt.close(1)
 	
 	pdf.close()
+    
+def test_ggd(n=1000,L=100.,alpha=1.,beta=2.):
+	#----- Generate samples ---------
+	s = ggd.rvs(L=L,alpha=alpha,beta=beta,size=n)
+
+	#------ grid -----
+	x = np.linspace(0,10.*L,100)
+	y = ggd.pdf(x,L=L,alpha=alpha,beta=beta)
+	fac1 = 1.0 / gamma_function((beta+1.0)/alpha)
+	fac2 = alpha / np.power(L, beta+1.0)
+	fac3 = np.power(r, beta)
+	fac4 = np.exp(-np.power(x/L, alpha))
+	z = fac1*fac2*fac3*fac4
+
+	pdf = PdfPages(filename="Test_GGD.pdf")
+	plt.figure(1)
+	plt.hist(s,bins=50,density=True,color="grey",label="Samples")
+	plt.plot(x,y,color="black",label="PDF")
+	plt.plot(x,z,color="red",linestyle="--",label="True")
+	plt.legend()
+	
+	#-------------- Save fig --------------------------
+	pdf.savefig(bbox_inches='tight')
+	plt.close(1)
+	
+	pdf.close()
 
 
 
@@ -710,6 +736,8 @@ def test_king_3d(n=10000,r0=0.,rc=1.,rt=10):
 if __name__ == "__main__":
 
 	# test_edsd()
+    
+	# test_ggd()
 
 	# test_king()
 
