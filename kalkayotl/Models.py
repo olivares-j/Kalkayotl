@@ -24,7 +24,7 @@ from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
 
-# from kalkayotl.Priors import EDSD,EFF,King
+# from kalkayotl.Priors import EDSD,EFF,King,GGD
 
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -85,6 +85,9 @@ class Model1D(Model):
 								sigma=hyper_alpha["scl"],
 								shape=(n_components,dimension),
 								dims=("component","coordinate"))
+				elif prior == "GGD":
+					alpha = pm.Uniform("alpha",lower=0.0,upper=100.,initval=hyper_alpha)
+					beta = pm.Uniform("beta",lower=-1.0,upper=99.,initval=hyper_gamma)
 				else:
 					#-------------- Repeat same location --------------
 					loc_i = pm.Normal("centre",
@@ -244,6 +247,10 @@ class Model1D(Model):
 			
 		# elif prior == "EDSD":
 		# 	source = EDSD("source",scale=std,
+		# 							shape=(n_sources,dimension),
+		# 							dims=("source_id","coordinate"))
+		# elif prior == "GGD": #NOTE: hyper_beta goes to the scale parameter, so alpha=hyper_alpha, beta=hyper_gamma
+		# 	source = GGD("source",scale=std,alpha=alpha,beta=beta,
 		# 							shape=(n_sources,dimension),
 		# 							dims=("source_id","coordinate"))
 
