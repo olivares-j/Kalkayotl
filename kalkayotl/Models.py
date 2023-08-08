@@ -1199,16 +1199,11 @@ class Model3D_tails(Model):
 		#--------------------------------------------------------------
 
 		#------------ Tails params ------------------------------------
-		# alpha_l = pm.Normal("alpha_l", sigma=hyper_alpha["scl"][1])
-		# alpha_r = pm.Normal("alpha_r", sigma=hyper_alpha["scl"][1])
-		# beta_l = pm.HalfNormal("beta_l", sigma=hyper_beta[1])
-		# beta_r = pm.HalfNormal("beta_r", sigma=hyper_beta[1])
-		# weight_tails = pm.Uniform("weight") 
-		alpha_l = np.random.randint(5, 15)
-		alpha_r = np.random.randint(5, 15)
-		beta_l = np.random.random()+1e-2
-		beta_r = np.random.random()+1e-2
-		weight_tails = np.random.random()
+		alpha_l = pm.Normal("alpha_l", sigma=hyper_alpha["scl"][1])
+		alpha_r = pm.Normal("alpha_r", sigma=hyper_alpha["scl"][1])
+		beta_l = pm.HalfNormal("beta_l", sigma=hyper_beta[1])
+		beta_r = pm.HalfNormal("beta_r", sigma=hyper_beta[1])
+		weight_tails = pm.Uniform("weight") 
 		#--------------------------------------------------------------
 		
 		#-------------------------- True values -------------------------------------
@@ -1217,7 +1212,7 @@ class Model3D_tails(Model):
 		# 			shape=(n_sources,dimension),
 		# 			dims=("source_id","coordinate"))
 		#pos_cls = pm.MvNormal("pos_cls",mu=tt.zeros(3),chol=chol_0, shape=(n_sources,dimension), dims=("source_id","coordinate"))
-		pos_cls = pm.CustomDist("pos_cls", tt.zeros(3), chol_0, weight_tails, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, shape=(n_sources,dimension), dims=("source_id","coordinate"))
+		pos_cls = pm.CustomDist("pos_cls", tt.zeros(3), chol_1, weight_tails, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, shape=(n_sources,dimension), dims=("source_id","coordinate"))
 
 		# source = pm.Mixture("source",w=weights,comp_dists=comps,
 		# 			shape=(n_sources,dimension),
