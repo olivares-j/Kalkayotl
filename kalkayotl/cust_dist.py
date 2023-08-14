@@ -1,0 +1,293 @@
+from __future__ import annotations
+import os
+from typing import Optional, Tuple
+import numpy as np
+import pymc as pm
+import pytensor
+import pytensor.tensor as tt
+import scipy as sp
+from pytensor.tensor import TensorVariable
+import arviz as az
+
+
+################################## Tails Dist ####################################
+def tails_logp(value, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r):
+    value_aux = tt.zeros_like(value[:,0])
+    value_aux = value_aux + pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol), value[:,::2])
+    value_l = weight*pm.logp(pm.Gamma.dist(alpha=alpha_l, beta=beta_l), -(value[:,1] - mu[1]))
+    left_res = tt.where(value[:,1] < mu[1], value_l, 0)
+    value_r = (1-weight)*pm.logp(pm.Gamma.dist(alpha=alpha_r, beta=beta_r), value[:,1] - mu[1])
+    right_res = tt.where(value[:,1] >= mu[1], value_r, 0)
+    value_aux = value_aux + left_res
+    value_aux = value_aux + right_res
+    return value_aux
+
+def tails_random(mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, rng=None, size=None):
+    size = list(size)
+    res = tt.zeros(size)
+    res_xz = rng.multivariate_normal(mean=mu[::2], cov=np.dot(chol,chol.T), size=size[0])
+    res = tt.set_subtensor(res[:,0], res_xz[:,0])
+    res = tt.set_subtensor(res[:,2], res_xz[:,1])
+    size_y_l = size[0]
+    size_y_r = size[0]
+    size_y_l = int(weight*size_y_l)
+    size_y_r = int(size[0]-size_y_l)
+    left_res = mu[1] - rng.gamma(shape=alpha_l, scale=1/beta_l, size=size_y_l)
+    right_res = mu[1] + rng.gamma(shape=alpha_r, scale=1/beta_r, size=size_y_r)
+    res_y = tt.concatenate([left_res, right_res],axis=0)
+    res = tt.set_subtensor(res[:,1], res_y)
+    # res = rng.multivariate_normal(mean=mu, cov=np.dot(chol,chol.T), size=size[0])
+    return res
+
+class TailsDist():
+    def __init__(self, name, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, *args, **kwargs):
+        pm.CustomDist.__init__(name, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, *args, **kwargs)
+    
+    def dist(name, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, *args, **kwargs):
+        return pm.CustomDist.dist(mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, class_name=name, *args, **kwargs)
+        
+
+def np_tails_logp(value, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r):
+    value_aux = np.zeros_like(value[:,0])
+    value_aux = value_aux + sp.stats.multivariate_normal.logpdf(x=value[:,::2], mean=mu[::2], cov=np.dot(chol,chol.T))
+    value_l = value[:,1][value[:,1] < mu[1]].copy()
+    value_r = value[:,1][value[:,1] >= mu[1]].copy()
+    value_aux[value[:,1] < mu[1]] = value_aux[value[:,1] < mu[1]] + weight*sp.stats.gamma.logpdf(x=-(value_l - mu[1]), a=alpha_l, scale=1/beta_l)
+    value_aux[value[:,1] >= mu[1]] = value_aux[value[:,1] >= mu[1]] + (1-weight)*sp.stats.gamma.logpdf(x=value_r - mu[1], a=alpha_r, scale=1/beta_r)
+    return value_aux
+
+def np_tails_random(mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, rng=None, size=None):
+    size = list(size)
+    res = np.zeros(size)
+    res_xz = rng.multivariate_normal(mean=mu[::2], cov=np.dot(chol,chol.T), size=size[0])
+    res[:,0] = res_xz[:,0]
+    res[:,2] = res_xz[:,1]
+    size_y_l = size[0]
+    size_y_r = size[0]
+    size_y_l = int(weight*size_y_l)
+    size_y_r = int(size[0]-size_y_l)
+    left_res = mu[1] - rng.gamma(shape=alpha_l, scale=1/beta_l, size=size_y_l)
+    right_res = mu[1] + rng.gamma(shape=alpha_r, scale=1/beta_r, size=size_y_r)
+    res[:,1] = np.concatenate((left_res, right_res), axis=0)
+    return res
+
+def test_tails_random_np(verbose:bool=False, confidence:float=0.90):
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    sns.set()
+    from scipy import stats
+    import pandas as pd
+    mu = np.random.randint(-10,10, size=3)
+    chol = np.eye(2)*np.random.random(size=2)*10
+    weight = np.random.random()
+    alpha_l = np.random.randint(5, 15)
+    alpha_r = np.random.randint(5, 15)
+    beta_l = np.random.random()+1e-2
+    beta_r = np.random.random()+1e-2
+    size = (1000,3)
+    rand_extr = np_tails_random(mu=mu, chol=chol, weight=weight, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r, rng=np.random.default_rng(np.random.randint(1000)), size=size)
+    print("========= Testing NP Random of TailsDist ===============")
+    rand_extr_xz = rand_extr[:,::2]
+    sp_rand_extr_xz = stats.multivariate_normal.rvs(mean=mu[::2], cov=np.dot(chol,chol.T), size=(size[0]))
+    print("------------------------ X ---------------------------")
+    ks_test_x = stats.ks_2samp(rand_extr_xz[:,0], sp_rand_extr_xz[:,0])
+    np.testing.assert_(ks_test_x.pvalue > (1 - confidence), msg='Fail at X Coords')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+    print("------------------------- Y ----------------------------")
+    rand_extr_y = rand_extr[:,1]
+    rand_extr_l = -(rand_extr_y[rand_extr_y < mu[1]] - mu[1])
+    rand_extr_r = rand_extr_y[rand_extr_y >= mu[1]] - mu[1]
+    print("-------------------- Left Gamma ------------------------")
+    ks_test_l = stats.kstest(rand_extr_l, stats.gamma(a=alpha_l, scale=1/beta_l).cdf)
+    np.testing.assert_(ks_test_l.pvalue > (1 - confidence), msg='Fail at Left Gamma of Y Coord')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+    print("-------------------- Right Gamma -----------------------")
+    ks_test_r = stats.kstest(rand_extr_r, stats.gamma(a=alpha_r, scale=1/beta_r).cdf)
+    np.testing.assert_(ks_test_r.pvalue > (1 - confidence), msg='Fail at Right Gamma of Y Coord')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+    print("------------------------- Z ----------------------------")
+    ks_test_z = stats.ks_2samp(rand_extr_xz[:,1], sp_rand_extr_xz[:,1])
+    np.testing.assert_(ks_test_z.pvalue > (1 - confidence), msg='Fail at Z Coord')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+    if verbose:
+        fig, axes = plt.subplots(2,2)
+        sns.histplot(rand_extr_xz[:,0], kde=True, ax=axes[0,0])
+        axes[0,0].set_title('X')
+        sns.histplot(rand_extr_y, kde=True, ax=axes[0,1])
+        axes[0,1].set_title('Y')
+        sns.histplot(rand_extr_xz[:,1], kde=True, ax=axes[1,0])
+        axes[1,0].set_title('Z')
+        ax = fig.add_subplot(2, 2, 4, projection='3d')
+        ax.scatter3D(rand_extr_y, rand_extr_xz[:,0], rand_extr_xz[:,1])
+        ax.set_xlabel('y')
+        ax.set_ylabel('x')
+        ax.set_zlabel('z')
+        ax.set_title('Scatter')
+        plt.show()
+        zeros = np.zeros_like(rand_extr_xz[:,0])
+        ones = np.ones_like(sp_rand_extr_xz[:,0])
+        rand_extr_xz = np.insert(rand_extr_xz, np.shape(rand_extr_xz)[1], zeros, axis=1)
+        sp_rand_extr_xz = np.insert(sp_rand_extr_xz, np.shape(sp_rand_extr_xz)[1], ones, axis=1)
+        all_rand_extr_xz = np.insert(rand_extr_xz, np.shape(rand_extr_xz)[0], sp_rand_extr_xz, axis=0)
+        df = pd.DataFrame(all_rand_extr_xz, columns=['X', 'Z', 'source'])
+        sns.jointplot(
+            data=df,
+            x='X',
+            y='Z',
+            hue='source',
+            kind='kde'
+        )
+        plt.show()
+
+def test_tails_logp_np():
+    from scipy import stats
+    import matplotlib.pyplot as plt
+    mu = np.random.randint(-10,10, size=3)
+    chol = np.eye(2)*np.random.random(size=2)*10
+    weight = np.random.random()
+    alpha_l = np.random.randint(5, 15)
+    alpha_r = np.random.randint(5, 15)
+    beta_l = np.random.random()+1e-2
+    beta_r = np.random.random()+1e-2
+    size = (1000,3)
+    rand_extr =  np_tails_random(mu=mu, chol=chol, weight=weight, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r, rng=np.random.default_rng(np.random.randint(1000)), size=size)
+    log_extr = np_tails_logp(rand_extr.copy(), mu=mu, chol=chol, weight=weight, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r)
+    print("========= Testing NP Logp of TailsDist =================")
+    rand_extr_xz = rand_extr[:,::2]
+    rand_extr_y = rand_extr[:,1]
+    rand_extr_l = rand_extr_y[rand_extr_y < mu[1]]
+    rand_extr_r = rand_extr_y[rand_extr_y >= mu[1]]
+    rand_extr_l = -(rand_extr_l - mu[1])
+    rand_extr_r = rand_extr_r - mu[1]
+    sp_log_extr = np.zeros_like(rand_extr_y)
+    sp_log_extr = sp_log_extr + stats.multivariate_normal.logpdf(rand_extr_xz, mean=mu[::2], cov=np.dot(chol,chol.T))
+    sp_log_extr[rand_extr_y < mu[1]] = sp_log_extr[rand_extr_y < mu[1]] + weight*stats.gamma.logpdf(rand_extr_l, a=alpha_l, scale=1/beta_l)
+    sp_log_extr[rand_extr_y >= mu[1]] = sp_log_extr[rand_extr_y >= mu[1]] + (1-weight)*stats.gamma.logpdf(rand_extr_r, a=alpha_r, scale=1/beta_r)
+    np.testing.assert_allclose(sp_log_extr, log_extr, rtol=1e-10, atol=0, err_msg='Fail at NP Logp')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+
+def test_tails_random(verbose:bool=False, confidence:float=0.90):
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    sns.set()
+    from scipy import stats
+    import pandas as pd
+    mu = np.random.randint(-10,10, size=3)
+    chol = np.eye(2)*np.random.random(size=2)
+    weight = np.random.random()
+    alpha_l = np.random.randint(5, 15)
+    alpha_r = np.random.randint(5, 15)
+    beta_l = np.random.random()+1e-2
+    beta_r = np.random.random()+1e-2
+    size = (1000,3)
+    print("========== Testing Random of TailsDist =================")
+    f = pytensor.function([], tails_random(mu=mu, chol=chol, weight=weight, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r, rng=np.random.default_rng(np.random.randint(1000)), size=size))
+    rand_extr = f()
+    rand_extr_xz = rand_extr[:,::2]
+    sp_rand_extr_xz = stats.multivariate_normal.rvs(mean=mu[::2], cov=np.dot(chol,chol.T), size=(size[0]))
+    print("------------------------- X ----------------------------")
+    ks_test_x = stats.ks_2samp(rand_extr_xz[:,0], sp_rand_extr_xz[:,0])
+    np.testing.assert_(ks_test_x.pvalue > (1 - confidence), msg='Fail at X Coords')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+    print("------------------------- Y ----------------------------")
+    rand_extr_y = rand_extr[:,1]
+    rand_extr_l = -(rand_extr_y[rand_extr_y < mu[1]] - mu[1])
+    rand_extr_r = rand_extr_y[rand_extr_y >= mu[1]] - mu[1]
+    print("-------------------- Left Gamma ------------------------")
+    ks_test_l = stats.kstest(rand_extr_l, stats.gamma(a=alpha_l, scale=1/beta_l).cdf)
+    np.testing.assert_(ks_test_l.pvalue > (1 - confidence), msg='Fail at Left Gamma of Y Coord')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+    print("-------------------- Right Gamma -----------------------")
+    ks_test_r = stats.kstest(rand_extr_r, stats.gamma(a=alpha_r, scale=1/beta_r).cdf)
+    np.testing.assert_(ks_test_r.pvalue > (1 - confidence), msg='Fail at Right Gamma of Y Coord')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+    print("------------------------- Z ----------------------------")
+    ks_test_z = stats.ks_2samp(rand_extr_xz[:,1], sp_rand_extr_xz[:,1])
+    np.testing.assert_(ks_test_z.pvalue > (1 - confidence), msg='Fail at Z Coord')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+    if verbose:
+        fig, axes = plt.subplots(2,2)
+        sns.histplot(rand_extr_xz[:,0], kde=True, ax=axes[0,0])
+        axes[0,0].set_title('X')
+        sns.histplot(rand_extr_y, kde=True, ax=axes[0,1])
+        axes[0,1].set_title('Y')
+        sns.histplot(rand_extr_xz[:,1], kde=True, ax=axes[1,0])
+        axes[1,0].set_title('Z')
+        ax = fig.add_subplot(2, 2, 4, projection='3d')
+        ax.scatter3D(rand_extr_y, rand_extr_xz[:,0], rand_extr_xz[:,1])
+        ax.set_xlabel('y')
+        ax.set_ylabel('x')
+        ax.set_zlabel('z')
+        ax.set_title('Scatter')
+        plt.show()
+        zeros = np.zeros_like(rand_extr_xz[:,0])
+        ones = np.ones_like(sp_rand_extr_xz[:,0])
+        rand_extr_xz = np.insert(rand_extr_xz, np.shape(rand_extr_xz)[1], zeros, axis=1)
+        sp_rand_extr_xz = np.insert(sp_rand_extr_xz, np.shape(sp_rand_extr_xz)[1], ones, axis=1)
+        all_rand_extr_xz = np.insert(rand_extr_xz, np.shape(rand_extr_xz)[0], sp_rand_extr_xz, axis=0)
+        df = pd.DataFrame(all_rand_extr_xz, columns=['X', 'Z', 'source'])
+        sns.jointplot(
+            data=df,
+            x='X',
+            y='Z',
+            hue='source',
+            kind='kde'
+        )
+        plt.show()
+
+def test_tails_logp():
+    from scipy import stats
+    import matplotlib.pyplot as plt
+    mu = np.random.randint(-10,10, size=3)
+    chol = np.eye(2)*np.random.random(size=2)*10
+    weight = np.random.random()
+    alpha_l = np.random.randint(5, 15)
+    alpha_r = np.random.randint(5, 15)
+    beta_l = np.random.random()+1e-2
+    beta_r = np.random.random()+1e-2
+    size = (1000,3)
+    f = pytensor.function([], tails_random(mu=mu, chol=chol, weight=weight, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r, rng=np.random.default_rng(np.random.randint(1000)), size=size))
+    rand_extr = f()
+    fl = pytensor.function([], tails_logp(value=rand_extr, mu=mu, chol=chol, weight=weight, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r))
+    log_extr = fl()
+    print("========== Testing Logp of TailsDist ===================")
+    rand_extr_xz = rand_extr[:,::2]
+    rand_extr_y = rand_extr[:,1]
+    rand_extr_l = rand_extr_y[rand_extr_y < mu[1]]
+    rand_extr_r = rand_extr_y[rand_extr_y >= mu[1]]
+    rand_extr_l = -(rand_extr_l - mu[1])
+    rand_extr_r = rand_extr_r - mu[1]
+    sp_log_extr = np.zeros_like(rand_extr_y)
+    sp_log_extr = sp_log_extr + stats.multivariate_normal.logpdf(rand_extr_xz, mean=mu[::2], cov=np.dot(chol,chol.T))
+    sp_log_extr[rand_extr_y < mu[1]] = sp_log_extr[rand_extr_y < mu[1]] + weight*stats.gamma.logpdf(rand_extr_l, a=alpha_l, scale=1/beta_l)
+    sp_log_extr[rand_extr_y >= mu[1]] = sp_log_extr[rand_extr_y >= mu[1]] + (1-weight)*stats.gamma.logpdf(rand_extr_r, a=alpha_r, scale=1/beta_r)
+    np.testing.assert_allclose(log_extr, sp_log_extr, rtol=1e-10, atol=0, err_msg='Fail at Logp')
+    print("                          OK                            ")
+    print("--------------------------------------------------------")
+
+if __name__ == "__main__":
+    verbose = True
+    #test_tails_random_np(verbose=verbose, confidence=0.80)
+    #test_tails_logp_np()
+    test_tails_random(verbose=verbose, confidence=0.80)
+    test_tails_logp()
+    # with pm.Model() as m:
+    #     alpha_l = pm.HalfNormal("alpha_l", sigma=10, dtype='float64')
+    #     alpha_r = pm.HalfNormal("alpha_r", sigma=10, dtype='float64')
+    #     beta_l = pm.Normal("beta_l", 10, 10, dtype='float64')
+    #     beta_r = pm.Normal("beta_r", 10, 10, dtype='float64')
+    #     mu = pm.Normal("mu", 0, 1, dtype='float64')
+    #     #cust_dist = pm.CustomDist("TailsDist", mu, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, observed=np.random.random(size=(100)))
+    #     cust_dist = TailsDist("TailsDist", mu, alpha_l, alpha_r, beta_l, beta_r, observed=np.random.random(size=(10000)))
+
+    #     #posterior = pm.sample_prior_predictive(10)
+    #     posterior = pm.sample(100)

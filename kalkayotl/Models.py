@@ -24,6 +24,7 @@ from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
 from kalkayotl.Rotations import cluster_to_galactic
+from kalkayotl.cust_dist import TailsDist, tails_logp, tails_random
 
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -1137,7 +1138,8 @@ class Model3D_tails(Model):
 
 		#------------------ Covariance matrices ----------------------------
 		corr = pytensor.shared(np.zeros((n_components,dimension,dimension)))
-		chol = pytensor.shared(np.zeros((n_components,dimension,dimension)))
+		chol_0 = pytensor.shared(np.zeros((dimension,dimension)))
+		chol_1 = pytensor.shared(np.zeros((dimension-1,dimension-1)))
 
 		if parameters["scale"] is None:
 			stds = pm.Gamma("std",
@@ -1145,25 +1147,43 @@ class Model3D_tails(Model):
 						beta=1.0/hyper_beta,
 						dims=("component","coordinate"))
 
-			for i in range(n_components):
-				# tensor like indentity, exept that the diagonal is sd_dist
-				choli = tt.eye(3) * stds[i]
-				corri = tt.eye(3)
-				chol  = tt.set_subtensor(chol[i],choli)
-				corr  = tt.set_subtensor(corr[i],corri)
-		else:
-			for i,name in enumerate(names_components):
-				#--------- Extract ---------------------------------
-				chol_i = np.linalg.cholesky(parameters["scale"][i])
-				cov = np.dot(chol_i, chol_i.T)
-				stds_i = np.sqrt(np.diag(cov))
-				inv_stds = 1. / stds_i
-				corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
-				#---------------------------------------------------
+			# tensor like indentity, exept that the diagonal is sd_dist
+			chol_0 = tt.eye(3) * stds[0]
+			corri_0 = tt.eye(3)
+			corr  = tt.set_subtensor(corr[0],corri_0)
+			chol_1 = tt.eye(2) * stds[1,::2]
+			corri_1 = tt.eye(3)
+			corr  = tt.set_subtensor(corr[1],corri_1)
 
-				chol = tt.set_subtensor(chol[i],chol_i)
-				corr = tt.set_subtensor(corr[i],corr_i)
-				stds = tt.set_subtensor(stds[i],stds_i)
+		else:
+			chol_0 = np.linalg.cholesky(parameters["scale"][0])
+			cov = np.dot(chol_0, chol_0.T)
+			stds_0 = np.sqrt(np.diag(cov))
+			inv_stds = 1. / stds_0
+			corr_0 = inv_stds[None, :] * cov * inv_stds[:, None]
+			corr = tt.set_subtensor(corr[0],corr_0)
+			stds = tt.set_subtensor(stds[0],stds_0)
+
+			chol_1 = np.linalg.cholesky(parameters["scale"][0])
+			cov = np.dot(chol_1, chol_1.T)
+			stds_1 = np.sqrt(np.diag(cov))
+			inv_stds = 1. / stds_1
+			corr_1 = inv_stds[None, :] * cov * inv_stds[:, None]
+			corr = tt.set_subtensor(corr[1],corr_1)
+			stds = tt.set_subtensor(stds[1],stds_1)
+
+			# for i,name in enumerate(names_components):
+			# 	#--------- Extract ---------------------------------
+			# 	chol_i = np.linalg.cholesky(parameters["scale"][i])
+			# 	cov = np.dot(chol_i, chol_i.T)
+			# 	stds_i = np.sqrt(np.diag(cov))
+			# 	inv_stds = 1. / stds_i
+			# 	corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
+			# 	#---------------------------------------------------
+
+			# 	chol = tt.set_subtensor(chol[i],chol_i)
+			# 	corr = tt.set_subtensor(corr[i],corr_i)
+			# 	stds = tt.set_subtensor(stds[i],stds_i)
 
 			stds = pm.Deterministic("std", stds,
 						dims=("component","coordinate"))
@@ -1178,11 +1198,21 @@ class Model3D_tails(Model):
 			weights = pm.Deterministic("weights",parameters["weights"])
 		#--------------------------------------------------------------
 
+		#------------ Tails params ------------------------------------
+		alpha_l = pm.Normal("alpha_l", sigma=hyper_alpha["scl"][1])
+		alpha_r = pm.Normal("alpha_r", sigma=hyper_alpha["scl"][1])
+		beta_l = pm.HalfNormal("beta_l", sigma=hyper_beta[1])
+		beta_r = pm.HalfNormal("beta_r", sigma=hyper_beta[1])
+		weight_tails = pm.Uniform("weight") 
+		#--------------------------------------------------------------
+		
 		#-------------------------- True values -------------------------------------
-		comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol[i]) for i in range(n_components)]
-		pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
-					shape=(n_sources,dimension),
-					dims=("source_id","coordinate"))
+		# comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol_0), TailsDist.dist(name="TailsDist", mu=tt.zeros(3), chol=chol_1, weight=weight_tails, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r)]
+		# pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
+		# 			shape=(n_sources,dimension),
+		# 			dims=("source_id","coordinate"))
+		#pos_cls = pm.MvNormal("pos_cls",mu=tt.zeros(3),chol=chol_0, shape=(n_sources,dimension), dims=("source_id","coordinate"))
+		pos_cls = pm.CustomDist("pos_cls", tt.zeros(3), chol_1, weight_tails, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, shape=(n_sources,dimension), dims=("source_id","coordinate"))
 
 		# source = pm.Mixture("source",w=weights,comp_dists=comps,
 		# 			shape=(n_sources,dimension),
@@ -1191,7 +1221,7 @@ class Model3D_tails(Model):
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala,self.centre),
+		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala, self.centre),
 										dims=("source_id","coordinate"))
 
 		true = pm.Deterministic("true",transformation(source),
