@@ -21,7 +21,8 @@ if model == "GMM":
 								"location":np.array([np.concatenate([np.zeros(3),true_vel_loc]),
 											np.concatenate([np.array([0.0,0.0,50.0]),true_vel_loc])]),
 								"covariance":np.array([np.diag(np.concatenate([true_pos_sds**2,true_vel_sds**2])),
-											np.diag(np.concatenate([true_pos_sds**2,true_vel_sds**2]))])
+											np.diag(np.concatenate([true_pos_sds**2,true_vel_sds**2]))]),
+								"weights":np.array([0.5,0.5])
 								},
 						}
 else:
