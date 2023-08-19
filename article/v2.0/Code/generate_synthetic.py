@@ -18,10 +18,10 @@ factor_omega      = 0.5
 if model == "GMM":
 	astrometric_args = {
 				"position+velocity":{"family":model,
-								"location":[np.concat([np.zeros(3),true_vel_loc]),
-											np.concat([np.array([0.0,0.0,50.0]),true_vel_loc])],
-								"covariance":[np.diag(np.concat([true_pos_sds**2,true_vel_sds**2])),
-											np.diag(np.concat([true_pos_sds**2,true_vel_sds**2]))]
+								"location":[np.concatenate([np.zeros(3),true_vel_loc]),
+											np.concatenate([np.array([0.0,0.0,50.0]),true_vel_loc])],
+								"covariance":[np.diag(np.concatenate([true_pos_sds**2,true_vel_sds**2])),
+											np.diag(np.concatenate([true_pos_sds**2,true_vel_sds**2]))]
 								},
 						}
 else:
