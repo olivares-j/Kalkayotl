@@ -10,22 +10,32 @@ list_of_seeds     = [0,1,2,3,4]
 true_pos_sds      = np.array([9.,9.,9.])
 true_vel_loc      = np.array([10.,10.,10.])
 true_vel_sds      = np.array([1.,1.,1.])
-model             = "Gaussian"
-velocity_model    = "linear"
+model             = "GMM"
+velocity_model    = "joint"
 factor_kappa      = 0.5
 factor_omega      = 0.5
 
-astrometric_args = {
-			"position":{"family":model,
-						"nu":10.0,
-						"location":np.array([0.0,0.0,0.0]),
-						"covariance":np.diag(true_pos_sds**2)},
-			"velocity":{"family":model,
-						"nu":10.0,
-						"location":true_vel_loc,
-						"covariance":np.diag(true_vel_sds**2)
+if model == "GMM":
+	astrometric_args = {
+				"position+velocity":{"family":model,
+								"location":[np.concat([np.zeros(3),true_vel_loc]),
+											np.concat([np.array([0.0,0.0,50.0]),true_vel_loc])],
+								"covariance":[np.diag(np.concat([true_pos_sds**2,true_vel_sds**2])),
+											np.diag(np.concat([true_pos_sds**2,true_vel_sds**2]))]
+								},
 						}
-					}
+else:
+	astrometric_args = {
+				"position":{"family":model,
+							"nu":10.0,
+							"location":np.array([0.0,0.0,0.0]),
+							"covariance":np.diag(true_pos_sds**2)},
+				"velocity":{"family":model,
+							"nu":10.0,
+							"location":true_vel_loc,
+							"covariance":np.diag(true_vel_sds**2)
+							}
+						}
 
 if velocity_model == "linear":
 	astrometric_args["velocity"]["kappa"] = factor_kappa*np.ones(3)

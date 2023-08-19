@@ -28,7 +28,7 @@ import seaborn as sns
 import dill
 
 # dill.load_session(str(sys.argv[1]))
-dill.load_session("./globals_Gaussian.pkl")
+#dill.load_session("./globals_Gaussian.pkl")
 list_of_n_stars = [100,200,400]
 list_of_distances = [100,200,400,800,1600]
 list_of_seeds = [0,1,2,3,4]
@@ -51,13 +51,15 @@ file_plot_src = base_plt + "{0}D_{1}_{2}_source-level.pdf".format(dimension,fami
 file_plot_grp = base_plt + "{0}D_{1}_{2}_group-level.pdf".format(dimension,family,velocity_model)
 file_plot_cnv = base_plt + "{0}D_{1}_{2}_convergence.pdf".format(dimension,family,velocity_model)
 file_plot_rho = base_plt + "{0}D_{1}_{2}_correlation.pdf".format(dimension,family,velocity_model)
+file_plot_det = base_plt + "{0}D_{1}_{2}_detectability.png".format(dimension,family,velocity_model)
 file_data_all = dir_data + "{0}D_data.h5".format(dimension)
 
-do_all_dta = True
-do_plt_cnv = True
-do_plt_grp = True
-do_plt_src = True
-do_plt_rho = True
+do_all_dta = False
+do_plt_cnv = False
+do_plt_grp = False
+do_plt_src = False
+do_plt_rho = False
+do_plt_det = True
 #---------------------------------------------------------------------------
 
 coordinates = ["X","Y","Z","U","V","W"][:dimension]
@@ -148,6 +150,7 @@ if do_all_dta:
 	dfs_grp = []
 	dfs_sts = []
 	dfs_src = []
+	dfs_lin = []
 	for n,n_stars in enumerate(list_of_n_stars):
 		for d,distance in enumerate(list_of_distances):
 			for s,seed in enumerate(list_of_seeds):
@@ -162,6 +165,7 @@ if do_all_dta:
 				dir_chains = base_dir.format(n_stars,int(distance),seed,parametrization)
 				file_obs_grp   = dir_chains  + "Cluster_statistics.csv"
 				file_obs_src   = dir_chains  + "Sources_statistics.csv"
+				file_obs_lin   = dir_chains  + "Lindegren_velocity_statistics.csv"
 				file_true_src  = base_data.format(n_stars,int(distance),seed)
 				#--------------------------------------------------
 
@@ -176,6 +180,10 @@ if do_all_dta:
 				#---------------- Read parameters ----------------------------
 				df_obs_grp = pn.read_csv(file_obs_grp,usecols=obs_grp_columns)
 				df_obs_grp.set_index("Parameter",inplace=True)
+				#--------------------------------------------------------------
+
+				#---------------- Read Linear parameters ----------------------------
+				df_lin = pn.read_csv(file_obs_lin,nrows=4)
 				#--------------------------------------------------------------
 
 				df_true_grp.loc["{0}D::loc[X]".format(dimension),"true"] = distance
@@ -199,6 +207,8 @@ if do_all_dta:
 				df_grp["unc"] = df_grp.apply(lambda x: (x["hdi_97.5%"]-x["hdi_2.5%"]),  axis = 1)
 				df_grp["crd"] = df_grp.apply(lambda x: 100.*((x["true"] >= x["hdi_2.5%"]) & (x["true"] <= x["hdi_97.5%"])),
 											axis = 1)
+
+				df_lin["unc"] = df_lin.apply(lambda x: (x["hdi_97.5%"]-x["hdi_2.5%"]),  axis = 1)
 				#----------------------------------------------------------------------------------------------------
 
 				#----------------------------- Sources statistics ----------------------------------------------------------
@@ -246,26 +256,31 @@ if do_all_dta:
 				df_grp["n_stars"] = n_stars
 				df_sts["n_stars"] = n_stars
 				df_src["n_stars"] = n_stars
+				df_lin["n_stars"] = n_stars
 
 				df_grp["distance"] = distance
 				df_sts["distance"] = distance
 				df_src["distance"] = distance
+				df_lin["distance"] = distance
 
 				df_grp["seed"] = seed
 				df_sts["seed"] = seed
 				df_src["seed"] = seed
+				df_lin["seed"] = seed
 				#--------------------------------
 
 				#----------- Append ----------------
 				dfs_grp.append(df_grp)
 				dfs_sts.append(df_sts)
 				dfs_src.append(df_src)
+				dfs_lin.append(df_lin)
 				#------------------------------------
 
 	#------------ Concatenate --------------------
 	df_grp = pn.concat(dfs_grp,ignore_index=False)
 	df_sts = pn.concat(dfs_sts,ignore_index=True)
 	df_src = pn.concat(dfs_src,ignore_index=True)
+	df_lin = pn.concat(dfs_lin,ignore_index=True)
 	#--------------------------------------------
 
 	#---------------- Group-level statisitcs --------------------
@@ -279,6 +294,21 @@ if do_all_dta:
 	df_sts_grp  = pn.merge(
 				left=dfg_grp.mean(),
 				right=df_grp_hdi,
+				left_index=True,
+				right_index=True).reset_index()
+	#------------------------------------------------------------
+
+	#---------------- Group-level linear statisitcs --------------------
+	dfg_lin = df_lin.groupby(["Parameter","n_stars","distance"],sort=False)
+	df_lin_hdi  = pn.merge(
+				left=dfg_lin.quantile(q=0.025),
+				right=dfg_lin.quantile(q=0.975),
+				left_index=True,
+				right_index=True,
+				suffixes=("_low","_up"))
+	df_sts_lin  = pn.merge(
+				left=dfg_lin.mean(),
+				right=df_lin_hdi,
 				left_index=True,
 				right_index=True).reset_index()
 	#------------------------------------------------------------
@@ -301,15 +331,19 @@ if do_all_dta:
 	#------------ Save data --------------------------
 	df_sts_grp.to_hdf(file_data_all,key="df_sts_grp")
 	df_sts_src.to_hdf(file_data_all,key="df_sts_src")
+	df_sts_lin.to_hdf(file_data_all,key="df_sts_lin")
 	df_grp.to_hdf(file_data_all,key="df_grp")
 	df_src.to_hdf(file_data_all,key="df_src")
+	df_lin.to_hdf(file_data_all,key="df_lin")
 	#-------------------------------------------------
 else:
 	#------------ Read data --------------------------------
 	df_sts_grp = pn.read_hdf(file_data_all,key="df_sts_grp")
 	df_sts_src = pn.read_hdf(file_data_all,key="df_sts_src")
+	df_sts_lin = pn.read_hdf(file_data_all,key="df_sts_lin")
 	df_grp     = pn.read_hdf(file_data_all,key="df_grp")
 	df_src     = pn.read_hdf(file_data_all,key="df_src")
+	df_lin     = pn.read_hdf(file_data_all,key="df_lin")
 	#-------------------------------------------------------
 
 #=========================== Plots =======================================
@@ -490,5 +524,37 @@ if do_plt_rho:
 		pdf.savefig(bbox_inches='tight',dpi=200)
 		plt.close()
 	pdf.close()
-	sys.exit()
+	#-------------------------------------------------------------------------
+
+if do_plt_det:
+	df_lin = df_sts_lin.loc[df_sts_lin["distance"]<500]
+	df_lin.loc[:,"upper"] = np.tile([100,130,130,130],9)
+	#---------------- Group-level linear velocity detectability ---------------
+	fg = sns.FacetGrid(data=df_lin,
+					col="Parameter",
+					sharey=False,
+					margin_titles=True,
+					col_wrap=2,
+					hue="n_stars",
+					legend_out=True,
+					height=3,
+					aspect=1)
+	fg.map(sns.lineplot,"distance","unc")
+	fg.map(plt.fill_between,"distance",
+			"unc_low",
+			"upper",
+			alpha=0.2)
+	fg.add_legend()
+
+	#------------ Units ----------------------------
+	axs = fg.axes_dict
+	par_names = ["$|\\kappa|$","$\\omega_x$","$\\omega_y$","$\\omega_z$"]
+	for (par,name) in zip(df_lin["Parameter"],par_names):
+		axs[par].set_xlabel("Distance [pc]")
+		axs[par].set_ylabel("$2\\sigma$ uncertainty [$\\rm{m\\,s^{-1}\\,pc^{-1}}$]")
+		axs[par].title.set_text(name)
+	#-----------------------------------------------
+
+	plt.savefig(file_plot_det,bbox_inches='tight',dpi=200)
+	plt.close()
 	#-------------------------------------------------------------------------
