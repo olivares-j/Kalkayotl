@@ -18,10 +18,10 @@ factor_omega      = 0.5
 if model == "GMM":
 	astrometric_args = {
 				"position+velocity":{"family":model,
-								"location":[np.concatenate([np.zeros(3),true_vel_loc]),
-											np.concatenate([np.array([0.0,0.0,50.0]),true_vel_loc])],
-								"covariance":[np.diag(np.concatenate([true_pos_sds**2,true_vel_sds**2])),
-											np.diag(np.concatenate([true_pos_sds**2,true_vel_sds**2]))]
+								"location":np.array([np.concatenate([np.zeros(3),true_vel_loc]),
+											np.concatenate([np.array([0.0,0.0,50.0]),true_vel_loc])]),
+								"covariance":np.array([np.diag(np.concatenate([true_pos_sds**2,true_vel_sds**2])),
+											np.diag(np.concatenate([true_pos_sds**2,true_vel_sds**2]))])
 								},
 						}
 else:
@@ -78,7 +78,13 @@ for distance in list_of_distances:
 			if os.path.isfile(dir_main+base_name+".csv"):
 				continue
 
-			astrometric_args["position"]["location"] = np.array([distance,0.0,0.0])
+			if model == "GMM":
+				astrometric_args["position"]["location"][0][0] = distance
+			else:
+				astrometric_args["position"]["location"] = np.array([distance,0.0,0.0])
+
+			print(astrometric_args["position"]["location"])
+			continue
 			
 			ama = Amasijo(
 						astrometric_args=astrometric_args,
