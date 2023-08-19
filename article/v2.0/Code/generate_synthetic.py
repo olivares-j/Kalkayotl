@@ -83,8 +83,6 @@ for distance in list_of_distances:
 			else:
 				astrometric_args["position"]["location"] = np.array([distance,0.0,0.0])
 
-			print(astrometric_args["position+velocity"]["location"])
-			continue
 			
 			ama = Amasijo(
 						astrometric_args=astrometric_args,
