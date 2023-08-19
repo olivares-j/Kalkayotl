@@ -79,7 +79,7 @@ for distance in list_of_distances:
 				continue
 
 			if model == "GMM":
-				astrometric_args["position"]["location"][0][0] = distance
+				astrometric_args["position+velocity"]["location"][0][0] = distance
 			else:
 				astrometric_args["position"]["location"] = np.array([distance,0.0,0.0])
 
