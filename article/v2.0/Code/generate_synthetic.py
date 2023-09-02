@@ -79,7 +79,7 @@ for distance in list_of_distances:
 			if os.path.isfile(dir_main+base_name+".csv"):
 				continue
 
-			if model == "GMM"
+			if model == "GMM":
 				astrometric_args["position+velocity"]["location"][0][0] = distance
 			else:
 				astrometric_args["position"]["location"] = np.array([distance,0.0,0.0])
