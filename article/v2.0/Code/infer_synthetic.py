@@ -73,21 +73,22 @@ elif model == "StudentT":
 							"delta":None,
 							"eta":None,
 							"nu":None,
-							}
-			}
-	# {"type":"GMM",     
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(1,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"parametrization":"central"},
+							},
+		}
+elif model == "GMM":
+	case = {
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None},
+		"hyper_parameters":{
+							"alpha":None,
+							"beta":None, 
+							"gamma":None,
+							"delta":np.array([2,2]),
+							"eta":None,
+							"n_components":2
+							},
+		}
 	# {"type":"CGMM",     
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
@@ -124,10 +125,11 @@ execution_times = []
 for distance in list_of_distances:
 	for n_stars in list_of_n_stars:
 		for seed in list_of_seeds:
-			if distance <= 500:
-				parametrization = "central"
-			else:
-				parametrization = "non-central"
+			# if distance <= 500:
+			# 	parametrization = "central"
+			# else:
+			# 	parametrization = "non-central"
+			parametrization = "central"
 		
 			name = "{0}D_{1}_n{2}_d{3}_s{4}_{5}_{6:1.0E}".format(
 				dimension,
