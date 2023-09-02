@@ -30,7 +30,7 @@ import dill
 # dill.load_session(str(sys.argv[1]))
 #dill.load_session("./globals_Gaussian.pkl")
 list_of_n_stars = [100,200,400]
-list_of_distances = [100,200,400,800,1600]
+list_of_distances = [50,100,200,400,800,1600]
 list_of_seeds = [0,1,2,3,4]
 family = "Gaussian"
 dimension = 6
@@ -41,7 +41,7 @@ append = "" if (dimension == 3) and (velocity_model == "joint") else "_1E+06"
 dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/"
 dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/"
 
-dir_data  = "{0}{1}_{2}/".format(dir_main,family,velocity_model)
+dir_data  = "{0}{1}_{2}_fk1.0_fo1.0/".format(dir_main,family,velocity_model)
 base_data = dir_data  + family + "_n{0}_d{1}_s{2}.csv"
 base_dir  = dir_data  + "{0}D_{1}".format(dimension,family) + "_n{0}_d{1}_s{2}_{3}"+append+"/"
 base_plt  = "{0}{1}_{2}/".format(dir_plots,family,velocity_model)
@@ -528,7 +528,7 @@ if do_plt_rho:
 
 if do_plt_det:
 	df_lin = df_sts_lin.loc[df_sts_lin["distance"]<500]
-	df_lin.loc[:,"upper"] = np.tile([100,130,130,130],9)
+	df_lin.loc[:,"upper"] = np.tile([100,130,130,130],12)
 	#---------------- Group-level linear velocity detectability ---------------
 	fg = sns.FacetGrid(data=df_lin,
 					col="Parameter",

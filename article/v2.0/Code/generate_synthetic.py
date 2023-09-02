@@ -4,8 +4,8 @@ import numpy as np
 import dill
 os.environ["ISOCHRONES"] = "/raid/jromero/isochrones/"
 
-list_of_distances = [100.,200.,400.,800.]
-list_of_n_stars   = [25,50,100]
+list_of_distances = [100.,200.,400.,800.,1600.]
+list_of_n_stars   = [100,200,400]
 list_of_seeds     = [0,1,2,3,4]
 true_pos_sds      = np.array([9.,9.,9.])
 true_vel_loc      = np.array([10.,10.,10.])
@@ -79,7 +79,7 @@ for distance in list_of_distances:
 			if os.path.isfile(dir_main+base_name+".csv"):
 				continue
 
-			if model == "GMM":
+			if model == "GMM"
 				astrometric_args["position+velocity"]["location"][0][0] = distance
 			else:
 				astrometric_args["position"]["location"] = np.array([distance,0.0,0.0])
