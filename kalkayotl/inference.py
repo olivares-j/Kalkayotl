@@ -701,7 +701,7 @@ class Inference:
 			print("The eta hyper-parameter has been set to:")
 			print(self.hyper["eta"])
 
-		if self.prior in ["EDSD","Uniform","EFF","King"]:
+		if self.prior in ["EDSD","GGD","Uniform","EFF","King"]:
 			assert self.D == 1, "{0} prior is only valid for 1D version.".format(self.prior)
 
 		if self.prior == "StudentT":

@@ -107,6 +107,111 @@ class EDSD(PositiveContinuous):
 		scale  = self.scale
 		result = 1.0 - tt.exp(-value/scale)*(value**2 + 2. * value * scale + 2. * scale**2)/(2.*scale**2)
 		return result
+    
+class GGD(PositiveContinuous):
+	R"""
+	Generalized Gamma Distribution, PDF looks like
+	.. math::
+	   GGD(x \mid L, \alpha, \beta) =
+                   \frac{1}{\Gamma(\frac{\beta+1}{\alpha})}
+                   \frac{\alpha}{L^{\beta+1}}
+		   x^\beta}
+		   \exp\left(-(\frac{x}{L})^\beta\right)
+
+	.. note::
+	   See Bailer-Jones et al. (2021) for details.
+	   
+	========  ==========================================
+	Support   :math:`x \in [0, \infty)`
+	========  ==========================================
+	Parameters
+	----------
+	L : float
+		Scale parameter :math:`L` (``L`` > 0) .
+	alpha : float
+		Additional scale parameter, alpha > 0
+	beta : float
+		Additional scale parameter, beta > -1. The EDSD is a special case of GDD with alpha=1.0, beta=2.0
+
+	Examples
+	--------
+	.. code-block:: python
+		with pm.Model():
+			x = pm.GGD('x', scale=1000, alpha=1.0, beta=2.0)
+	"""
+    
+	def __init__(self, scale=None, alpha=None, beta=None, *args, **kwargs):
+
+		super().__init__(*args, **kwargs)
+
+		self.scale = scale = tt.as_tensor_variable(scale)
+		self.alpha = alpha = tt.as_tensor_variable(alpha)
+		self.beta = beta = tt.as_tensor_variable(beta)
+		self.mean = self.scale * tt.gamma((beta+2.0)/alpha) / tt.gamma((beta+1.0)/alpha)
+        
+	def random(self, point=None, size=None):
+		"""
+		Draw random values from HalfNormal distribution.
+		Parameters
+		----------
+		point : dict, optional
+			Dict of variable values on which random values are to be
+			conditioned (uses default point if not specified).
+		size : int, optional
+			Desired size of random sample (returns one sample if not
+			specified).
+		Returns
+		-------
+		array
+		"""
+		scale, alpha, beta = draw_values([self.scale, self.alpha, self.beta], point=point)[0]
+		return generate_samples(ggd.rvs, L=scale, alpha=alpha, beta=beta,
+								dist_shape=self.shape,
+								size=size)
+
+	def logp(self, value):
+		"""
+		Calculate log-probability of GDD distribution at specified value.
+		Parameters
+		----------
+		value : numeric
+			Value(s) for which log-probability is calculated. If the log probabilities for multiple
+			values are desired the values must be provided in a numpy array or theano tensor
+		Returns
+		-------
+		TensorVariable
+		"""
+		L  = self.scale
+		alpha = self.alpha
+		beta = self.beta
+		fac1 = -tt.log(tt.gamma((beta+1.0)/alpha))
+		fac2 = tt.log(alpha)
+		fac3 = -(beta+1.0)*tt.log(L)
+		fac4 = beta*tt.log(value)
+		fac5 = -tt.power(value/L, alpha)
+		log_d =  fac1 + fac2 + fac3 + fac4 + fac5
+		return log_d
+
+	def logcdf(self, value):
+		"""
+		Compute the log of the cumulative distribution function for GGD distribution
+		at the specified value.
+		Parameters
+		----------
+		value: numeric
+			Value(s) for which log CDF is calculated. If the log CDF for multiple
+			values are desired the values must be provided in a numpy array or theano tensor.
+		Returns
+		-------
+		TensorVariable
+		"""
+		scale  = self.scale
+		alpha = self.alpha
+		beta = self.beta
+		result = tt.log(tt.math.gammal((beta+1.0)/alpha,tt.pow(r/L,alpha)))
+		return result
+    # gammal should be the lower incomplete gamma function
+
 
 class EFF(Continuous):
 	R"""
