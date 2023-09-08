@@ -1,0 +1,46 @@
+digraph "3D" {
+	subgraph cluster3 {
+		"3D&&centre" [label="c" shape=ellipse]
+		"3D&&perezsala" [label="ps" shape=ellipse]
+		labeljust=r labelloc=b style=rounded
+	}
+	subgraph "clustercomponent (2) x coordinate (3)" {
+		"3D&&std" [label="s" shape=ellipse]
+		"3D&&corr" [label="c" shape=box]
+		"3D&&loc" [label="l" shape=box]
+		labeljust=r labelloc=b style=rounded
+	}
+	subgraph cluster2 {
+		"3D&&weights" [label="w" shape=ellipse]
+		labeljust=r labelloc=b style=rounded
+	}
+	"3D&&alpha_l" [label="a" shape=ellipse]
+	"3D&&alpha_r" [label="a" shape=ellipse]
+	"3D&&beta_l" [label="b" shape=ellipse]
+	"3D&&beta_r" [label="b" shape=ellipse]
+	subgraph "clustersource_id (302) x coordinate (3)" {
+		"3D&&pos_cls" [label="p" shape=ellipse]
+		"3D&&source" [label="s" shape=box]
+		labeljust=r labelloc=b style=rounded
+	}
+	subgraph "clustersource_id (302) x observable (3)" {
+		"3D&&true" [label="t" shape=box]
+		labeljust=r labelloc=b style=rounded
+	}
+	subgraph cluster906 {
+		"3D&&obs" [label="o" shape=ellipse style=filled]
+		labeljust=r labelloc=b style=rounded
+	}
+	"3D&&centre" -> "3D&&loc"
+	"3D&&alpha_l" -> "3D&&pos_cls"
+	"3D&&std" -> "3D&&pos_cls"
+	"3D&&alpha_r" -> "3D&&pos_cls"
+	"3D&&weights" -> "3D&&pos_cls"
+	"3D&&beta_l" -> "3D&&pos_cls"
+	"3D&&beta_r" -> "3D&&pos_cls"
+	"3D&&pos_cls" -> "3D&&source"
+	"3D&&centre" -> "3D&&source"
+	"3D&&perezsala" -> "3D&&source"
+	"3D&&source" -> "3D&&true"
+	"3D&&true" -> "3D&&obs"
+}

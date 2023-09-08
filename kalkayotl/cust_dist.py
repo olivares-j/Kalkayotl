@@ -7,17 +7,21 @@ import pytensor
 import pytensor.tensor as tt
 import scipy as sp
 from pytensor.tensor import TensorVariable
+from pymc.math import logsumexp
 import arviz as az
 
 
 ################################## Tails Dist ####################################
-def tails_logp(value, mu, chol, weight, alpha,beta):
+def tails_logp(value, mu, chol, weight, alpha, beta):
     lp  = tt.zeros_like(value[:,0])
     x   = value[:,1] - mu[1]
     lp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol), value[:,::2])
-    ll  = pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=beta[0]), -x)
-    lr  = pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=beta[1]), x)
-    lp += tt.where(value[:,1] < mu[1], ll, lr)
+    # ll  = pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=beta[0]), -x)
+    # lr  = pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=beta[1]), x)
+    ll = tt.log(weight[0]) + pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=beta[0]), -x)
+    lr = tt.log(weight[1]) + pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=beta[1]), x)
+    lp += logsumexp(tt.stack([ll, lr]), axis=0)
+    # lp += tt.where(value[:,1] < mu[1], ll, lr)
     return lp
 
 def tails_random(mu, chol, weight, alpha, beta, rng=None, size=None):

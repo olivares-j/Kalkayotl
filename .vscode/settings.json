@@ -1,0 +1,7 @@
+{
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "jupyter.kernels.filter": [
+    ],
+    "python.venvPath":"~/anaconda3/envs"
+}

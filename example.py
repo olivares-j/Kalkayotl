@@ -24,16 +24,18 @@ os.environ["MKL_NUM_THREADS"] = "1" # Avoids overlapping of processes
 os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
+import datetime
 
 #----- Import the module -------------------------------
-# dir_kalkayotl  = "/home/minu99/Documentos/Github/Kalkayotl/" 
-dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
+dir_kalkayotl  = "/home/minu99/Documentos/GitHub/Kalkayotl/" 
+# dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
 sys.path.append(dir_kalkayotl)
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/" 
+#dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/" 
+dir_base = dir_kalkayotl+"article/v2.0/ComaBer/Core/" 
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs_sample.csv"
@@ -60,12 +62,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 2000
+tuning_iters = 2#000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 1000
+sample_iters = 5#1000
 
 
 #----- Target_accept-------
@@ -252,17 +254,20 @@ list_of_prior = [
 #======================= Inference and Analysis =====================================================
 
 #--------------------- Loop over prior types ------------------------------------
+current = datetime.datetime.now()
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}_{6}_test".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}_test".format(
 		dimension,
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
 		prior["velocity_model"],
-		tuning_iters,
-		target_accept)
+		f"{current.year}-{current.month}-{current.day}-{current.hour}-{current.minute}-{current.second}"
+		#tuning_iters,
+		#target_accept)
+		)
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -288,6 +293,11 @@ for prior in list_of_prior:
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"],
 			  )
+	# sys.exit()
+	# import pymc as pm		  
+	# gv = pm.model_to_graphviz(kal.Model)
+	# gv.format = 'png'
+	# gv.render(filename='model_graph')
 	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
@@ -320,7 +330,7 @@ for prior in list_of_prior:
 	#--------------------------------
 
 	#--- Plot model -- 
-	kal.plot_model()
+	#kal.plot_model()
 	# -----------------
 
 	#----- Compute and save the posterior statistics ---------
