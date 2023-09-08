@@ -7,6 +7,7 @@ import pytensor
 import pytensor.tensor as tt
 import scipy as sp
 from pytensor.tensor import TensorVariable
+from pymc.math import logsumexp
 import arviz as az
 
 
@@ -27,9 +28,9 @@ def cluster_logp(value, mu, chol_core,chol_tail_a,chol_tail_b,weights,alpha):
     lp += pm.logp(pm.MvNormal.dist(mu=mu, chol=chol_core), value)
     lp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tail_a[::2,::2]), value[:,::2])
     lp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tail_b[::2,::2]), value[:,::2])
-    lta  = pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=chol_tail_a[1,1]), -y)
-    ltb  = pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=chol_tail_b[1,1]),  y)
-    lp += tt.where(value[:,1] < mu[1], lta, ltb)
+    lta = tt.log(weights[1]) + pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=chol_tail_a[1,1]), -y)
+    ltb = tt.log(weights[2]) + pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=chol_tail_b[1,1]), y)
+    lp += logsumexp(tt.stack([lta, ltb]), axis=0)
     return lp
 
 def cluster_random(mu, chol_core, chol_tail_a,chol_tail_b, weights, alpha,rng=None, size=None):

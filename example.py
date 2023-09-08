@@ -24,16 +24,18 @@ os.environ["MKL_NUM_THREADS"] = "1" # Avoids overlapping of processes
 os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
+import datetime
 
 #----- Import the module -------------------------------
-# dir_kalkayotl  = "/home/minu99/Documentos/Github/Kalkayotl/" 
-dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
+dir_kalkayotl  = "/home/minu99/Documentos/GitHub/Kalkayotl/" 
+# dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
 sys.path.append(dir_kalkayotl)
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/" 
+#dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/" 
+dir_base = dir_kalkayotl+"article/v2.0/ComaBer/Core/" 
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs_sample.csv"
@@ -252,15 +254,18 @@ list_of_prior = [
 #======================= Inference and Analysis =====================================================
 
 #--------------------- Loop over prior types ------------------------------------
+current = datetime.datetime.now()
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_test".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}_test".format(
 		dimension,
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
-		prior["velocity_model"])
+		prior["velocity_model"],
+		f"{current.year}-{current.month}-{current.day}-{current.hour}-{current.minute}-{current.second}"
+		)
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
