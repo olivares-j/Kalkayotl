@@ -24,7 +24,7 @@ from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
 from kalkayotl.Rotations import cluster_to_galactic
-from kalkayotl.cust_dist import TailsDist, tails_logp, tails_random
+from kalkayotl.cust_dist import cluster_logp, cluster_random
 
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -1098,11 +1098,12 @@ class Model3D_tails(Model):
 		#-------------------------------------------------------------------------------
 
 		assert prior == "TGMM", "Model3D_tails only accepts the TGMM prior"
+		assert len(hyper_delta) == 3, "Model3D_tails only accepts three components"
 
 		print("Using {0} parametrization".format(parametrization))
 
 		#------------- Components -------------------------------------
-		n_components   = len(hyper_delta)
+		n_components   = 3
 		names_components = list(string.ascii_uppercase)[:n_components]
 		self.add_coord("component",values=names_components)
 		#--------------------------------------------------------------
@@ -1137,53 +1138,35 @@ class Model3D_tails(Model):
 		#----------------------------------------------------------------
 
 		#------------------ Covariance matrices ----------------------------
+		chol = pytensor.shared(np.zeros((n_components,dimension,dimension)))
 		corr = pytensor.shared(np.zeros((n_components,dimension,dimension)))
-		chol_0 = pytensor.shared(np.zeros((dimension,dimension)))
-		chol_1 = pytensor.shared(np.zeros((dimension-1,dimension-1)))
 
 		if parameters["scale"] is None:
 			stds = pm.Gamma("std",
 						alpha=2.0,
 						beta=1.0/hyper_beta,
-						dims=("component","coordinate"))
-
-			# tensor like indentity, exept that the diagonal is sd_dist
-			chol_0 = tt.eye(3) * stds[0]
-			corri_0 = tt.eye(3)
-			corr  = tt.set_subtensor(corr[0],corri_0)
-			chol_1 = tt.eye(2) * stds[1,::2]
-			corri_1 = tt.eye(3)
-			corr  = tt.set_subtensor(corr[1],corri_1)
-
+						shape=(n_components,dimension),
+						dims=("component","coordinate")
+						)
+			for i,name in enumerate(names_components):
+				chol_i = np.eye(3)*stds[i]
+				corr_i = np.eye(3)
+				chol = tt.set_subtensor(chol[i],chol_i)
+				corr = tt.set_subtensor(corr[i],corr_i)
 		else:
-			chol_0 = np.linalg.cholesky(parameters["scale"][0])
-			cov = np.dot(chol_0, chol_0.T)
-			stds_0 = np.sqrt(np.diag(cov))
-			inv_stds = 1. / stds_0
-			corr_0 = inv_stds[None, :] * cov * inv_stds[:, None]
-			corr = tt.set_subtensor(corr[0],corr_0)
-			stds = tt.set_subtensor(stds[0],stds_0)
+			stds = pytensor.shared(np.zeros((n_components,dimension)))
+			for i,name in enumerate(names_components):
+				#--------- Extract ---------------------------------
+				chol_i = np.linalg.cholesky(parameters["scale"][i])
+				cov = np.dot(chol_i, chol_i.T)
+				stds_i = np.sqrt(np.diag(cov))
+				inv_stds = 1. / stds_i
+				corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				#---------------------------------------------------
 
-			chol_1 = np.linalg.cholesky(parameters["scale"][0])
-			cov = np.dot(chol_1, chol_1.T)
-			stds_1 = np.sqrt(np.diag(cov))
-			inv_stds = 1. / stds_1
-			corr_1 = inv_stds[None, :] * cov * inv_stds[:, None]
-			corr = tt.set_subtensor(corr[1],corr_1)
-			stds = tt.set_subtensor(stds[1],stds_1)
-
-			# for i,name in enumerate(names_components):
-			# 	#--------- Extract ---------------------------------
-			# 	chol_i = np.linalg.cholesky(parameters["scale"][i])
-			# 	cov = np.dot(chol_i, chol_i.T)
-			# 	stds_i = np.sqrt(np.diag(cov))
-			# 	inv_stds = 1. / stds_i
-			# 	corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
-			# 	#---------------------------------------------------
-
-			# 	chol = tt.set_subtensor(chol[i],chol_i)
-			# 	corr = tt.set_subtensor(corr[i],corr_i)
-			# 	stds = tt.set_subtensor(stds[i],stds_i)
+				chol = tt.set_subtensor(chol[i],chol_i)
+				corr = tt.set_subtensor(corr[i],corr_i)
+				stds = tt.set_subtensor(stds[i],stds_i)
 
 			stds = pm.Deterministic("std", stds,
 						dims=("component","coordinate"))
@@ -1193,32 +1176,24 @@ class Model3D_tails(Model):
 
 		#------------ Weights -----------------------------------------
 		if parameters["weights"] is None:
-			weights = pm.Dirichlet("weights",a=hyper_delta)
+			weights = pm.Dirichlet("weights",a=hyper_delta,dims="component")
 		else:
 			weights = pm.Deterministic("weights",parameters["weights"])
 		#--------------------------------------------------------------
 
 		#------------ Tails params ------------------------------------
-		alpha = pm.Uniform("alpha", lower=0.0,upper=5.0,shape=2)
-		beta  = pm.Uniform("beta", lower=0.0,upper=10.0,shape=2)
-		weight_tails = pm.Dirichlet("weights_tails",a=[10,10])
+		alpha = pm.Uniform("alpha", lower=1.0,upper=5.0,shape=2)
+		# Beta is now the Y component of the cholesky matrices
 		#--------------------------------------------------------------
-		print(alpha.eval())
-		print(beta.eval())
-		print(weight_tails.eval())
-		# sys.exit()
-		
-		#-------------------------- True values -------------------------------------
-		# comps = [pm.MvNormal.dist(mu=tt.zeros(3),chol=chol_0), TailsDist.dist(name="TailsDist", mu=tt.zeros(3), chol=chol_1, weight=weight_tails, alpha_l=alpha_l, alpha_r=alpha_r, beta_l=beta_l, beta_r=beta_r)]
-		# pos_cls = pm.Mixture("pos_cls",w=weights,comp_dists=comps,
-		# 			shape=(n_sources,dimension),
-		# 			dims=("source_id","coordinate"))
-		#pos_cls = pm.MvNormal("pos_cls",mu=tt.zeros(3),chol=chol_0, shape=(n_sources,dimension), dims=("source_id","coordinate"))
-		pos_cls = pm.CustomDist("pos_cls", tt.zeros(3), chol_1, weight_tails, alpha, beta, logp=tails_logp, random=tails_random, shape=(n_sources,dimension), dims=("source_id","coordinate"))
 
-		# source = pm.Mixture("source",w=weights,comp_dists=comps,
-		# 			shape=(n_sources,dimension),
-		# 			dims=("source_id","coordinate"))
+		#-------------------------- True values -------------------------------------
+		pos_cls = pm.CustomDist("pos_cls", tt.zeros(3), chol[0],chol[1],chol[2],
+				weights,alpha,
+				logp=cluster_logp, 
+				random=cluster_random, 
+				shape=(n_sources,dimension), 
+				dims=("source_id","coordinate")
+				)
 		#----------------------------------------------------------------------------
 
 		#----------------------- Transformations---------------------------------------

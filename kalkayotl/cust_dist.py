@@ -11,38 +11,87 @@ import arviz as az
 
 
 ################################## Tails Dist ####################################
-def tails_logp(value, mu, chol, weight, alpha,beta):
+# def tails_dist(
+#     mu:TensorVariable,
+#     chol:TensorVariable,
+#     weight:TensorVariable,
+#     alpha:TensorVariable,
+#     beta:TensorVariable
+#     )->TensorVariable:
+#     # This must be constructed from simpler PYMC distributions
+
+
+def cluster_logp(value, mu, chol_core,chol_tail_a,chol_tail_b,weights,alpha):
     lp  = tt.zeros_like(value[:,0])
-    x   = value[:,1] - mu[1]
-    lp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol), value[:,::2])
-    ll  = pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=beta[0]), -x)
-    lr  = pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=beta[1]), x)
-    lp += tt.where(value[:,1] < mu[1], ll, lr)
+    y   = value[:,1] - mu[1]
+    lp += pm.logp(pm.MvNormal.dist(mu=mu, chol=chol_core), value)
+    lp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tail_a[::2,::2]), value[:,::2])
+    lp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tail_b[::2,::2]), value[:,::2])
+    lta  = pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=chol_tail_a[1,1]), -y)
+    ltb  = pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=chol_tail_b[1,1]),  y)
+    lp += tt.where(value[:,1] < mu[1], lta, ltb)
     return lp
 
-def tails_random(mu, chol, weight, alpha, beta, rng=None, size=None):
+def cluster_random(mu, chol_core, chol_tail_a,chol_tail_b, weights, alpha,rng=None, size=None):
     size = list(size)
-    res = tt.zeros(size)
-    res_xz = rng.multivariate_normal(mean=mu[::2], cov=np.dot(chol,chol.T), size=size[0])
-    res = tt.set_subtensor(res[:,0], res_xz[:,0])
-    res = tt.set_subtensor(res[:,2], res_xz[:,1])
-    size_y_l = size[0]
-    size_y_r = size[0]
-    size_y_l = int(weight*size_y_l)
-    size_y_r = int(size[0]-size_y_l)
-    left_res = mu[1] - rng.gamma(shape=alpha[0], scale=1/beta[0], size=size_y_l)
-    right_res = mu[1] + rng.gamma(shape=alpha[1], scale=1/beta[1], size=size_y_r)
-    res_y = tt.concatenate([left_res, right_res],axis=0)
-    res = tt.set_subtensor(res[:,1], res_y)
-    # res = rng.multivariate_normal(mean=mu, cov=np.dot(chol,chol.T), size=size[0])
-    return res
+    #--------- Numbers ------------
+    n_ta = int(weights[1]*size[0])
+    n_tb = int(weights[2]*size[0])
+    n_cr = size[0] - (n_ta+n_tb)
+    #------------------------------
+
+    #----------------- Covariances --------------------------------
+    cov_cr = np.dot(chol_core,chol_core.T)
+    cov_ta = np.dot(chol_tail_a[::2,::2],chol_tail_a[::2,::2].T)
+    cov_tb = np.dot(chol_tail_b[::2,::2],chol_tail_b[::2,::2].T)
+    #--------------------------------------------------------------
+    
+    xyz_ta = np.zeros((n_ta,size[1]))
+    xyz_tb = np.zeros((n_tb,size[1]))
+    xyz_cr = rng.multivariate_normal(mean=mu,cov=cov_cr,size=n_cr)
+    xyz_ta[:,::2] = rng.multivariate_normal(mean=mu[::2], cov=cov_ta, size=n_ta)
+    xyz_tb[:,::2] = rng.multivariate_normal(mean=mu[::2], cov=cov_tb, size=n_tb)
+    xyz_ta[:,1] = mu[1] - rng.gamma(shape=alpha[0], scale=chol_tail_a[1,1], size=n_ta)
+    xyz_tb[:,1] = mu[1] + rng.gamma(shape=alpha[1], scale=chol_tail_b[1,1], size=n_tb)
+    
+    xyz = np.concatenate((xyz_cr,xyz_ta,xyz_tb),axis=0)
+    return xyz
+
+# def tails_logp(value, mu, chol, weight, alpha,beta):
+#     lp  = tt.zeros_like(value[:,0])
+#     x   = value[:,1] - mu[1]
+#     lp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol), value[:,::2])
+#     ll  = pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=beta[0]), -x)
+#     lr  = pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=beta[1]), x)
+#     lp += tt.where(value[:,1] < mu[1], ll, lr)
+#     return lp
+
+# def tails_random(mu, chol, weight, alpha, beta, rng=None, size=None):
+#     size = list(size)
+#     res_xz = rng.multivariate_normal(mean=mu[::2], cov=np.dot(chol,chol.T), size=size[0])
+#     size_y_l = int(weight[0]*size[0])
+#     size_y_r = int(size[0]-size_y_l)
+#     left_res  = mu[1] - rng.gamma(shape=alpha[0], scale=1/beta[0], size=size_y_l)
+#     right_res = mu[1] + rng.gamma(shape=alpha[1], scale=1/beta[1], size=size_y_r)
+#     res_y = np.concatenate((left_res, right_res),axis=0)
+
+#     res = np.zeros(size)
+#     res[:,0] = res_xz[:,0]
+#     res[:,1] = res_y
+#     res[:,2] = res_xz[:,1]
+#     return res
+    # res = tt.zeros(size)
+    # res = tt.set_subtensor(res[:,0], res_xz[:,0])
+    # res = tt.set_subtensor(res[:,1], res_y)
+    # res = tt.set_subtensor(res[:,2], res_xz[:,1])
+    # return res
 
 class TailsDist():
-    def __init__(self, name, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, *args, **kwargs):
-        pm.CustomDist.__init__(name, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, *args, **kwargs)
+    def __init__(self, name, mu, chol, weight, alpha, beta, *args, **kwargs):
+        pm.CustomDist.__init__(name, mu, chol, weight, alpha,  beta, logp=tails_logp, random=tails_random, *args, **kwargs)
     
-    def dist(name, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, *args, **kwargs):
-        return pm.CustomDist.dist(mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r, logp=tails_logp, random=tails_random, class_name=name, *args, **kwargs)
+    def dist(name, mu, chol, weight, alpha, beta, *args, **kwargs):
+        return pm.CustomDist.dist(mu, chol, weight, alpha, beta, logp=tails_logp, random=tails_random, class_name=name, *args, **kwargs)
         
 
 def np_tails_logp(value, mu, chol, weight, alpha_l, alpha_r, beta_l, beta_r):

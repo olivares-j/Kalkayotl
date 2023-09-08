@@ -241,9 +241,9 @@ list_of_prior = [
 		"hyper_parameters":{
 							"alpha":None,
 							"beta":None, 
-							"delta":np.repeat(1,2),
+							"delta":np.repeat(1,3),
 							"eta":None,
-							"n_components":2
+							"n_components":3
 							},
 		"parametrization":"central",
 		"velocity_model":"joint"},
@@ -255,14 +255,12 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}_{6}_test".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_test".format(
 		dimension,
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
-		prior["velocity_model"],
-		tuning_iters,
-		target_accept)
+		prior["velocity_model"])
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -296,10 +294,10 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e4),
+			init_iters=int(1e5),
 			nuts_sampler=nuts_sampler,
 			posterior_predictive=False,
-			prior_predictive=False)
+			prior_predictive=True)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
