@@ -33,10 +33,10 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/" 
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core+Tails/" 
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members+rvs_sample.csv"
+file_data = dir_base + "members+rvs.csv"
 file_parameters = None
 #----------------------------------------------------------------------------
 
@@ -60,12 +60,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 2000
+tuning_iters = 200
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 1000
+sample_iters = 100
 
 
 #----- Target_accept-------
@@ -255,7 +255,7 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_test".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}".format(
 		dimension,
 		prior["type"],
 		reference_system,
@@ -278,7 +278,7 @@ for prior in list_of_prior:
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	kal.load_data(file_data,radec_precision_arcsec=5.*60.)
+	kal.load_data(file_data)
 
 	#------ Prepares the model -------------------
 	kal.setup(prior=prior["type"],
@@ -294,9 +294,8 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e5),
+			init_iters=int(1e6),
 			nuts_sampler=nuts_sampler,
-			posterior_predictive=False,
 			prior_predictive=True)
 	#-------------------------------------
 

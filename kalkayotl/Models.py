@@ -23,9 +23,10 @@ import string
 from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
+
+# from kalkayotl.Priors import EDSD,EFF,King,GGD
 from kalkayotl.Rotations import cluster_to_galactic
 from kalkayotl.cust_dist import cluster_logp, cluster_random
-
 ################################## Model 1D ####################################
 class Model1D(Model):
 	'''
@@ -85,6 +86,9 @@ class Model1D(Model):
 								sigma=hyper_alpha["scl"],
 								shape=(n_components,dimension),
 								dims=("component","coordinate"))
+				elif prior == "GGD":
+					alpha = pm.Uniform("alpha",lower=0.0,upper=100.,initval=hyper_alpha)
+					beta = pm.Uniform("beta",lower=-1.0,upper=99.,initval=hyper_gamma)
 				else:
 					#-------------- Repeat same location --------------
 					loc_i = pm.Normal("centre",
@@ -122,7 +126,7 @@ class Model1D(Model):
 			elif parameters["scale"] is None and prior == "FGMM":
 				stds = pytensor.shared(np.zeros((n_components,dimension)))
 
-				stds_i = pm.Gamma("stds_cls",
+				stds_i = pm.Gamma("sds_cls",
 							alpha=2.0,
 							beta=1./hyper_beta,
 							shape=(n_components-1,dimension))
@@ -166,7 +170,8 @@ class Model1D(Model):
 							alpha=2.0,
 							beta=1./hyper_beta,
 							shape=dimension,
-							dims="coordinate")
+							dims="coordinate",
+							initval=[200.])
 			else:
 				std = pm.Deterministic("std",
 						pytensor.shared(parameters["scale"]),
@@ -243,6 +248,10 @@ class Model1D(Model):
 			
 		# elif prior == "EDSD":
 		# 	source = EDSD("source",scale=std,
+		# 							shape=(n_sources,dimension),
+		# 							dims=("source_id","coordinate"))
+		# elif prior == "GGD": #NOTE: hyper_beta goes to the scale parameter, so alpha=hyper_alpha, beta=hyper_gamma
+		# 	source = GGD("source",scale=std,alpha=alpha,beta=beta,
 		# 							shape=(n_sources,dimension),
 		# 							dims=("source_id","coordinate"))
 
@@ -1061,7 +1070,6 @@ class Model6D_linear(Model):
 		pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
 					tau=tau_data,observed=mu_data)
 		#-------------------------------------------------------------------------
-
 
 class Model3D_tails(Model):
 	'''
