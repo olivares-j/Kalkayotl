@@ -22,18 +22,37 @@ import arviz as az
 #     # This must be constructed from simpler PYMC distributions
 
 
-def cluster_logp(value, mu, chol_core,chol_tail_a,chol_tail_b,weights,alpha):
-    lp  = tt.zeros_like(value[:,0])
-    y   = value[:,1] - mu[1]
-    lp += pm.logp(pm.MvNormal.dist(mu=mu, chol=chol_core), value)
-    lp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tail_a[::2,::2]), value[:,::2])
-    lp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tail_b[::2,::2]), value[:,::2])
-    lta = tt.log(weights[1]) + pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=chol_tail_a[1,1]), -y)
-    ltb = tt.log(weights[2]) + pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=chol_tail_b[1,1]), y)
-    lp += logsumexp(tt.stack([lta, ltb]), axis=0)
+def cluster_logp(
+    value:TensorVariable,   # Value where the logp will be computed
+    mu:TensorVariable,      # Central cluster position
+    chol_cr:TensorVariable, # Cholesky decomposition of central covariance
+    chol_ta:TensorVariable, # Cholesky decomposition of tail A
+    chol_tb:TensorVariable, # Cholesky decomposition of tail B
+    weights:TensorVariable, # Weights of the three components
+    alpha:TensorVariable    # Parameter of Gamma distribution
+    ):#->TensorVariable:
+        # Auxiliar Y variable
+    y = value[:,1] - mu[1]
+
+    # ---------------- Logp -----------------------------------------------------------
+    lp_cr  = tt.log(weights[0]) + pm.logp(pm.MvNormal.dist(mu=mu, chol=chol_cr), value)
+    lp_ta  = tt.log(weights[1]) + pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=chol_ta[1,1]), -y)
+    lp_tb  = tt.log(weights[2]) + pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=chol_tb[1,1]),  y)
+    lp_ta += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_ta[::2,::2]), value[:,::2])
+    lp_tb += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tb[::2,::2]), value[:,::2])
+    lp     = pm.logsumexp(tt.stack([lp_cr,lp_ta,lp_tb]), axis=0)
     return lp
 
-def cluster_random(mu, chol_core, chol_tail_a,chol_tail_b, weights, alpha,rng=None, size=None):
+def cluster_random(
+    mu,         # Central cluster position
+    chol_cr,    # Cholesky decomposition of central covariance
+    chol_ta,    # Cholesky decomposition of tail A
+    chol_tb,    # Cholesky decomposition of tail B
+    weights,    # Weights of the three components 
+    alpha,      # Parameter of Gamma distribution
+    rng=None,   # Random generator 
+    size=None   # Size of the sample
+    ): 
     size = list(size)
     #--------- Numbers ------------
     n_ta = int(weights[1]*size[0])
@@ -42,9 +61,9 @@ def cluster_random(mu, chol_core, chol_tail_a,chol_tail_b, weights, alpha,rng=No
     #------------------------------
 
     #----------------- Covariances --------------------------------
-    cov_cr = np.dot(chol_core,chol_core.T)
-    cov_ta = np.dot(chol_tail_a[::2,::2],chol_tail_a[::2,::2].T)
-    cov_tb = np.dot(chol_tail_b[::2,::2],chol_tail_b[::2,::2].T)
+    cov_cr = np.dot(chol_cr,chol_cr.T)
+    cov_ta = np.dot(chol_ta[::2,::2],chol_ta[::2,::2].T)
+    cov_tb = np.dot(chol_tb[::2,::2],chol_tb[::2,::2].T)
     #--------------------------------------------------------------
     
     xyz_ta = np.zeros((n_ta,size[1]))
@@ -52,8 +71,8 @@ def cluster_random(mu, chol_core, chol_tail_a,chol_tail_b, weights, alpha,rng=No
     xyz_cr = rng.multivariate_normal(mean=mu,cov=cov_cr,size=n_cr)
     xyz_ta[:,::2] = rng.multivariate_normal(mean=mu[::2], cov=cov_ta, size=n_ta)
     xyz_tb[:,::2] = rng.multivariate_normal(mean=mu[::2], cov=cov_tb, size=n_tb)
-    xyz_ta[:,1] = mu[1] - rng.gamma(shape=alpha[0], scale=chol_tail_a[1,1], size=n_ta)
-    xyz_tb[:,1] = mu[1] + rng.gamma(shape=alpha[1], scale=chol_tail_b[1,1], size=n_tb)
+    xyz_ta[:,1] = mu[1] - rng.gamma(shape=alpha[0], scale=chol_ta[1,1], size=n_ta)
+    xyz_tb[:,1] = mu[1] + rng.gamma(shape=alpha[1], scale=chol_tb[1,1], size=n_tb)
     
     xyz = np.concatenate((xyz_cr,xyz_ta,xyz_tb),axis=0)
     return xyz

@@ -38,7 +38,8 @@ from kalkayotl.inference import Inference
 dir_base = dir_kalkayotl+"article/v2.0/ComaBer/Core/" 
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members+rvs_sample.csv"
+#file_data = dir_base + "members+rvs_sample.csv"
+file_data = dir_base + "members+rvs.csv"
 file_parameters = None
 #----------------------------------------------------------------------------
 
@@ -258,7 +259,7 @@ current = datetime.datetime.now()
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}_test".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}".format(
 		dimension,
 		prior["type"],
 		reference_system,
@@ -299,9 +300,8 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e5),
+			init_iters=int(1e6),
 			nuts_sampler=nuts_sampler,
-			posterior_predictive=False,
 			prior_predictive=True)
 	#-------------------------------------
 
