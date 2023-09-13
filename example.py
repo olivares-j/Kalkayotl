@@ -36,7 +36,7 @@ from kalkayotl.inference import Inference
 dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core+Tails/" 
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members+rvs.csv"
+file_data = dir_base + "members+rvs_sample.csv"
 file_parameters = None
 #----------------------------------------------------------------------------
 
@@ -60,19 +60,19 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 200
+tuning_iters = 2000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 100
+sample_iters = 1000
 
 
 #----- Target_accept-------
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
 # Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
 # of the sampler but increases the computing time.
-target_accept = 0.95
+target_accept = 0.65
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------
@@ -234,14 +234,15 @@ list_of_prior = [
 	# 						},
 	# 	"parametrization":"central"},
 	{"type":"TGMM",      
-		"parameters":{"location":None,
-					  "scale":None,
-					  "weights":None
+		"parameters":{"location":None,#[np.array([0,0,86.]),np.array([0,0,86.]),np.array([0,0,86.])],
+					  "scale":None,#[np.array([[100,0,0],[0,100,0],[0,0,100]]),np.array([[100,0,0],[0,100,0],[0,0,100]]),np.array([[100,0,0],[0,10,0],[0,0,100]])],
+					  "weights":np.array([0.2,0.4,0.4]),
+					  "alpha":1.0
 					  },
 		"hyper_parameters":{
 							"alpha":None,
-							"beta":None, 
-							"delta":np.repeat(1,3),
+							"beta":None,
+							"delta":np.array([40,30,30]),
 							"eta":None,
 							"n_components":3
 							},
@@ -255,7 +256,7 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_test".format(
 		dimension,
 		prior["type"],
 		reference_system,
@@ -294,7 +295,7 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e6),
+			init_iters=int(1e5),
 			nuts_sampler=nuts_sampler,
 			prior_predictive=True)
 	#-------------------------------------
@@ -323,7 +324,7 @@ for prior in list_of_prior:
 	#----- Compute and save the posterior statistics ---------
 	kal.save_statistics(hdi_prob=hdi_prob)
 
-	# kal.save_posterior_predictive()
+	kal.save_posterior_predictive()
 
 	#------- Save the samples into HDF5 file --------------
 	kal.save_samples()

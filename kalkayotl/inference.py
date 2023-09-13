@@ -997,7 +997,7 @@ class Inference:
 					target_accept=target_accept,
 					discard_tuned_samples=True,
 					return_inferencedata=True,
-					nuts_sampler_kwargs={"step_size":step_size},
+					#nuts_sampler_kwargs={"step_size":step_size},
 					model=self.Model
 					)
 				#--------------------------------
@@ -1495,13 +1495,30 @@ class Inference:
 				for i,src in enumerate(srcs):
 					for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
 						for k,(amp,loc,scl) in enumerate(zip(amps,locs,np.sqrt(covs))):
-							log_lk[i,j,k] = st.norm.logpdf(dt,loc=loc,scale=scl)
+							log_lk[i,j,k]  = st.norm.logpdf(dt,loc=loc,scale=scl)
+							log_lk[i,j,k] += np.log(amp)
 			else:
-				for i,src in enumerate(srcs):
-					for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
-						for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
-							log_lk[i,j,k] = st.multivariate_normal(mean=loc,cov=cov,
-												allow_singular=True).logpdf(dt)
+				if self.prior == "TGMM":
+					for i,src in enumerate(srcs):
+						for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
+							for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
+								if k == 0:
+									log_lk[i,j,k]  = st.multivariate_normal(mean=loc,cov=cov,
+														allow_singular=True).logpdf(dt)
+								else:
+									log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
+														cov=cov[::2,::2],
+														allow_singular=True).logpdf(dt[::2])
+									log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(dt[1])
+
+								log_lk[i,j,k] += np.log(amp)
+				else:
+					for i,src in enumerate(srcs):
+						for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
+							for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
+								log_lk[i,j,k]  = st.multivariate_normal(mean=loc,cov=cov,
+													allow_singular=True).logpdf(dt)
+								log_lk[i,j,k] += np.log(amp)
 
 			idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
 
@@ -2224,6 +2241,47 @@ class Inference:
 
 		#--------- Save H5 samples ---------------------------
 		df.to_hdf(file_base + ".h5",key="posterior_predictive")
+		#-----------------------------------------------------
+
+		#---------- Groupby source id ------------------------
+		dfg = df.groupby("source_id")
+
+		dfs = []
+		for name, df in dfg.__iter__():
+			tmp = pn.merge(
+						left=df.mean(axis=0).to_frame().T,
+						right=df.std(axis=0).to_frame().T,
+						left_index=True,right_index=True,
+						suffixes=("","_error")).set_index(
+						np.array(name).reshape(1)).rename_axis(
+						index="source_id")
+			dfs.append(tmp)
+		df = pn.concat(dfs,axis=0,ignore_index=False)
+		#-------------------------------------------------------
+		
+		#------------ Save to CSV ---------------
+		df.to_csv(file_base + ".csv",index=True)
+		#-----------------------------------------
+
+	def save_prior_predictive(self,
+		file_prior=None):
+		var_name = str(self.D)+"D::true"
+
+		file_prior = self.file_prior if (file_prior is None) else file_prior
+		file_base = self.dir_out+"/prior_predictive"
+
+		#--------------- Extract observables -----------------------------------------------
+		dfg = self.trace.prior[var_name].to_dataframe().groupby("observable")
+		dfs = []
+		for obs,df in dfg.__iter__():
+			df.reset_index("observable",drop=True,inplace=True)
+			df.rename(columns={var_name:obs},inplace=True)
+			dfs.append(df)
+		df = pn.concat(dfs,axis=1,ignore_index=False)
+		#-----------------------------------------------------------------------------------
+
+		#--------- Save H5 samples ---------------------------
+		df.to_hdf(file_base + ".h5",key="prior_predictive")
 		#-----------------------------------------------------
 
 		#---------- Groupby source id ------------------------
