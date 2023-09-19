@@ -148,8 +148,8 @@ for distance in list_of_distances:
 				int(distance),
 				seed)
 
-			if os.path.isfile(dir_case+"/Chains.nc"):
-				continue
+			# if os.path.isfile(dir_case+"/Chains.nc"):
+			# 	continue
 
 			os.makedirs(dir_case,exist_ok=True)
 
