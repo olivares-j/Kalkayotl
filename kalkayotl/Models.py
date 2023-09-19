@@ -1115,7 +1115,7 @@ class Model3D_tails(Model):
 		#--------------------------------------------------------------
 
 		#--------- Rotation parameters -------------------------------
-		perezsala = pm.Uniform("perezsala",lower=0, upper=1,shape=3)
+		perezsala = np.zeros(3)#pm.Uniform("perezsala",lower=0, upper=1,shape=3)
 		#-------------------------------------------------------------
 
 		#----------- Location ------------------------------------------
@@ -1163,8 +1163,8 @@ class Model3D_tails(Model):
 			stds = pytensor.shared(np.zeros((n_components,dimension)))
 			for i,name in enumerate(names_components):
 				#--------- Extract ---------------------------------
-				chol_i = np.linalg.cholesky(parameters["scale"][i])
-				cov = np.dot(chol_i, chol_i.T)
+				cov = parameters["scale"][i]
+				chol_i = np.linalg.cholesky(cov)
 				stds_i = np.sqrt(np.diag(cov))
 				inv_stds = 1. / stds_i
 				corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
@@ -1184,28 +1184,35 @@ class Model3D_tails(Model):
 		if parameters["weights"] is None:
 			weights = pm.Dirichlet("weights",a=hyper_delta,dims="component")
 		else:
-			weights = pm.Deterministic("weights",parameters["weights"])
+			weights = pm.Deterministic("weights",pytensor.shared(parameters["weights"]),dims="component")
 		#--------------------------------------------------------------
 
 		#------------ Tails params ------------------------------------
 		alpha = pm.Uniform("alpha", lower=1.0,upper=5.0,shape=2)
+		if parameters["alpha"] is None:
+			hn = pm.HalfNormal("hn", sigma=10)
+			alpha = pm.Deterministic("alpha", 1.0+hn)
+		else:
+			alpha = pm.Deterministic("alpha", pytensor.shared(parameters["alpha"]))
 		# Beta is now the Y component of the cholesky matrices
 		#--------------------------------------------------------------
 
 		#-------------------------- True values -------------------------------------
-		pos_cls = pm.CustomDist("pos_cls", tt.zeros(3), chol[0],chol[1],chol[2],
-				weights,alpha,
+		source = pm.CustomDist("source", loc[0], chol[0],chol[1],chol[2],
+				weights,
+				alpha,
 				logp=cluster_logp, 
 				random=cluster_random, 
 				shape=(n_sources,dimension), 
 				dims=("source_id","coordinate")
 				)
+		pos_cls = pm.Deterministic("pos_cls", source-loc[0])
 		#----------------------------------------------------------------------------
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		source = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala, self.centre),
-										dims=("source_id","coordinate"))
+		# = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala, self.centre),
+		#								dims=("source_id","coordinate"))
 
 		true = pm.Deterministic("true",transformation(source),
 										dims=("source_id","observable"))

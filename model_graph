@@ -1,0 +1,65 @@
+digraph "3D" {
+	subgraph cluster3 {
+		"3D&&perezsala" [label="3D::perezsala
+~
+Uniform" shape=ellipse]
+		"3D&&centre" [label="3D::centre
+~
+Normal" shape=ellipse]
+		label=3 labeljust=r labelloc=b style=rounded
+	}
+	subgraph "clustercomponent (3) x coordinate (3)" {
+		"3D&&std" [label="3D::std
+~
+Gamma" shape=ellipse]
+		"3D&&corr" [label="3D::corr
+~
+Deterministic" shape=box]
+		"3D&&loc" [label="3D::loc
+~
+Deterministic" shape=box]
+		label="component (3) x coordinate (3)" labeljust=r labelloc=b style=rounded
+	}
+	subgraph "clustercomponent (3)" {
+		"3D&&weights" [label="3D::weights
+~
+Dirichlet" shape=ellipse]
+		label="component (3)" labeljust=r labelloc=b style=rounded
+	}
+	subgraph cluster2 {
+		"3D&&alpha" [label="3D::alpha
+~
+Uniform" shape=ellipse]
+		label=2 labeljust=r labelloc=b style=rounded
+	}
+	subgraph "clustersource_id (302) x coordinate (3)" {
+		"3D&&source" [label="3D::source
+~
+Deterministic" shape=box]
+		"3D&&pos_cls" [label="3D::pos_cls
+~
+CustomDist_pos_cls" shape=ellipse]
+		label="source_id (302) x coordinate (3)" labeljust=r labelloc=b style=rounded
+	}
+	subgraph "clustersource_id (302) x observable (3)" {
+		"3D&&true" [label="3D::true
+~
+Deterministic" shape=box]
+		label="source_id (302) x observable (3)" labeljust=r labelloc=b style=rounded
+	}
+	subgraph cluster906 {
+		"3D&&obs" [label="3D::obs
+~
+MvNormal" shape=ellipse style=filled]
+		label=906 labeljust=r labelloc=b style=rounded
+	}
+	"3D&&centre" -> "3D&&loc"
+	"3D&&alpha" -> "3D&&pos_cls"
+	"3D&&std" -> "3D&&pos_cls"
+	"3D&&weights" -> "3D&&pos_cls"
+	"3D&&pos_cls" -> "3D&&source"
+	"3D&&perezsala" -> "3D&&source"
+	"3D&&centre" -> "3D&&source"
+	"3D&&source" -> "3D&&true"
+	"3D&&true" -> "3D&&obs"
+}

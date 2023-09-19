@@ -12,16 +12,6 @@ import arviz as az
 
 
 ################################## Tails Dist ####################################
-# def tails_dist(
-#     mu:TensorVariable,
-#     chol:TensorVariable,
-#     weight:TensorVariable,
-#     alpha:TensorVariable,
-#     beta:TensorVariable
-#     )->TensorVariable:
-#     # This must be constructed from simpler PYMC distributions
-
-
 def cluster_logp(
     value:TensorVariable,   # Value where the logp will be computed
     mu:TensorVariable,      # Central cluster position
@@ -30,24 +20,25 @@ def cluster_logp(
     chol_tb:TensorVariable, # Cholesky decomposition of tail B
     weights:TensorVariable, # Weights of the three components
     alpha:TensorVariable    # Parameter of Gamma distribution
-    ):#->TensorVariable:
-        # Auxiliar Y variable
+    )->TensorVariable:
+
+    # Auxiliar Y variable
     y = value[:,1] - mu[1]
 
     # ---------------- Logp -----------------------------------------------------------
     lp_cr  = tt.log(weights[0]) + pm.logp(pm.MvNormal.dist(mu=mu, chol=chol_cr), value)
-    lp_ta  = tt.log(weights[1]) + pm.logp(pm.Gamma.dist(alpha=alpha[0], beta=chol_ta[1,1]), -y)
-    lp_tb  = tt.log(weights[2]) + pm.logp(pm.Gamma.dist(alpha=alpha[1], beta=chol_tb[1,1]),  y)
-    lp_ta += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_ta[::2,::2]), value[:,::2])
-    lp_tb += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tb[::2,::2]), value[:,::2])
-    lp     = pm.logsumexp(tt.stack([lp_cr,lp_ta,lp_tb]), axis=0)
+    lp_tn  = tt.log(weights[1]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tn[1,1]), -y)
+    lp_tp  = tt.log(weights[2]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tp[1,1]),  y)
+    lp_tn += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tn[::2,::2]), value[:,::2])
+    lp_tp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tp[::2,::2]), value[:,::2])
+    lp     = pm.logsumexp(tt.stack([lp_cr,lp_tn,lp_tp]), axis=0)
     return lp
 
 def cluster_random(
     mu,         # Central cluster position
     chol_cr,    # Cholesky decomposition of central covariance
-    chol_ta,    # Cholesky decomposition of tail A
-    chol_tb,    # Cholesky decomposition of tail B
+    chol_tn,    # Cholesky decomposition of tail Negative
+    chol_tp,    # Cholesky decomposition of tail Positive
     weights,    # Weights of the three components 
     alpha,      # Parameter of Gamma distribution
     rng=None,   # Random generator 
@@ -55,26 +46,26 @@ def cluster_random(
     ): 
     size = list(size)
     #--------- Numbers ------------
-    n_ta = int(weights[1]*size[0])
-    n_tb = int(weights[2]*size[0])
-    n_cr = size[0] - (n_ta+n_tb)
+    n_tn = int(weights[1]*size[0])
+    n_tp = int(weights[2]*size[0])
+    n_cr = size[0] - (n_tn+n_tp)
     #------------------------------
 
     #----------------- Covariances --------------------------------
     cov_cr = np.dot(chol_cr,chol_cr.T)
-    cov_ta = np.dot(chol_ta[::2,::2],chol_ta[::2,::2].T)
-    cov_tb = np.dot(chol_tb[::2,::2],chol_tb[::2,::2].T)
+    cov_tn = np.dot(chol_tn[::2,::2],chol_tn[::2,::2].T)
+    cov_tp = np.dot(chol_tp[::2,::2],chol_tp[::2,::2].T)
     #--------------------------------------------------------------
     
-    xyz_ta = np.zeros((n_ta,size[1]))
-    xyz_tb = np.zeros((n_tb,size[1]))
-    xyz_cr = rng.multivariate_normal(mean=mu,cov=cov_cr,size=n_cr)
-    xyz_ta[:,::2] = rng.multivariate_normal(mean=mu[::2], cov=cov_ta, size=n_ta)
-    xyz_tb[:,::2] = rng.multivariate_normal(mean=mu[::2], cov=cov_tb, size=n_tb)
-    xyz_ta[:,1] = mu[1] - rng.gamma(shape=alpha[0], scale=chol_ta[1,1], size=n_ta)
-    xyz_tb[:,1] = mu[1] + rng.gamma(shape=alpha[1], scale=chol_tb[1,1], size=n_tb)
+    xyz_tn = np.zeros((n_tn,size[1]))
+    xyz_tp = np.zeros((n_tp,size[1]))
+    xyz_cr = rng.multivariate_normal(mean=np.zeros(3),cov=cov_cr,size=n_cr)
+    xyz_tn[:,::2] = rng.multivariate_normal(mean=np.zeros(2), cov=cov_tn, size=n_tn)
+    xyz_tp[:,::2] = rng.multivariate_normal(mean=np.zeros(2), cov=cov_tp, size=n_tp)
+    xyz_tn[:,1] = 0. - rng.gamma(shape=alpha,scale=chol_tn[1,1], size=n_tn)
+    xyz_tp[:,1] = 0. + rng.gamma(shape=alpha,scale=chol_tp[1,1], size=n_tp)
     
-    xyz = np.concatenate((xyz_cr,xyz_ta,xyz_tb),axis=0)
+    xyz = mu + np.concatenate((xyz_cr,xyz_tn,xyz_tp),axis=0)
     return xyz
 
 # def tails_logp(value, mu, chol, weight, alpha,beta):

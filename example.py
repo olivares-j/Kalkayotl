@@ -25,6 +25,7 @@ os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
 import datetime
+import pymc as pm
 
 #----- Import the module -------------------------------
 dir_kalkayotl  = "/home/minu99/Documentos/GitHub/Kalkayotl/" 
@@ -75,7 +76,7 @@ sample_iters = 1000
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
 # Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
 # of the sampler but increases the computing time.
-target_accept = 0.95
+target_accept = 0.65
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------
@@ -239,12 +240,13 @@ list_of_prior = [
 	{"type":"TGMM",      
 		"parameters":{"location":None,
 					  "scale":None,
-					  "weights":None
+					  "weights":np.array([0.2,0.4,0.4]),
+					  "alpha":1.0
 					  },
 		"hyper_parameters":{
 							"alpha":None,
 							"beta":None, 
-							"delta":np.repeat(1,3),
+							"delta":np.array([40,30,30]),
 							"eta":None,
 							"n_components":3
 							},
@@ -284,7 +286,7 @@ for prior in list_of_prior:
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	kal.load_data(file_data,radec_precision_arcsec=5.*60.)
+	kal.load_data(file_data,)#radec_precision_arcsec=5.*60.)
 
 	#------ Prepares the model -------------------
 	kal.setup(prior=prior["type"],
@@ -292,6 +294,9 @@ for prior in list_of_prior:
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"],
 			  )
+	gv = pm.model_graph.model_to_graphviz(kal.Model)
+	gv.format = 'png'
+	gv.render(filename='model_graph')
 	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
@@ -300,7 +305,7 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e6),
+			init_iters=int(1e5),
 			nuts_sampler=nuts_sampler,
 			prior_predictive=True)
 	#-------------------------------------
@@ -329,7 +334,7 @@ for prior in list_of_prior:
 	#----- Compute and save the posterior statistics ---------
 	kal.save_statistics(hdi_prob=hdi_prob)
 
-	# kal.save_posterior_predictive()
+	kal.save_posterior_predictive()
 
 	#------- Save the samples into HDF5 file --------------
 	kal.save_samples()
