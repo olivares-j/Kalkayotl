@@ -1089,6 +1089,7 @@ class Inference:
 				if not ("loc" in var 
 					or "std" in var
 					or "weights" in var
+					or "nu" in var
 					or "corr" in var 
 					or "omega" in var
 					or "kappa" in var):

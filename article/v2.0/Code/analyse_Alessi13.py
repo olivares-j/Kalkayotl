@@ -6,6 +6,8 @@ import pandas as pn
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+import h5py
+import arviz as az
 import dill
 
 family = "Gaussian"
@@ -23,6 +25,7 @@ file_plot_lnr = dir_plots + "Alessi13_linear.png"
 
 do_all_dta = True
 do_plt_cnv = False
+do_plt_age = True
 #---------------------------------------------------------------------------
 
 coordinates = ["X","Y","Z","U","V","W"]
@@ -74,7 +77,14 @@ if do_all_dta:
 		dir_chains = dir_main + author + dir_run
 		file_jnt   = dir_chains  + "Cluster_statistics.csv"
 		file_lnr   = dir_chains  + "Lindegren_velocity_statistics.csv"
+		file_smp   = dir_chains  + "Samples.h5"
 		#------------------------------------------------------
+
+		#------------- Read posterior samples of Kappa -------------
+		with h5py.File(file_smp,'r') as hf:
+			kappa = np.array(hf.get("Cluster/6D::kappa"))
+		df_kappa = pn.DataFrame(data=kappa,columns=["X","Y","Z"])
+		#-----------------------------------------------------------
 
 		#---------------- Read parameters ----------------------------
 		df_jnt = pn.read_csv(file_jnt,usecols=obs_grp_columns)
@@ -101,10 +111,12 @@ if do_all_dta:
 
 	#------------ Save data --------------------------
 	df_all.to_hdf(file_data_all,key="df_all")
+	df_kappa.to_hdf(file_data_all,key="df_kappa")
 	#-------------------------------------------------
 else:
 	#------------ Read data --------------------------------
 	df_all = pn.read_hdf(file_data_all,key="df_all")
+	df_kappa = pn.read_hdf(file_data_all,key="df_kappa")
 	#-------------------------------------------------------
 
 #=========================== Plots =======================================
@@ -154,3 +166,75 @@ for file_plt,parameters in zip([file_plot_lnr,file_plot_grp],[parameters_lnr,par
 	plt.savefig(file_plt,bbox_inches='tight')
 	plt.close()
 	#-------------------------------------------------------------------------
+
+if do_plt_age:
+	def age(kappa):
+		return  1./(1.022712165*kappa)
+
+	
+	df_kappa["mu"] = df_kappa.apply(lambda row:np.mean([row["X"],row["Y"]]),axis=1)
+	df_age = pn.DataFrame(data={"Age":age(df_kappa["mu"])})
+	print("Age from the simple mean of Kx and Ky: {0:2.1f} +- {1:2.1f}".format(
+		df_age.median().to_numpy()[0],df_age.std().to_numpy()[0]))
+	#---------------------------------------------------------------------------------
+	
+	#----------- Transform to age -----------------------------------------------
+	df_age = pn.concat([
+		pn.DataFrame(data={"Age":age(kappa[:,0]),"Coordinate":"X"}),
+		pn.DataFrame(data={"Age":age(kappa[:,1]),"Coordinate":"Y"})],
+		ignore_index=True)
+	#----------------------------------------------------------------------------
+
+	dfg = df_age.groupby("Coordinate")
+	smp_x = dfg.get_group("X").drop(columns="Coordinate").to_numpy().flatten()
+	smp_y = dfg.get_group("Y").drop(columns="Coordinate").to_numpy().flatten()
+
+	mu_x = np.median(smp_x)
+	mu_y = np.median(smp_y)
+
+	mu_kx = np.median(kappa[:,0])
+	mu_ky = np.median(kappa[:,1])
+
+	limits_x = np.zeros((2,2))
+	limits_y = np.zeros((2,2))
+	wmus     = np.zeros(2)
+	wsds     = np.zeros((2,2))
+	for i,hdi_prob in enumerate([0.68,0.95]):
+		print("------------ HDI prob = {0} ---------------------".format(hdi_prob))
+		hdi_x = az.hdi(smp_x,hdi_prob=hdi_prob)
+		hdi_y = az.hdi(smp_y,hdi_prob=hdi_prob)
+		
+		limits_x[i] = hdi_x - mu_x
+		limits_y[i] = hdi_y - mu_y
+
+		sd_kx = np.mean(np.abs(az.hdi(kappa[:,0],hdi_prob=hdi_prob)-mu_kx))
+		sd_ky = np.mean(np.abs(az.hdi(kappa[:,1],hdi_prob=hdi_prob)-mu_ky))
+
+		print("Kx: {0:2.1f}+-{1:2.1f}".format(mu_kx*1000.,sd_kx*1000.))
+		print("Ky: {0:2.1f}+-{1:2.1f}".format(mu_ky*1000.,sd_ky*1000.))
+
+		means = np.array([mu_kx,mu_ky])
+		variances = np.array([sd_kx**2,sd_ky**2])
+		weights  = 1./variances
+		
+		weighted_variance = 1/np.sum(weights)
+		
+		mu = weighted_variance*np.sum(means*weights)
+		sd = np.sqrt(weighted_variance)
+		tau = age(mu)
+		hdi_tau = age(np.array([mu+sd,mu-sd]))
+
+		print("Weighted average of Kappa: {0:2.1f}+-{1:2.1f}".format(mu*1000.,sd*1000.))
+
+		wsds[i] = hdi_tau-tau
+		wmus[i] = tau
+		print("------------------------------------------------")
+	print()
+	print("Age from inverted Kx (1sigma): {0:2.1f} {1:2.1f}+{2:2.1f}".format(mu_x,limits_x[0,0],limits_x[0,1]))
+	print("Age from inverted Kx (2sigma): {0:2.1f} {1:2.1f}+{2:2.1f}".format(mu_x,limits_x[1,0],limits_x[1,1]))
+	print()
+	print("Age from inverted Ky (1sigma): {0:2.1f} {1:2.1f}+{2:2.1f}".format(mu_y,limits_y[0,0],limits_y[0,1]))
+	print("Age from inverted Ky (2sigma): {0:2.1f} {1:2.1f}+{2:2.1f}".format(mu_y,limits_y[1,0],limits_y[1,1]))
+	print()
+	print("Age from weighted mean of Kx and Ky (1sigma): {0:2.1f} {1:2.1f}+{2:2.1f}".format(wmus[0],wsds[0,0],wsds[0,1]))
+	print("Age from weighted mean of Kx and Ky (2sigma): {0:2.1f} {1:2.1f}+{2:2.1f}".format(wmus[1],wsds[1,0],wsds[1,1]))

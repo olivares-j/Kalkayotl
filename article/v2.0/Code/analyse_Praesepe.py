@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import dill
 
+sns.set_context("paper", font_scale=1.2, rc={"lines.linewidth": 2.5})
+
 family = "Gaussian"
 dimension = "6D"
 
@@ -120,7 +122,9 @@ for file_plt,parameters in zip([file_plot_lnr,file_plot_grp],[parameters_lnr,par
 					sharex=False,
 					margin_titles=True,
 					col_wrap=3,
-					hue="Author"
+					hue="Author",
+					height=2,
+					aspect=1.5,
 					)
 	fg.map(sns.scatterplot,"mean","Author",s=50)
 	fg.set_axis_labels("Value","")

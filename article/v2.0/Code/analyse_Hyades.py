@@ -8,11 +8,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import dill
 
+sns.set_context("paper", font_scale=1.2, rc={"lines.linewidth": 2.5})
+
 family = "Gaussian"
 dimension = "6D"
 
 #---------------------- Directories and data -------------------------------
-dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Hyades/Oh_2020/"
+dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Hyades/Oh+2020/"
 dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/Hyades/"
 dir_run   = "/6D_Gaussian_ICRS_linear_1E+06/"
 cases = ["GDR3","GDR2"]
@@ -173,7 +175,9 @@ for file_plt,parameters in zip([file_plot_lnr,file_plot_grp],[parameters_lnr,par
 					sharex=False,
 					margin_titles=True,
 					col_wrap=3,
-					hue="Author"
+					hue="Author",
+					height=2,
+					aspect=1.5,
 					)
 	fg.map(sns.scatterplot,"mean","Author",s=50)
 	fg.set_axis_labels("Value","")

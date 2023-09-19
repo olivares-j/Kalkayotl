@@ -30,11 +30,11 @@ import dill
 # dill.load_session(str(sys.argv[1]))
 #dill.load_session("./globals_Gaussian.pkl")
 list_of_n_stars = [100,200,400]
-list_of_distances = [50,100,200,400,800,1600]
+list_of_distances = [100,200,400,800,1600]
 list_of_seeds = [0,1,2,3,4]
-family = "Gaussian"
+family = "StudentT"
 dimension = 6
-velocity_model = "linear"
+velocity_model = "joint"
 append = "" if (dimension == 3) and (velocity_model == "joint") else "_1E+06"
 
 #---------------------- Directories and data -------------------------------
@@ -42,6 +42,7 @@ dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/"
 dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/"
 
 dir_data  = "{0}{1}_{2}_fk1.0_fo1.0/".format(dir_main,family,velocity_model)
+dir_data  = "{0}{1}_{2}/".format(dir_main,family,velocity_model)
 base_data = dir_data  + family + "_n{0}_d{1}_s{2}.csv"
 base_dir  = dir_data  + "{0}D_{1}".format(dimension,family) + "_n{0}_d{1}_s{2}_{3}"+append+"/"
 base_plt  = "{0}{1}_{2}/".format(dir_plots,family,velocity_model)
@@ -54,12 +55,12 @@ file_plot_rho = base_plt + "{0}D_{1}_{2}_correlation.pdf".format(dimension,famil
 file_plot_det = base_plt + "{0}D_{1}_{2}_detectability.png".format(dimension,family,velocity_model)
 file_data_all = dir_data + "{0}D_data.h5".format(dimension)
 
-do_all_dta = False
+do_all_dta = True
 do_plt_cnv = False
 do_plt_grp = False
 do_plt_src = False
 do_plt_rho = False
-do_plt_det = True
+do_plt_det = False # Only for linear velocity
 #---------------------------------------------------------------------------
 
 coordinates = ["X","Y","Z","U","V","W"][:dimension]
@@ -71,11 +72,11 @@ obs_src_columns = sum([["source_id"],
 					],[])
 
 obs_grp_columns = ["Parameter","mean","hdi_2.5%","hdi_97.5%","ess_bulk","r_hat"]
-par_grp_names = sum([
+base_grp_names = sum([
 					["{0}D::loc[{1}]".format(dimension,c) for c in coordinates],
 					["{0}D::std[{1}]".format(dimension,c) for c in coordinates],
 					],[])
-par_lin_names = sum([
+base_lin_names = sum([
 					["6D::kappa[{0}]".format(i) for i in range(3)],
 					["6D::omega[{0}, {1}]".format(i,j) for i in range(2) for j in range(3)]
 					],[])
@@ -86,11 +87,16 @@ true_sds_grp  = np.array([9.,9.,9.,1.,1.,1.])[:dimension]
 true_grp_pars = np.hstack([true_loc_grp,true_sds_grp])[1:]
 true_lin_pars = np.array([1.,1.,1.,-1.,-1.,-1.,1.,1.,1.])
 
+
+true_grp_names = base_grp_names
+
+if family == "StudentT":
+	base_grp_names.append("6D::nu")
+
+
 if velocity_model == "linear":
-	true_grp_names = sum([par_grp_names,par_lin_names],[])
+	true_grp_names = sum([base_grp_names,base_lin_names],[])
 	true_grp_pars = np.hstack([true_grp_pars,true_lin_pars])
-else:
-	true_grp_names = par_grp_names
 
 units = {}
 for name in true_grp_names:
@@ -182,10 +188,6 @@ if do_all_dta:
 				df_obs_grp.set_index("Parameter",inplace=True)
 				#--------------------------------------------------------------
 
-				#---------------- Read Linear parameters ----------------------------
-				df_lin = pn.read_csv(file_obs_lin,nrows=4)
-				#--------------------------------------------------------------
-
 				df_true_grp.loc["{0}D::loc[X]".format(dimension),"true"] = distance
 
 				#---------- Join ------------------------
@@ -205,10 +207,9 @@ if do_all_dta:
 				#---------------------------- Parameter statistics -----------------------------------------------------
 				df_grp["err"] = df_grp.apply(lambda x: (x["mean"] - x["true"]),  axis = 1)
 				df_grp["unc"] = df_grp.apply(lambda x: (x["hdi_97.5%"]-x["hdi_2.5%"]),  axis = 1)
-				df_grp["crd"] = df_grp.apply(lambda x: 100.*((x["true"] >= x["hdi_2.5%"]) & (x["true"] <= x["hdi_97.5%"])),
-											axis = 1)
-
-				df_lin["unc"] = df_lin.apply(lambda x: (x["hdi_97.5%"]-x["hdi_2.5%"]),  axis = 1)
+				df_grp["crd"] = df_grp.apply(lambda x: 100.*((x["true"] >= x["hdi_2.5%"]) & 
+															 (x["true"] <= x["hdi_97.5%"])),
+															axis = 1)
 				#----------------------------------------------------------------------------------------------------
 
 				#----------------------------- Sources statistics ----------------------------------------------------------
@@ -256,31 +257,26 @@ if do_all_dta:
 				df_grp["n_stars"] = n_stars
 				df_sts["n_stars"] = n_stars
 				df_src["n_stars"] = n_stars
-				df_lin["n_stars"] = n_stars
 
 				df_grp["distance"] = distance
 				df_sts["distance"] = distance
 				df_src["distance"] = distance
-				df_lin["distance"] = distance
 
 				df_grp["seed"] = seed
 				df_sts["seed"] = seed
 				df_src["seed"] = seed
-				df_lin["seed"] = seed
 				#--------------------------------
 
 				#----------- Append ----------------
 				dfs_grp.append(df_grp)
 				dfs_sts.append(df_sts)
 				dfs_src.append(df_src)
-				dfs_lin.append(df_lin)
 				#------------------------------------
 
 	#------------ Concatenate --------------------
 	df_grp = pn.concat(dfs_grp,ignore_index=False)
 	df_sts = pn.concat(dfs_sts,ignore_index=True)
 	df_src = pn.concat(dfs_src,ignore_index=True)
-	df_lin = pn.concat(dfs_lin,ignore_index=True)
 	#--------------------------------------------
 
 	#---------------- Group-level statisitcs --------------------
@@ -294,21 +290,6 @@ if do_all_dta:
 	df_sts_grp  = pn.merge(
 				left=dfg_grp.mean(),
 				right=df_grp_hdi,
-				left_index=True,
-				right_index=True).reset_index()
-	#------------------------------------------------------------
-
-	#---------------- Group-level linear statisitcs --------------------
-	dfg_lin = df_lin.groupby(["Parameter","n_stars","distance"],sort=False)
-	df_lin_hdi  = pn.merge(
-				left=dfg_lin.quantile(q=0.025),
-				right=dfg_lin.quantile(q=0.975),
-				left_index=True,
-				right_index=True,
-				suffixes=("_low","_up"))
-	df_sts_lin  = pn.merge(
-				left=dfg_lin.mean(),
-				right=df_lin_hdi,
 				left_index=True,
 				right_index=True).reset_index()
 	#------------------------------------------------------------
@@ -331,23 +312,77 @@ if do_all_dta:
 	#------------ Save data --------------------------
 	df_sts_grp.to_hdf(file_data_all,key="df_sts_grp")
 	df_sts_src.to_hdf(file_data_all,key="df_sts_src")
-	df_sts_lin.to_hdf(file_data_all,key="df_sts_lin")
 	df_grp.to_hdf(file_data_all,key="df_grp")
 	df_src.to_hdf(file_data_all,key="df_src")
-	df_lin.to_hdf(file_data_all,key="df_lin")
 	#-------------------------------------------------
-else:
-	#------------ Read data --------------------------------
-	df_sts_grp = pn.read_hdf(file_data_all,key="df_sts_grp")
-	df_sts_src = pn.read_hdf(file_data_all,key="df_sts_src")
-	df_sts_lin = pn.read_hdf(file_data_all,key="df_sts_lin")
-	df_grp     = pn.read_hdf(file_data_all,key="df_grp")
-	df_src     = pn.read_hdf(file_data_all,key="df_src")
-	df_lin     = pn.read_hdf(file_data_all,key="df_lin")
-	#-------------------------------------------------------
+
+	if velocity_model == "linear":
+		dfs_lin = []
+		for n,n_stars in enumerate(list_of_n_stars):
+			for d,distance in enumerate(list_of_distances):
+				for s,seed in enumerate(list_of_seeds):
+					#------------- Parametrization --------------------
+					if distance <= 500.:
+						parametrization = "central"
+					else:
+						parametrization = "non-central"
+					#-------------------------------------------
+
+					#------------- Files ------------------------------
+					dir_chains = base_dir.format(n_stars,int(distance),seed,parametrization)
+
+					file_obs_lin   = dir_chains  + "Lindegren_velocity_statistics.csv"
+					#--------------------------------------------------
+		
+					#-------- Read Linear parameters -----------
+					df_lin = pn.read_csv(file_obs_lin,nrows=4)
+					#-------------------------------------------
+
+					#---------------------------- Parameter statistics --------------------------------
+					df_lin["unc"] = df_lin.apply(lambda x: (x["hdi_97.5%"]-x["hdi_2.5%"]),  axis = 1)
+					#----------------------------------------------------------------------------------
+
+					#------------ Case -------------
+					df_lin["n_stars"] = n_stars
+					df_lin["distance"] = distance
+					df_lin["seed"] = seed
+					#--------------------------------
+
+					#----------- Append ----------------
+					dfs_lin.append(df_lin)
+					#------------------------------------
+
+		#------------ Concatenate --------------------
+		df_lin = pn.concat(dfs_lin,ignore_index=True)
+		#--------------------------------------------
+
+		#---------------- Group-level linear statisitcs --------------------
+		dfg_lin = df_lin.groupby(["Parameter","n_stars","distance"],sort=False)
+		df_lin_hdi  = pn.merge(
+					left=dfg_lin.quantile(q=0.025),
+					right=dfg_lin.quantile(q=0.975),
+					left_index=True,
+					right_index=True,
+					suffixes=("_low","_up"))
+		df_sts_lin  = pn.merge(
+					left=dfg_lin.mean(),
+					right=df_lin_hdi,
+					left_index=True,
+					right_index=True).reset_index()
+		#------------------------------------------------------------
+
+		#------------ Save data --------------------------
+		df_sts_lin.to_hdf(file_data_all,key="df_sts_lin")
+		df_lin.to_hdf(file_data_all,key="df_lin")
+		#-------------------------------------------------
 
 #=========================== Plots =======================================
 if do_plt_cnv:
+
+	#------------ Read data --------------------------------
+	df_grp     = pn.read_hdf(file_data_all,key="df_grp")
+	#-------------------------------------------------------
+
 	#-------------- Convergence ----------------------------------------------
 	pdf = PdfPages(filename=file_plot_cnv)
 	for st in sts_cnv:
@@ -367,7 +402,9 @@ if do_plt_cnv:
 	#-------------------------------------------------------------------------
 
 if do_plt_grp:
-	#---------------- Group-level --------------------------------------------
+	#------------ Read data --------------------------------
+	df_sts_grp = pn.read_hdf(file_data_all,key="df_sts_grp")
+	#-------------------------------------------------------
 	
 	#------------- Split into all and linear models --------------------------
 	mask_lin = df_sts_grp['Parameter'].str.contains("kappa|omega",regex=True)
@@ -444,6 +481,10 @@ if do_plt_grp:
 	#-------------------------------------------------------------------------
 
 if do_plt_src:
+	#------------ Read data --------------------------------
+	df_sts_src = pn.read_hdf(file_data_all,key="df_sts_src")
+	#-------------------------------------------------------
+
 	#-------------- Source level----------------------------------------------
 	pdf = PdfPages(filename=file_plot_src)
 	for st in sts_src:
@@ -481,7 +522,13 @@ if do_plt_src:
 		plt.close()
 	pdf.close()
 	#-------------------------------------------------------------------------
+
 if do_plt_rho:
+
+	#------------ Read data --------------------------------
+	df_src     = pn.read_hdf(file_data_all,key="df_src")
+	#-------------------------------------------------------
+
 	#---------- Source-level -------------------------------
 	dfg_src = df_src.groupby("distance")
 	#-------------------------------------------------------
@@ -527,10 +574,14 @@ if do_plt_rho:
 	#-------------------------------------------------------------------------
 
 if do_plt_det:
-	df_lin = df_sts_lin.loc[df_sts_lin["distance"]<500]
-	df_lin.loc[:,"upper"] = np.tile([100,130,130,130],12)
+	#------------ Read data -------------------------------------
+	df_sts_lin = pn.read_hdf(file_data_all,key="df_sts_lin")
+	#------------------------------------------------------------
+
+	tmp_sts_lin = df_sts_lin.loc[df_sts_lin["distance"]<500].copy()
+	tmp_sts_lin.loc[:,"upper"] = np.tile([100,130,130,130],int(tmp_sts_lin.shape[0]/4))
 	#---------------- Group-level linear velocity detectability ---------------
-	fg = sns.FacetGrid(data=df_lin,
+	fg = sns.FacetGrid(data=tmp_sts_lin,
 					col="Parameter",
 					sharey=False,
 					margin_titles=True,
@@ -549,7 +600,7 @@ if do_plt_det:
 	#------------ Units ----------------------------
 	axs = fg.axes_dict
 	par_names = ["$|\\kappa|$","$\\omega_x$","$\\omega_y$","$\\omega_z$"]
-	for (par,name) in zip(df_lin["Parameter"],par_names):
+	for (par,name) in zip(tmp_sts_lin["Parameter"],par_names):
 		axs[par].set_xlabel("Distance [pc]")
 		axs[par].set_ylabel("$2\\sigma$ uncertainty [$\\rm{m\\,s^{-1}\\,pc^{-1}}$]")
 		axs[par].title.set_text(name)

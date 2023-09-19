@@ -14,7 +14,7 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #----------- Directories and files -------------------------------
-authors = "Galli+2021_core"
+authors = "Galli+2021"
 dir_case = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Alessi13/"
 dir_base = "{0}{1}/".format(dir_case,authors)
 file_data = "{0}members.csv".format(dir_base)
@@ -124,5 +124,5 @@ for rs in rss:
 	# kal.save_statistics(hdi_prob=0.997300203937)
 	# kal.save_statistics(hdi_prob=0.999936657516)
 	# kal.save_statistics(hdi_prob=0.999999426697)
-	# kal.save_samples()
+	kal.save_samples()
 #=======================================================================================
