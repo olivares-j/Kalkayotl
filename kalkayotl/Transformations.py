@@ -1,7 +1,7 @@
 import sys
 import numpy as np
-import theano
-from theano import tensor as tt
+import pytensor
+from pytensor import tensor as tt
 
 '''
 The following transformation have been taken from pygaia (https://github.com/agabrown/PyGaia)
@@ -110,6 +110,9 @@ def Iden(x):
 	return x
 
 def pc2mas(x):
+	return 1.e3/x
+
+def mas2pc(x):
 	return 1.e3/x
 
 def np_normalTriad(phi, theta):

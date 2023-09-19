@@ -33,8 +33,8 @@ def get_principal(sigma,idx):
 
 def AngularSeparation(a):
 
-	ra  = np.radians(a[:,0])
-	dec = np.radians(a[:,1])
+	ra  = np.deg2rad(a[:,0])
+	dec = np.deg2rad(a[:,1])
 
 	N   = len(ra)
 
@@ -69,7 +69,7 @@ def CovariancePM(a,case):
 
 	elif case == "Lindegren+2020":
 		'''
-		Assumes that the covariance is given by Eq. 25 of Lindegren et al. 2020.
+		Assumes that the covariance is given by Eq. 25 of Lindegren et al. 2021 EDR3 astrometric solution.
 		'''
 		result = 0.000292*np.exp(-a/12.0)
 

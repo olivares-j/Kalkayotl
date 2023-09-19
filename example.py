@@ -36,14 +36,12 @@ dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
-file_parameters = None
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
 os.makedirs(dir_base,exist_ok=True)
 #-------------------------------------------------------
 #============================================================================
-
 
 #=============== Tuning knobs ============================
 dimension = 6
@@ -60,12 +58,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 3000
+tuning_iters = 10
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 3000
+sample_iters = 10
 
 
 #----- Target_accept-------
@@ -81,24 +79,28 @@ target_accept = 0.95
 hdi_prob = 0.95
 #------------------------------------------------------------------------------
 
-# --------- Transformation------------------------------------
-# In which space you want to sample: distance or parallax?
-# For distance use "pc", for parallax use "mas"
+# --------- Sampling space ------------------------------------
+# In which space you want to sample: "physical" or "observed"?
+# "observed" works only in the 1D case where the sampling can be done in the parallax space.
 # IMPORTANT: The units of the parameters and hyper-parameters
 # defined below must coincide with those of the chosen transformation.
-transformation = "pc"
+sampling_space = "physical"
 
 #------------- Reference system -----------
 # Coordinate system in which parameters will be inferred
 # Either "ICRS" or "Galactic"
 reference_system = "Galactic"
 
-#--------- Zero point -----------------------------------------------
-# The zero point of the parallax measurements
-# You can provide either a scalar or a vector of the same dimension
-# as the valid sources in your data set.
-zero_point = [0.,0.,-0.017,0.,0.,0.]  # This is Brrowns+2020 value
-#---------------------------------------------------------------------
+#--------- Zero point ------------
+# A dcictionary with zerpoints
+zero_points = {
+"ra":0.,
+"dec":0.,
+"parallax":-0.017,# This is Brown+2020 value
+"pmra":0.,
+"pmdec":0.,
+"radial_velocity":0.}  
+#--------------------------------
 
 #------- Independent measurements--------
 # In the Gaia astrometric data the measurements of stars are correlated between sources.
@@ -119,14 +121,20 @@ indep_measures = False
 # "independent": independently models positions and velocities.
 # "constant": models the velocity as expanding or contracting field
 # "linear": models the velocity field as a linear function of position.
+velocity_model = "joint"
 #----------------------------------------------------------------------------------------
+
+#---------- NUTS Sampler ------------
+# This is the type of sampler to use.
+# Check PyMC documentation for valid samplers and their installation
+# By default use the "pymc" sampler.
+nuts_sampler = "numpyro"
+
 #=========================================================================================
 
 #========================= PRIORS ===========================================
 list_of_prior = [
 	{"type":"Gaussian",
-		"dimension":dimension,
-		"zero_point":zero_point[:dimension],
 		"parameters":{"location":None,"scale":None},
 		"hyper_parameters":{
 							"alpha":None,
@@ -135,12 +143,8 @@ list_of_prior = [
 							"delta":None,
 							"eta":None
 							},
-		"field_sd":None,
-		"parametrization":"central",
-		"velocity_model":"joint"},
+		"parametrization":"central"},
 	# {"type":"StudentT",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],
 	# 	"parameters":{"location":None,"scale":None},
 	# 	"hyper_parameters":{
 	# 						"alpha":None,
@@ -150,26 +154,8 @@ list_of_prior = [
 	# 						"eta":None,
 	# 						"nu":None,
 	# 						},
-	# 	"parametrization":"central",
-	#   "velocity_model":"independent"},
-	# {"type":"FGMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"delta":[1,1], # Field in the second entry
-	# 						"eta":None,
-	# 						},
-	# 	"field_sd":{"position":50.0,"velocity":10.0},
-	# 	"parametrization":"central",
-	#   "velocity_model":"independent"},
-	# {"type":"CGMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
+	# 	"parametrization":"central"},
+	# {"type":"GMM",     
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
 	# 				  "weights":None},
@@ -177,17 +163,12 @@ list_of_prior = [
 	# 						"alpha":None,
 	# 						"beta":None, 
 	# 						"gamma":None,
-	# 						"delta":np.repeat(2,2),
+	# 						"delta":np.repeat(1,2),
 	# 						"eta":None,
 	# 						"n_components":2
 	# 						},
-	# 	"field_sd":None,
-	# 	"parametrization":"central",
-	# 	"velocity_model":"joint"},
-
-	# {"type":"GMM",
-	# 	"dimension":dimension,
-	# 	"zero_point":zero_point[:dimension],        
+	# 	"parametrization":"central"},
+	# {"type":"CGMM",     
 	# 	"parameters":{"location":file_parameters,
 	# 				  "scale":file_parameters,
 	# 				  "weights":file_parameters},
@@ -199,8 +180,58 @@ list_of_prior = [
 	# 						"eta":None,
 	# 						"n_components":2
 	# 						},
-	# 	"parametrization":"central",
-	#   "velocity_model":"independent"}
+	# 	"parametrization":"central"},
+	# {"type":"FGMM",      
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "weights":None,
+	# 				  "field_scale":[50.,50.,50.,10.,10.,10.][:dimension]
+	# 				  },
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None, 
+	# 						"delta":np.repeat(1,2),
+	# 						"eta":None,
+	# 						"n_components":2
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"Uniform",
+	# 	"parameters":{"location":None,
+	# 				  "scale":None
+	# 				  },
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":None,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"King",
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "rt":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":10.,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						},
+	# 	"parametrization":"central"},
+	# {"type":"EFF",
+	# 	"parameters":{"location":None,
+	# 				  "scale":None,
+	# 				  "gamma":None},
+	# 	"hyper_parameters":{
+	# 						"alpha":None,
+	# 						"beta":None,
+	# 						"gamma":10.,
+	# 						"delta":None,
+	# 						"eta":None,
+	# 						},
+	# 	"parametrization":"central"},
+
 	]
 #======================= Inference and Analysis =====================================================
 
@@ -208,12 +239,13 @@ list_of_prior = [
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_test".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}".format(
 		dimension,
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
-		prior["velocity_model"])
+		velocity_model,
+		nuts_sampler)
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -221,54 +253,64 @@ for prior in list_of_prior:
 	#------------------------------------------------
 
 	#--------- Initialize the inference module -------
-	p3d = Inference(dimension=prior["dimension"],
+	kal = Inference(dimension=dimension,
 					dir_out=dir_prior,
-					zero_point=prior["zero_point"],
+					zero_points=zero_points,
 					indep_measures=indep_measures,
-					reference_system=reference_system)
+					reference_system=reference_system,
+					sampling_space=sampling_space,
+					velocity_model=velocity_model)
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	p3d.load_data(file_data)
+	kal.load_data(file_data)
 
 	#------ Prepares the model -------------------
-	p3d.setup(prior=prior["type"],
+	kal.setup(prior=prior["type"],
 			  parameters=prior["parameters"],
 			  hyper_parameters=prior["hyper_parameters"],
-			  transformation=transformation,
 			  parametrization=prior["parametrization"],
-			  field_sd=prior["field_sd"],
-			  velocity_model=prior["velocity_model"])
-
+			  )
+	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	p3d.run(sample_iters=sample_iters,
+	kal.run(sample_iters=sample_iters,
 			tuning_iters=tuning_iters,
 			target_accept=target_accept,
 			chains=chains,
-			cores=cores)
+			cores=cores,
+			init_iters=int(1e4),
+			nuts_sampler=nuts_sampler,
+			posterior_predictive=True,
+			prior_predictive=True)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
 	# This is useful if you have already computed the chains
 	# and want to re-analyse (in that case comment the p1d.run() line)
-	p3d.load_trace()
+	kal.load_trace()
 
 	# ------- Re-analyse the convergence of the sampler---
-	p3d.convergence()
+	kal.convergence()
 
 	#-------- Plot the trace of the chains ------------------------------------
 	# If you provide the list of IDs (string list) it will plot the traces
 	# of the provided sources. If IDs keyword removed only plots the population parameters.
-	p3d.plot_chains()
+	kal.plot_chains()
 
-	#------- Plot model ----------------
-	p3d.plot_model()
+	#--- Check Prior and Posterior ----
+	kal.plot_prior_check()
+	#--------------------------------
+
+	#--- Plot model -- 
+	kal.plot_model(n_samples=10)
+	# -----------------
 
 	#----- Compute and save the posterior statistics ---------
-	p3d.save_statistics(hdi_prob=hdi_prob)
+	kal.save_statistics(hdi_prob=hdi_prob)
+
+	kal.save_posterior_predictive()
 
 	#------- Save the samples into HDF5 file --------------
-	p3d.save_samples()
-	
+	kal.save_samples()
 #=======================================================================================

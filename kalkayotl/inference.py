@@ -17,18 +17,25 @@ This file is part of Kalkayotl.
 	along with Kalkayotl.  If not, see <http://www.gnu.org/licenses/>.
 '''
 from __future__ import absolute_import, unicode_literals, print_function
+import os
 import sys
 import random
-import pymc3 as pm
+import pymc as pm
 import numpy as np
 import pandas as pn
+import xarray
 import arviz as az
 import h5py
+import dill
 import scipy.stats as st
 from scipy.linalg import inv as inverse
 from string import ascii_uppercase
 from astropy.stats import circmean
 from astropy import units as u
+import pymc.sampling_jax
+import pytensor.tensor as at
+from typing import cast
+import string
 
 #---------------- Matplotlib -------------------------------------
 import matplotlib
@@ -43,11 +50,19 @@ import matplotlib.ticker as ticker
 #------------------------------------------------------------------
 
 #------------ Local libraries ------------------------------------------
-from kalkayotl.Models import Model1D,Model3D,Model6D
+from kalkayotl.Models import Model1D,Model3D6D,Model6D_linear
 from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM,get_principal,my_mode
 # from kalkayotl.Evidence import Evidence1D
 from kalkayotl.Transformations import astrometry_and_rv_to_phase_space
+from kalkayotl.Transformations import Iden,pc2mas,mas2pc # 1D
+from kalkayotl.Transformations import icrs_xyz_to_radecplx,galactic_xyz_to_radecplx #3D
+from kalkayotl.Transformations import np_radecplx_to_icrs_xyz,np_radecplx_to_galactic_xyz #3D
+from kalkayotl.Transformations import icrs_xyzuvw_to_astrometry_and_rv #6D
+from kalkayotl.Transformations import galactic_xyzuvw_to_astrometry_and_rv #6D
+from kalkayotl.Transformations import np_astrometry_and_rv_to_icrs_xyzuvw #6D
+from kalkayotl.Transformations import np_astrometry_and_rv_to_galactic_xyzuvw #6D
 #------------------------------------------------------------------------
+
 
 class Inference:
 	"""
@@ -55,9 +70,11 @@ class Inference:
 	"""
 	def __init__(self,dimension,
 				dir_out,
-				zero_point,
+				zero_points,
 				indep_measures=False,
-				reference_system=None,
+				reference_system="Galactic",
+				sampling_space="physical",
+				velocity_model="joint",
 				id_name='source_id',
 				precision=2,
 				**kwargs):
@@ -77,15 +94,31 @@ class Inference:
 					"dec_parallax_corr","dec_pmra_corr","dec_pmdec_corr",
 					"parallax_pmra_corr","parallax_pmdec_corr",
 					"pmra_pmdec_corr"]
-		self.suffixes  = ["_X","_Y","_Z","_U","_V","_W"]
+
+		coordinates = ["X","Y","Z","U","V","W"]
+
+		assert dimension in [1,3,6], "Dimension must be 1, 3 or 6"
+		assert isinstance(zero_points,dict), "zero_points must be a dictionary"
+		assert reference_system in ["ICRS","Galactic"], "Unrecognized reference system!"
+		assert velocity_model in ["joint","constant","linear"],"Unrecognized velocity model!"
+		assert sampling_space in ["observed","physical"],"Unrecognized sampling space"
 
 		self.D                = dimension 
-		self.zero_point       = zero_point
+		self.zero_points      = zero_points
 		self.dir_out          = dir_out
 		self.indep_measures   = indep_measures
 		
 		self.reference_system = reference_system
+		self.velocity_model   = velocity_model
+		self.sampling_space   = sampling_space
+
 		self.file_ids         = self.dir_out+"/Identifiers.csv"
+		self.file_obs         = self.dir_out+"/Observations.nc"
+		self.file_chains      = self.dir_out+"/Chains.nc"
+		self.file_start       = self.dir_out+"/Initialization.pkl"
+		self.file_prior       = self.dir_out+"/Prior.nc"
+
+		self.mas2deg  = 1.0/(60.*60.*1000.)
 
 		self.idx_pma    = 3
 		self.idx_pmd    = 4
@@ -98,7 +131,6 @@ class Inference:
 			index_corr  = []
 			self.idx_plx = 0
 			index_nan   = index_obs.copy()
-			
 
 		elif self.D == 3:
 			index_obs  = [0,1,2,6,7,8,12,13,16]
@@ -106,7 +138,6 @@ class Inference:
 			index_sd   = [6,7,8]
 			index_corr = [12,13,16]
 			index_nan  = index_obs.copy()
-
 
 		elif self.D == 6:
 			index_obs  = list(range(22))
@@ -128,12 +159,59 @@ class Inference:
 		self.names_sd   = [gaia_observables[i] for i in index_sd]
 		self.names_corr = [gaia_observables[i] for i in index_corr]
 		self.names_nan  = [gaia_observables[i] for i in index_nan]
+		self.names_coords = coordinates[:dimension]
 
 		self.id_name = id_name
-		self.list_observables = sum([[id_name],self.names_obs],[]) 
+		self.gaia_observables = sum([[id_name],gaia_observables],[]) 
+
+		#============= Transformations ====================================
+		if reference_system == "ICRS":
+			if self.D == 3:
+				self.forward  = icrs_xyz_to_radecplx
+				self.backward = np_radecplx_to_icrs_xyz
+
+			elif self.D == 6:
+				self.forward  = icrs_xyzuvw_to_astrometry_and_rv
+				self.backward = np_astrometry_and_rv_to_icrs_xyzuvw
+
+			else:
+				if self.sampling_space == "physical":
+					self.forward  = pc2mas
+					self.backward = mas2pc
+				else:
+					self.forward  = Iden
+					self.backward = Iden
+			
+		elif reference_system == "Galactic":
+			if self.D == 3:
+				self.forward  = galactic_xyz_to_radecplx
+				self.backward = np_radecplx_to_galactic_xyz
+
+			elif self.D == 6:
+				self.forward  = galactic_xyzuvw_to_astrometry_and_rv
+				self.backward = np_astrometry_and_rv_to_galactic_xyzuvw
+
+			else:
+				if self.sampling_space == "physical":
+					self.forward  = pc2mas
+					self.backward = mas2pc
+				else:
+					self.forward  = Iden
+					self.backward = Iden
+		else:
+			sys.exit("Reference system not accepted")
+		#==================================================================
+
+		if self.D in [3,6]:
+			assert self.sampling_space == "physical", "3D and 6D models work only in the physical space."
 
 
-	def load_data(self,file_data,corr_func="Lindegren+2020",*args,**kwargs):
+
+	def load_data(self,file_data,
+		corr_func="Lindegren+2020",
+		sky_error_factor=1.e6,
+		*args,
+		**kwargs):
 		"""
 		This function reads the data.
 
@@ -147,10 +225,10 @@ class Inference:
 		"""
 
 		#------- Reads the data ---------------------------------------------------
-		data  = pn.read_csv(file_data,usecols=self.list_observables,*args,**kwargs) 
+		data  = pn.read_csv(file_data,usecols=self.gaia_observables,*args,**kwargs) 
 
 		#---------- Order ----------------------------------
-		data  = data.reindex(columns=self.list_observables)
+		data  = data.reindex(columns=self.gaia_observables)
 
 		#------- ID as string ----------------------------
 		data[self.id_name] = data[self.id_name].astype('str')
@@ -158,17 +236,44 @@ class Inference:
 		#----- ID as index ----------------------
 		data.set_index(self.id_name,inplace=True)
 
-		#-------- Drop NaNs ------------------------
+		#-------- Drop NaNs ----------------------------
 		data.dropna(subset=self.names_nan,inplace=True,
 						thresh=len(self.names_nan))
 		#----------------------------------------------
 
-		#--------- Mean values ---------------------------------------
+		#--- Sky uncertainty from mas to degrees ------
+		data["ra_error"]  *= self.mas2deg
+		data["dec_error"] *= self.mas2deg
+		#------------------------------------------
+
+		#--- Increase sky uncertainty ----------
+		data["ra_error"]  *= sky_error_factor
+		data["dec_error"] *= sky_error_factor
+		#--------------------------------------
+
+
+		#---------- Zero-points --------------------
+		for key,val in self.zero_points.items():
+			data[key] -= val
+		#-------------------------------------------
+
+		#--------- Mean values -----------------------------
 		mean_observed = data[self.names_mu].mean()
 		if "ra" in self.names_mu:
-			mean_observed["ra"] = circmean(np.array(data["ra"])*u.deg).to(u.deg).value
+			mean_observed["ra"] = circmean(
+				np.array(data["ra"])*u.deg).to(u.deg).value
 		self.mean_observed = mean_observed.values
-		#-------------------------------------------------------------
+		#---------------------------------------------------
+
+		#------------- Observed --------------------------------
+		observed = data[self.names_mu].copy()
+		if self.D == 6:
+			observed.fillna(value={
+				"radial_velocity":mean_observed["radial_velocity"]},
+				inplace=True)
+		observed["parallax"] = observed["parallax"].clip(1e-3,np.inf)
+		self.observed = observed.to_numpy()
+		#-------------------------------------------------------
 
 		#----- Track ID -------------
 		self.ID = data.index.values
@@ -190,7 +295,7 @@ class Inference:
 		for i,(ID,datum) in enumerate(data.iterrows()):
 			#--------------------------
 			ida  = range(i*self.D,i*self.D + self.D)
-			mu   = np.array(datum[self.names_mu]) - self.zero_point
+			mu   = np.array(datum[self.names_mu])
 			sd   = np.array(datum[self.names_sd])
 			corr = np.array(datum[self.names_corr])
 
@@ -212,7 +317,16 @@ class Inference:
 		df.to_csv(path_or_buf=self.file_ids,index=False)
 		#------------------------------------------------
 
-
+		#-------- Observations to InferenceData ---------------
+		df = pn.DataFrame(mu_data,
+			columns=["obs"],
+			index=pn.MultiIndex.from_product(
+			iterables=[[0],[0],self.ID,self.names_mu],
+			names=['chain', 'draw','source_id','observable']))
+		xdata = xarray.Dataset.from_dataframe(df)
+		observed = az.InferenceData(observed_data=xdata)
+		az.to_netcdf(observed,self.file_obs)
+		#------------------------------------------------------
 
 		#===================== Set correlations amongst stars ===========================
 		if not self.indep_measures :
@@ -268,6 +382,7 @@ class Inference:
 		self.mu_data  = mu_data
 		self.sg_data  = sg_data
 		self.tau_data = np.linalg.inv(sg_data)
+		#---------------------------------------------------------------
 		#=================================================================================
 
 		print("Data correctly loaded")
@@ -277,45 +392,34 @@ class Inference:
 				parameters,
 				hyper_parameters,
 				parametrization,
-				transformation,
-				field_sd=None,
-				velocity_model="joint"):
+				):
 		'''
 		Set-up the model with the corresponding dimensions and data
 		'''
 
 		self.prior            = prior
-		self.parameters       = parameters
-		self.hyper            = hyper_parameters
+		self.parameters       = parameters.copy()
+		self.hyper            = hyper_parameters.copy()
 		self.parametrization  = parametrization
-		self.transformation   = transformation
-		self.velocity_model   = velocity_model
+		
 
 		print(15*"+", " Prior setup ", 15*"+")
 		print("Type of prior: ",self.prior)
+		print("Working in the {} reference system".format(self.reference_system))
 
 		msg_alpha = "hyper_alpha must be specified."
 		msg_beta  = "hyper_beta must be specified."
-		msg_trans = "Transformation must be either pc or mas."
-		msg_delta = "hyper_delta must be specified."
 		msg_gamma = "hyper_gamma must be specified."
+		msg_delta = "hyper_delta must be specified."
 		msg_nu    = "hyper_nu must be specified."
 		msg_central = "Only the central parametrization is valid for this configuration."
 		msg_non_central = "Only the non-central parametrization is valid for this configuration."
 		msg_weights = "weights must be greater than 5%."
 
-		assert self.transformation in ["pc","mas"], msg_trans
-
-		if self.D in [3,6]:
-			assert self.transformation == "pc", "3D model only works in pc."
-
 		#============== Mixtures =====================================================
-		if self.prior in ["GMM","CGMM","FGMM"]:
-
-			if self.prior == "FGMM":
-				n_components = 2
-			else:
-				n_components = self.hyper["n_components"]
+		if "GMM" in self.prior:
+			n_components = self.hyper["n_components"]
+			names_components = list(string.ascii_uppercase)[:n_components]
 
 			if self.parameters["weights"] is None:
 				assert self.hyper["delta"] is not None, msg_delta
@@ -324,12 +428,12 @@ class Inference:
 				if isinstance(self.parameters["weights"],str):
 					#---- Extract scale parameters ------------
 					wgh = pn.read_csv(self.parameters["weights"],
-								usecols=["Parameter","mode"])
+								usecols=["Parameter","MAP"])
 					wgh = wgh[wgh["Parameter"].str.contains("weights")]
 					#------------------------------------------
 
 					#---- Set weights ----------------------------
-					self.parameters["weights"] = wgh["mode"].values
+					self.parameters["weights"] = wgh["MAP"].values
 					#-----------------------------------------------
 				#-----------------------------------------------------------
 
@@ -338,222 +442,267 @@ class Inference:
 				print(self.parameters["weights"])
 				assert len(self.parameters["weights"]) == n_components, \
 					"The size of the weights parameter is incorrect!"
-				assert np.min(self.parameters["weights"])> 0.05, msg_weights
+				#assert np.min(self.parameters["weights"])> 0.05, msg_weights
 				#-----------------------------------------------------------
 
 			assert self.parametrization == "central", msg_central
-
-			if self.prior == "FGMM":
-				msg_fgmm = "In FGMM there are only two components"
-				assert len(self.hyper["delta"]) == 2, msg_fgmm
-
-			if self.prior in ["CGMM","FGMM"]:
-				assert self.D in [3,6], "This prior is not valid for 1D version."
 		#============================================================================
 
 		#====================== Location ==========================================================
 		if self.parameters["location"] is None:
 			#---------------- Alpha ---------------------------------------------------------
+			print("The alpha hyper-parameter has been set to:")
 			if self.hyper["alpha"] is None:
-				print("The alpha hyper-parameter has been set to:")
-
 				#-- Cluster dispersion ----
-				uvw_sd = 10.
+				uvw_sd = 5.
 				xyz_fc = 0.2
 				#-------------------------
 
-				#------------------------ Cluster mean value ------------------------
 				if self.D == 1:
 					#---------- Mean distance ------------
-					d = 1000./self.mean_observed[0]
+					d = self.backward(self.mean_observed[0])
 					#------------------------------------
 
 					#---------- Dispersion -----------------
 					d_sd = xyz_fc*d
 					#---------------------------------------
 
-					self.hyper["alpha"] = [d,d_sd]
-					print("D: {0:2.1f} +/- {1:2.1f}".format(d,d_sd))
-
+					self.hyper["alpha"] = {
+						"loc":[d],
+						"scl":[d_sd]}
 				
 				elif self.D == 3:
 					#------------ Cluster mean coordinates -------------------
-					x,y,z,_,_,_ = astrometry_and_rv_to_phase_space(np.append(
-									self.mean_observed,[0.0,0.0,0.0])[np.newaxis,:],
-									reference_system=self.reference_system).flatten()
+					x,y,z = self.backward(self.mean_observed[np.newaxis,:]).flatten()
 					#----------------------------------------------------------
 
 					#---------- Dispersion -----------------
 					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
 					#---------------------------------------
 
-					self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd]]
-
-					names = ["X","Y","Z"]
-					for i,value in enumerate(self.hyper["alpha"]):
-						print("{0}: {1:2.1f} +/- {2:2.1f}".format(names[i],value[0],value[1]))
+					self.hyper["alpha"] = {
+						"loc":[x,y,z],
+						"scl":[xyz_sd,xyz_sd,xyz_sd]}
 
 				elif self.D == 6:
 					#------------ Cluster mean coordinates -------------------
-					x,y,z,u,v,w = astrometry_and_rv_to_phase_space(
-									self.mean_observed[np.newaxis,:],
-									reference_system=self.reference_system).flatten()
+					x,y,z,u,v,w = self.backward(self.mean_observed[np.newaxis,:]).flatten()
 					#----------------------------------------------------------
 
 					#---------- Dispersion -----------------
 					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
 					#---------------------------------------
 
-					self.hyper["alpha"] = [[x,xyz_sd],[y,xyz_sd],[z,xyz_sd],
-										   [u,uvw_sd],[v,uvw_sd],[w,uvw_sd]]
+					self.hyper["alpha"] = {
+					"loc":[x,y,z,u,v,w],
+					"scl":[xyz_sd,xyz_sd,xyz_sd,uvw_sd,uvw_sd,uvw_sd]}
 
-					names = ["X","Y","Z","U","V","W"]
-					for i,value in enumerate(self.hyper["alpha"]):
-						print("{0}: {1:2.1f} +/- {2:2.1f}".format(names[i],value[0],value[1]))
-				#----------------------------------------------------------------------
-				
+			for name,loc,scl in zip(
+				self.names_coords,
+				self.hyper["alpha"]["loc"],
+				self.hyper["alpha"]["scl"]):
+				print("{0}: {1:2.1f} +/- {2:2.1f} pc".format(name,loc,scl))	
 			#---------------------------------------------------------------------------------
 
-		#-------------- Read from input file ----------------------------------
 		else:
+			#-------------------------- Fixed value -----------------------------------------------------------
+			msg_loc = "ERROR: The size of the provided location parameter is incorrect!"
+			msg_gmm = "ERROR: The list type for fixing the location parameter is only valid for mixture models"
+
+			#-------------- Read from input file ----------------------------------
 			if isinstance(self.parameters["location"],str):
-				#---- Extract parameters ----------------------
-				loc = pn.read_csv(self.parameters["location"],
-							usecols=["Parameter","mode"])
-				loc = loc[loc["Parameter"].str.contains("loc")]
-				#----------------------------------------------
+				#---- Extract parameters ------------------------
+				pars = pn.read_csv(self.parameters["location"],
+							usecols=["Parameter","MAP"])
+				#------------------------------------------------
 
-				#-------- Extraction is prior dependent ----------------
-				if self.prior in ["GMM","CGMM","GUM"]:
-					assert int(loc.shape[0]/self.D) == n_components,\
-					"Mismatch in the number of components"
+				
+				#------------------- Extraction --------------------------
+				if "GMM" in self.prior:
+					locs = []
+					for name in names_components:
+						selection = pars["Parameter"].str.contains(
+									"loc[{0}".format(name),regex=False)
+						loc = pars.loc[selection,"MAP"].values
+						assert loc.shape[0] == self.D, msg_loc
+						locs.append(loc)
 
-					values = []
-					for i in range(n_components):
-						selection = loc["Parameter"].str.contains(
-									"[{0}]".format(i),regex=False)
-						values.append(loc.loc[selection,"mode"].values)
-
-					self.parameters["location"] = values
+					self.parameters["location"] = locs
 
 				else:
-					#---- Set location  ----------------------------
-					self.parameters["location"] = loc["mode"].values
-					#-----------------------------------------------
+					mask_loc = pars["Parameter"].str.contains("loc")
+					loc = pars.loc[mask_loc,"MAP"]
+
+					self.parameters["location"] = np.array(loc.values)
 				#----------------------------------------------------------
 
-			#--------- Verify location ---------------------------------
-			print("The location parameter is fixed to:")
-			if self.prior in ["GMM","CGMM","GUM"]:
-				for i,loc in enumerate(self.parameters["location"]):
-					print(i,loc)
-					assert len(loc) == self.D, \
-						"The location parameter's size is incorrect!"
+			print("The location parameter has been fixed to:")
+
+			if isinstance(self.parameters["location"],float):
+				assert self.D == 1,"ERROR: float type in location parameter is only valid in 1D"
+				self.parameters["location"] = np.array([self.parameters["location"]])
+			
+			if isinstance(self.parameters["location"],np.ndarray):
+				assert self.parameters["location"].shape[0] == self.D, msg_loc
+				for name,loc in zip(self.names_coords,self.parameters["location"]):
+					print("{0}: {1:2.1f} pc".format(name,loc))
+
+			#-------------- Mixture model ----------------------------
+			elif isinstance(self.parameters["location"],list):
+				assert "GMM" in self.prior, msg_gmm
+				for name,loc in zip(names_components,self.parameters["location"]):
+					print("Component {0}".format(name))
+					assert loc.shape[0] == self.D, msg_loc
+					for name,loc in zip(self.names_coords,loc):
+						print("{0}: {1:2.1f} pc".format(name,loc))		
+			#----------------------------------------------------------
+
 			else:
-				print(self.parameters["location"])
-				assert len(self.parameters["location"]) == self.D, \
-					"The location parameter's size is incorrect!"
-			#-----------------------------------------------------------
+				sys.exit("ERROR: Unrecognized type of location parameter!"\
+					"Must be None, string, float (1D), numpy array or list of numpy arrays (mixture models).")
 		#-----------------------------------------------------------------------
 		#==============================================================================================
 		
 		#============================= Scale ===========================================================
 		if self.parameters["scale"] is None:
 			if self.hyper["beta"] is None:
-				self.hyper["beta"] = 10.0
-				print("The beta hyper-parameter has been set to:")
-				print(self.hyper["beta"])
+				self.hyper["beta"] = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
+			else:
+				if isinstance(self.hyper["beta"],float):
+					assert self.D == 1,\
+						"ERROR: float type in beta hyper-parameter is only valid in 1D"
+					self.hyper["beta"] = np.array([self.hyper["beta"]])
+				elif isinstance(self.hyper["beta"],list):
+					assert len(self.hyper["beta"]) == self.D,\
+						"ERROR: incorrect length of hyperparameter beta!"
+					self.hyper["beta"] = np.array(self.hyper["beta"])
+				elif isinstance(self.hyper["beta"],np.ndarray):
+					assert self.hyper["beta"].ndim == 1 and self.hyper["beta"].shape[0] == self.D,\
+						"ERROR: incorrect shape of hyperparameter beta!"
+				else:
+					sys.exit("ERROR:Unrecognized type of hyper_beta")
+
+			print("The beta hyper-parameter has been set to:")
+			for name,scl in zip(self.names_coords,self.hyper["beta"]):
+				print("{0}: {1:2.1f} pc".format(name,scl))	
+
 		else:
-			#-------------- Read from input file -----------------------------
+
+			#-------------------------- Fixed value -----------------------------------------------------------
+			msg_scl = "ERROR: The size of the provided scale parameter is incorrect!"
+			msg_gmm = "ERROR: The list type for fixing the scale parameter is only valid for mixture models"
+
 			if isinstance(self.parameters["scale"],str):
-				#---- Extract scale parameters ------------
-				scl = pn.read_csv(self.parameters["scale"],
-							usecols=["Parameter","mode"])
-				scl.fillna(value=1.0,inplace=True)
+				#---- Extract parameters ------------
+				pars = pn.read_csv(self.parameters["scale"],
+							usecols=["Parameter","MAP"])
+				pars.fillna(value=1.0,inplace=True)
 				#------------------------------------------
 
 				#-------- Extraction is prior dependent ----------------
-				if self.prior in ["GMM","CGMM","GUM"]:
+				if "GMM" in self.prior:
 					stds = []
 					cors = []
 					covs = []
-					for i in range(n_components):
-						#---------- Select component parameters --------
-						mask_std = scl["Parameter"].str.contains(
-									"{0}_stds".format(i),regex=False)
-						mask_cor = scl["Parameter"].str.contains(
-									"{0}_corr".format(i),regex=False)
-						#-----------------------------------------------
-
-						#------Extract parameters -------------------
-						std = scl.loc[mask_std,"mode"].values
-						cor = scl.loc[mask_cor,"mode"].values
-						#--------------------------------------------
+					for name in names_components:
+						#------------- Stds ---------------------------
+						mask_std = pars["Parameter"].str.contains(
+									"std[{0}".format(name),regex=False)
+						std = pars.loc[mask_std,"MAP"].values
+						#------------------------------------------------
 
 						stds.append(std)
 
-						#---- Construct covariance --------------
-						std = np.diag(std)
-						cor = np.reshape(cor,(self.D,self.D))
-						cov = np.dot(std,cor.dot(std))
-						#-----------------------------------------
+						if self.D != 1:
+							#----------- Correlations ------------------------
+							mask_cor = pars["Parameter"].str.contains(
+										"corr[{0}".format(name),regex=False)
+							cor = pars.loc[mask_cor,"MAP"].values
+							#--------------------------------------------------
 
-						#--- Append -------
-						cors.append(cor)
-						covs.append(cov)
-						#------------------
+							#---- Construct covariance --------------
+							std = np.diag(std)
+							cor = np.reshape(cor,(self.D,self.D))
+							cov = np.dot(std,cor.dot(std))
+							#-----------------------------------------
+
+							#--- Append -------
+							cors.append(cor)
+							covs.append(cov)
+							#------------------
 			
-					self.parameters["stds"] = stds
-					self.parameters["corr"] = cors
-					self.parameters["scale"] = covs
+					if self.D == 1:
+						self.parameters["scale"] = stds
+					else:
+						self.parameters["scale"] = covs
 
 				else:
-					#---------- Select component parameters ---------
-					mask_stds = scl["Parameter"].str.contains('stds')
-					mask_corr = scl["Parameter"].str.contains('corr')
-					#-------------------------------------------------
+					#--------- Standard deviations --------------------
+					mask_stds = pars["Parameter"].str.contains("std")
+					stds = pars.loc[mask_stds,"MAP"].values
+					#--------------------------------------------------
 
-					#---- Extract parameters ----------------------
-					stds = scl.loc[mask_stds,"mode"].values
-					corr = scl.loc[mask_corr,"mode"].values
-					#----------------------------------------------
+					if self.D == 1:
+						self.parameters["scale"] = np.array(stds)
+					else:
+						#----------- Correlations -----------------------
+						mask_corr = pars["Parameter"].str.contains('corr')
+						corr = pars.loc[mask_corr,"MAP"].values
+						#------------------------------------------------
 
-					#---- Construct covariance --------------
-					stds = np.diag(stds)
-					corr = np.reshape(corr,(self.D,self.D))
-					cov = np.dot(stds,corr.dot(stds))
-					#-----------------------------------------
+						#---- Construct covariance --------------
+						stds = np.diag(stds)
+						corr = np.reshape(corr,(self.D,self.D))
+						cov = np.dot(stds,corr.dot(stds))
+						#-----------------------------------------
 
-					self.parameters["scale"] = cov
-				#-----------------------------------------------------
+						self.parameters["scale"] = np.array(cov)
+
+					
 			#---------------------------------------------------------------------
 
-			#--------- Verify scale ----------------------------------------
-			print("The scale parameter is fixed to:")
-			if self.prior in ["GMM","CGMM","GUM"]:
-				for i,scl in enumerate(self.parameters["scale"]):
-					print(i,scl)
-					assert scl.shape == (self.D,self.D), \
-						"The scale parameter's shape is incorrect!"
-			else:
+			print("The scale parameter has been fixed to:")
+
+			if isinstance(self.parameters["scale"],float):
+				assert self.D == 1,"ERROR: float type in scale parameter is only valid in 1D"
+				self.parameters["scale"] = np.array([self.parameters["scale"]])
+
+			if isinstance(self.parameters["scale"],np.ndarray):
+				if self.D == 1:
+					assert self.parameters["scale"].shape[0] == 1, msg_scl
+				else:
+					assert self.parameters["scale"].shape == (self.D,self.D), msg_scl
+
 				print(self.parameters["scale"])
-				assert self.parameters["scale"].shape == (self.D,self.D), \
-					"The scale parameter's shape is incorrect!"
-			#----------------------------------------------------------------
+
+			#-------------- Mixture model ----------------------------
+			elif isinstance(self.parameters["scale"],list):
+				assert "GMM" in self.prior, msg_gmm
+				for name,scl in zip(names_components,self.parameters["scale"]):
+					if self.D == 1:
+						assert scl.shape[0] == 1, msg_scl
+					else:
+						assert scl.shape == (self.D,self.D), msg_scl
+					print("Component {0}".format(name))
+					print(scl)
+			#----------------------------------------------------------	
+			else:
+				sys.exit("ERROR: Unrecognized type of scale parameter!"\
+					"Must be None, string, float (1D), numpy array or list of numpy arrays (mixture models).")
 		#==============================================================================================
 
-		
+		#=========================== Initial values =======================================
+		self.starting_points = {"{0}D::source".format(self.D):self.backward(self.observed)}
+		#==================================================================================
 
+		#==================== Miscelaneous ============================================================
 		if self.parameters["scale"] is None and self.hyper["eta"] is None:
 			self.hyper["eta"] = 1.0
 			print("The eta hyper-parameter has been set to:")
 			print(self.hyper["eta"])
 
-		if self.prior == "EDSD":
-			assert self.D == 1, "EDSD prior is only valid for 1D version."
-
-		if self.prior == "Uniform":
-			assert self.D == 1, "Uniform prior is only valid for 1D version."
+		if self.prior in ["EDSD","GGD","Uniform","EFF","King"]:
+			assert self.D == 1, "{0} prior is only valid for 1D version.".format(self.prior)
 
 		if self.prior == "StudentT":
 			assert "nu" in self.hyper, msg_nu
@@ -570,11 +719,9 @@ class Inference:
 			self.hyper["nu"] = None
 
 		if self.prior == "FGMM":
-			assert field_sd is not None, "Must specify the typical size of the field"
-			assert isinstance(field_sd,dict), "Field typical size must be a dictionary"
-			assert "position" in field_sd, "Field size in position not found"
-			if self.D == 6:
-				assert "velocity" in field_sd, "Field size in velocity not found"
+			assert "field_scale" in self.parameters, "Model FGMM needs the 'field_scale' parameter"
+			assert self.parameters["field_scale"] is not None, "Must specify the typical size of the field"
+			assert len(self.parameters["field_scale"]) == self.D, "Size of field_scale must match model dimension"
 
 		if self.prior in ["King","EFF"]:
 			if self.prior == "KING" and self.parameters["rt"] is None:
@@ -583,12 +730,14 @@ class Inference:
 				assert self.hyper["gamma"] is not None, msg_gamma
 		else:
 			self.hyper["gamma"] = None
-
+		#===========================================================================================================
 
 		if self.D == 1:
-			self.Model = Model1D(n_sources=self.n_sources,
+			self.Model = Model1D(
+								n_sources=self.n_sources,
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
+								dimension=self.D,
 								prior=self.prior,
 								parameters=self.parameters,
 								hyper_alpha=self.hyper["alpha"],
@@ -596,13 +745,19 @@ class Inference:
 								hyper_gamma=self.hyper["gamma"],
 								hyper_delta=self.hyper["delta"],
 								hyper_nu=self.hyper["nu"],
-								transformation=self.transformation,
-								parametrization=self.parametrization)
+								transformation=self.forward,
+								parametrization=self.parametrization,
+								identifiers=self.ID,
+								coordinates=self.names_coords,
+								observables=self.names_mu)
 
-		elif self.D == 3:
-			self.Model = Model3D(n_sources=self.n_sources,
+		elif self.D in [3,6] and self.velocity_model == "joint":
+			self.Model = Model3D6D(
+								n_sources=self.n_sources,
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
+								idx_observed=self.idx_data,
+								dimension=self.D,
 								prior=self.prior,
 								parameters=self.parameters,
 								hyper_alpha=self.hyper["alpha"],
@@ -611,12 +766,14 @@ class Inference:
 								hyper_delta=self.hyper["delta"],
 								hyper_eta=self.hyper["eta"],
 								hyper_nu=self.hyper["nu"],
-								field_sd=field_sd,
-								transformation=self.transformation,
-								reference_system=self.reference_system,
-								parametrization=self.parametrization)
-		elif self.D == 6:
-			self.Model = Model6D(n_sources=self.n_sources,
+								transformation=self.forward,
+								parametrization=self.parametrization,
+								identifiers=self.ID,
+								coordinates=self.names_coords,
+								observables=self.names_mu)
+
+		elif self.D == 6 and self.velocity_model != "joint":
+			self.Model = Model6D_linear(n_sources=self.n_sources,
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
 								idx_data=self.idx_data,
@@ -628,30 +785,36 @@ class Inference:
 								hyper_delta=self.hyper["delta"],
 								hyper_eta=self.hyper["eta"],
 								hyper_nu=self.hyper["nu"],
-								field_sd=field_sd,
-								transformation=self.transformation,
-								reference_system=self.reference_system,
+								transformation=self.forward,
 								parametrization=self.parametrization,
-								velocity_model=self.velocity_model)
+								velocity_model=self.velocity_model,
+								identifiers=self.ID,
+								coordinates=self.names_coords,
+								observables=self.names_mu)
 		else:
-			sys.exit("Dimension not valid!")
+			sys.exit("Non valid dimension or velocity model!")
 
 		print((30+13)*"+")
 
-
-
-
-		
-	def run(self,sample_iters,tuning_iters,
-		chains=None,cores=None,
+	def run(self,
+		tuning_iters=2000,
+		sample_iters=2000,
+		target_accept=0.6,
+		chains=2,
+		cores=2,
 		step=None,
-		file_chains=None,
+		step_size=None,
 		init_method="advi+adapt_diag",
-		init_iters=int(1e6),
+		init_iters=int(1e5),
+		init_absolute_tol=5e-3,
+		init_relative_tol=1e-5,
+		init_plot_iters=int(1e4),
+		init_refine=False,
 		prior_predictive=False,
-		posterior_predictive=False,
+		prior_iters=500,
 		progressbar=True,
-		*args,**kwargs):
+		nuts_sampler="numpyro",
+		random_seed=None):
 		"""
 		Performs the MCMC run.
 		Arguments:
@@ -659,49 +822,182 @@ class Inference:
 		tuning_iters (integer):    Number of burning iterations.
 		"""
 
-		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
-
-		#----------------------- ADVI+ADAPT_DIAG ------------------------------
-		print("Finding initial solution ...")
-		initvals,step = pm.init_nuts(init=init_method, chains=chains, 
-									n_init=init_iters, model=self.Model)
-		#---------------------------------------------------------------------
-
-		print("Sampling the model ...")
-
-		with self.Model:
-			#-------- Prior predictive ----------------------------------
-			if prior_predictive:
-				prior = pm.sample_prior_predictive(samples=sample_iters) #Fails for MvNorm
+		#------- Step_size ----------
+		if step_size is None:
+			if self.D == 1:
+				step_size = 1.e-1
+			elif self.D == 3:
+				step_size = 1.e-2
 			else:
-				prior = None
-			#-------------------------------------------------------------
+				step_size = 1.e-3
+		#---------------------------
 
-			#---------- Posterior -----------------------
-			trace = pm.sample(draws=sample_iters,
-							initvals=initvals,
-							step=step,
-							tune=tuning_iters,
-							chains=chains, cores=cores,
-							progressbar=progressbar,
-							discard_tuned_samples=True,
-							return_inferencedata=False)
-			#-----------------------------------------------
-
-			#-------- Posterior predictive -----------------------------
-			if posterior_predictive:
-				predictive = pm.sample_posterior_predictive(trace)
+		if not os.path.exists(self.file_chains):
+			#================== Optimization =============================================
+			if os.path.exists(self.file_start):
+				print("Reading initial positions ...")
+				in_file = open(self.file_start, "rb")
+				approx = dill.load(in_file)
+				in_file.close()
+				start = approx["initial_points"][0]
 			else:
-				predictive = None
-			#--------------------------------------------------------
+				approx = None
+				start = self.starting_points
+				print("Finding initial positions ...")
+
+			if approx is None or (approx is not None and init_refine):
+				# -------- Fix problem with initial solution of cholesky cov-packed ----------
+				name_ccp = "_cholesky-cov-packed__" 
+				for key,value in start.copy().items():
+					if name_ccp in key:
+						del start[key]
+				# TO BE REMOVED once pymc5 solves this issue
+				#----------------------------------------------------------------------------
+
+				random_seed_list = pymc.util._get_seeds_per_chain(random_seed, chains)
+				cb = [pm.callbacks.CheckParametersConvergence(
+						tolerance=init_absolute_tol, diff="absolute"),
+					  pm.callbacks.CheckParametersConvergence(
+						tolerance=init_relative_tol, diff="relative")]
+
+				approx = pm.fit(
+					start=start,
+					random_seed=random_seed_list[0],
+					n=init_iters,
+					method="advi",
+					model=self.Model,
+					callbacks=cb,
+					progressbar=True,
+					#test_optimizer=pm.adagrad#_window
+					)
+
+				#------------- Plot Loss ----------------------------------
+				plt.figure()
+				plt.plot(approx.hist[-init_plot_iters:])
+				plt.xlabel("Last {0} iterations".format(init_plot_iters))
+				# plt.yscale("log")
+				plt.ylabel("Average Loss")
+				plt.savefig(self.dir_out+"/Initializations.png")
+				plt.close()
+				#-----------------------------------------------------------
+
+				approx_sample = approx.sample(
+					draws=chains, 
+					random_seed=random_seed_list[0],
+					return_inferencedata=False
+					)
+
+				initial_points = [approx_sample[i] for i in range(chains)]
+				sd_point = approx.std.eval()
+				mu_point = approx.mean.get_value()
+				approx = {
+					"initial_points":initial_points,
+					"mu_point":mu_point,
+					"sd_point":sd_point
+					}
+
+				out_file = open(self.file_start, "wb")
+				dill.dump(approx, out_file)
+				out_file.close()
+
+				#------------------ Save initial point ------------------------------
+				df = pn.DataFrame(data=initial_points[0]["{0}D::true".format(self.D)],
+					columns=self.names_mu)
+				df.to_csv(self.dir_out+"/initial_point.csv",index=False)
+				#---------------------------------------------------------------------
+
+			#----------- Extract ---------------------
+			mu_point = approx["mu_point"]
+			sd_point = approx["sd_point"]
+			initial_points = approx["initial_points"]
+			#-----------------------------------------
+
+			# -------- Fix problem with initial solution of cholesky cov-packed ----------
+			name_ccp = "_cholesky-cov-packed__" 
+			for vals in initial_points:
+				for key,value in vals.copy().items():
+					if name_ccp in key:
+						del vals[key]
+			# TO BE REMOVED once pymc5 solves this issue
+			#----------------------------------------------------------------------------
+
+			#================================================================================
+
+			#=================== Sampling ==================================================
+			if nuts_sampler == "pymc":
+				#--------------- Prepare step ---------------------------------------------
+				# Only valid for nuts_sampler == "pymc". 
+				# The other samplers adapt steps independently.
+				potential = pymc.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
+							n=len(mu_point),
+							initial_mean=mu_point,
+							initial_diag=sd_point**2, 
+							initial_weight=10)
+
+				step = pm.NUTS(
+						potential=potential,
+						model=self.Model,
+						target_accept=target_accept
+						)
+				#----------------------------------------------------------------------------
+
+				print("Sampling the model ...")
+
+				#---------- Posterior -----------
+				trace = pm.sample(
+					draws=sample_iters,
+					initvals=initial_points,
+					step=step,
+					nuts_sampler=nuts_sampler,
+					tune=tuning_iters,
+					chains=chains, 
+					cores=cores,
+					progressbar=progressbar,
+					discard_tuned_samples=True,
+					return_inferencedata=True,
+					nuts_sampler_kwargs={"step_size":step_size},
+					model=self.Model
+					)
+				#--------------------------------
+			else:
+				#---------- Posterior -----------
+				trace = pm.sample(
+					draws=sample_iters,
+					initvals=initial_points,
+					step=None,
+					nuts_sampler=nuts_sampler,
+					tune=tuning_iters,
+					chains=chains, 
+					cores=cores,
+					progressbar=progressbar,
+					target_accept=target_accept,
+					discard_tuned_samples=True,
+					return_inferencedata=True,
+					nuts_sampler_kwargs={"step_size":step_size},
+					model=self.Model
+					)
+				#--------------------------------
 
 			#--------- Save with arviz ------------
-			pm_data = az.from_pymc3(
-						trace=trace,
-						prior=prior,
-						posterior_predictive=predictive)
-			az.to_netcdf(pm_data,file_chains)
+			print("Saving posterior samples ...")
+			az.to_netcdf(trace,self.file_chains)
 			#-------------------------------------
+			del trace
+			#================================================================================
+
+		
+		if prior_predictive and not os.path.exists(self.file_prior):
+				#-------- Prior predictive -------------------
+				print("Sampling prior predictive ...")
+				prior_pred = pm.sample_prior_predictive(
+							samples=prior_iters,
+							model=self.Model)
+				print("Saving prior predictive ...")
+				az.to_netcdf(prior_pred,self.file_prior)
+				#---------------------------------------------
+
+		print("Sampling done!")
+		
 
 
 	def load_trace(self,file_chains=None):
@@ -709,31 +1005,48 @@ class Inference:
 		Loads a previously saved sampling of the model
 		'''
 
-		file_chains = self.dir_out+"/chains.nc" if (file_chains is None) else file_chains
+		file_chains = self.file_chains if (file_chains is None) else file_chains
 
 		if not hasattr(self,"ID"):
 			#----- Load identifiers ------
 			self.ID = pn.read_csv(self.file_ids).to_numpy().flatten()
 
 		print("Loading existing samples ... ")
-		#---------Load Trace ---------------------------------------------------
+
+		#---------Load posterior ---------------------------------------------------
 		try:
-			self.ds_posterior = az.from_netcdf(file_chains).posterior
+			posterior = az.from_netcdf(file_chains)
 		except ValueError:
-			sys.exit("There is no posterior group in {0}".format(file_chains))
+			sys.exit("ERROR at loading {0}".format(file_chains))
 		#------------------------------------------------------------------------
 
 		#----------- Load prior -------------------------------------------------
 		try:
-			self.ds_prior = az.from_netcdf(file_chains).prior
+			prior = az.from_netcdf(self.file_prior)
 		except:
+			prior = None
 			self.ds_prior = None
+		
+		if prior is not None:
+			posterior.extend(prior)
+			self.ds_prior = posterior.prior
 		#-------------------------------------------------------------------------
+
+		self.trace = posterior
+
+		#---------Load posterior ---------------------------------------------------
+		try:
+			self.ds_posterior = self.trace.posterior
+		except ValueError:
+			sys.exit("There is no posterior in trace")
+		#------------------------------------------------------------------------
 
 		#------- Variable names -----------------------------------------------------------
 		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
 		cluster_variables = list(filter(lambda x: ( ("loc" in x) 
-											or ("scl" in x) 
+											or ("corr" in x)
+											or ("std" in x)
+											or ("std" in x)
 											or ("weights" in x)
 											or ("beta" in x)
 											or ("gamma" in x)
@@ -749,6 +1062,7 @@ class Inference:
 		cluster_loc_var = cluster_variables.copy()
 		cluster_std_var = cluster_variables.copy()
 		cluster_cor_var = cluster_variables.copy()
+		cluster_ppc_var = cluster_variables.copy()
 
 		#----------- Case specific variables -------------
 		tmp_srces = source_variables.copy()
@@ -757,6 +1071,7 @@ class Inference:
 		tmp_loc   = cluster_variables.copy()
 		tmp_stds  = cluster_variables.copy()
 		tmp_corr  = cluster_variables.copy()
+		tmp_ppc   = cluster_variables.copy()
 
 		for var in tmp_srces:
 			if "_pos" in var or "_vel" in var:
@@ -764,31 +1079,38 @@ class Inference:
 
 		for var in tmp_plots:
 			if self.D in [3,6]:
-				if "scl" in var and "stds" not in var:
+				if "corr" in var:
 					trace_variables.remove(var)
-				if "lnv" in var and "stds" not in var:
+				if "lnv" in var and "std" not in var:
 					trace_variables.remove(var)
 
 		for var in tmp_stats:
 			if self.D in [3,6]:
-				if "scl" in var:
-					if not ("stds" in var or "corr" in var or "unif" in var):
-						stats_variables.remove(var)
-				if "lnv" in var:
-					if not ("stds" in var or "corr" in var or "unif" in var):
-						stats_variables.remove(var)
+				if not ("loc" in var 
+					or "std" in var
+					or "weights" in var
+					or "nu" in var
+					or "corr" in var 
+					or "omega" in var
+					or "kappa" in var):
+					stats_variables.remove(var)
 
 		for var in tmp_loc:
 			if "loc" not in var:
 				cluster_loc_var.remove(var)
 
 		for var in tmp_stds:
-			if "stds" not in var or "lnv" in var:
+			if "std" not in var:
 				cluster_std_var.remove(var)
 
 		for var in tmp_corr:
-			if "corr" not in var or "lnv" in var:
+			if "corr" not in var:
 				cluster_cor_var.remove(var)
+
+		for var in tmp_ppc:
+			if "corr" in var:
+				cluster_ppc_var.remove(var)
+
 		#----------------------------------------------------
 
 		self.source_variables  = source_variables
@@ -798,6 +1120,7 @@ class Inference:
 		self.loc_variables     = cluster_loc_var
 		self.std_variables     = cluster_std_var
 		self.cor_variables     = cluster_cor_var
+		self.chk_variables     = cluster_ppc_var
 
 		# print(self.source_variables)
 		# print(self.cluster_variables)
@@ -806,6 +1129,7 @@ class Inference:
 		# print(self.loc_variables    )
 		# print(self.std_variables     )
 		# print(self.cor_variables     )
+		# print(self.chk_variables)
 		# sys.exit()
 
 	def convergence(self):
@@ -824,13 +1148,18 @@ class Inference:
 		for var in self.ds_posterior.data_vars:
 			print("{0} : {1:2.4f}".format(var,np.mean(ess[var].values)))
 
+		print("Step size:")
+		for i,val in enumerate(self.trace.sample_stats["step_size"].mean(dim="draw")):
+			print("Chain {0}: {1:3.8f}".format(i,val))
+
 	def plot_chains(self,
 		file_plots=None,
 		IDs=None,
 		divergences='bottom', 
 		figsize=None, 
 		lines=None, 
-		combined=False, 
+		combined=False,
+		compact=False,
 		plot_kwargs=None, 
 		hist_kwargs=None, 
 		trace_kwargs=None,
@@ -855,14 +1184,15 @@ class Inference:
 				if not np.any(id_in_IDs) :
 					sys.exit("{0} {1} is not valid. Use strings".format(self.id_name,ID))
 				idx = np.where(id_in_IDs)[0]
-				coords = {str(self.D)+"D_source_dim_0" : idx}
+				coords = {"source_id":ID}
 				plt.figure(0)
 				axes = az.plot_trace(self.ds_posterior,
 						var_names=self.source_variables,
 						coords=coords,
 						figsize=figsize,
 						lines=lines, 
-						combined=combined, 
+						combined=combined,
+						compact=compact,
 						plot_kwargs=plot_kwargs, 
 						hist_kwargs=hist_kwargs, 
 						trace_kwargs=trace_kwargs)
@@ -886,47 +1216,60 @@ class Inference:
 				pdf.savefig(bbox_inches='tight')
 				plt.close(0)
 
-		if len(self.cluster_variables) > 0:
-			plt.figure(1)
+		for var_name in self.trace_variables:
 			axes = az.plot_trace(self.ds_posterior,
-					var_names=self.trace_variables,
+					var_names=var_name,
 					figsize=figsize,
 					lines=lines, 
 					combined=combined,
+					compact=compact,
 					plot_kwargs=plot_kwargs, 
 					hist_kwargs=hist_kwargs, 
-					trace_kwargs=trace_kwargs)
+					trace_kwargs=trace_kwargs,
+					labeller=az.labels.NoVarLabeller())
 
 			for ax in axes:
 				# --- Set units in parameters ------------------------------
 				title = ax[0].get_title()
-				if ("loc" in title) or ("scl" in title):
-					if self.transformation == "pc":
-						if "pos" in title:
-							ax[0].set_xlabel("$pc$")
-						if "vel" in title:
-							ax[0].set_xlabel("$km\\,s^{-1}$")
-						if "loc_0" in title or \
-							"loc_1" in title or \
-							"loc_2" in title:
-							ax[0].set_xlabel("$pc$")
-						if "loc_3" in title or \
-							"loc_4" in title or \
-							"loc_5" in title:
-							ax[0].set_xlabel("$km\\,s^{-1}$")
-					else:
-						ax[0].set_xlabel("mas")
+				if self.sampling_space == "physical":
+					if title in ["X","Y","Z"]:
+						ax[0].set_xlabel("$pc$")
+					if title in ["U","V","W"]:
+						ax[0].set_xlabel("$km\\,s^{-1}$")
+				else:
+					ax[0].set_xlabel("mas")
 				if "kappa" in title or "omega" in title:
 					ax[0].set_xlabel("$km\\,s^{-1}\\, pc^{-1}$")
 					#-----------------------------------------------------------
 				ax[1].set_xlabel("Iteration")
 
-			plt.gcf().suptitle("Population parameters",fontsize=fontsize_title)
+			plt.gcf().suptitle("Population parameter: {}".format(var_name),
+						fontsize=fontsize_title)
+			plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,hspace=0.5,wspace=0.1)
 				
 			#-------------- Save fig --------------------------
 			pdf.savefig(bbox_inches='tight')
 			plt.close(1)
 
+		pdf.close()
+
+	def plot_prior_check(self,
+		file_plots=None,
+		figsize=None,
+		):
+		"""
+		This function plots the prior and posterior distributions.
+		"""
+
+		print("Plotting checks ...")
+		file_plots = self.dir_out+"/Prior_check.pdf" if (file_plots is None) else file_plots
+
+		pdf = PdfPages(filename=file_plots)
+		for var in self.chk_variables:
+			plt.figure(0,figsize=figsize)
+			az.plot_dist_comparison(self.trace,var_names=var)
+			pdf.savefig(bbox_inches='tight')
+			plt.close(0)
 		pdf.close()
 
 	def _extract(self,group="posterior",n_samples=None,chain=None):
@@ -941,14 +1284,11 @@ class Inference:
 		#------------ Extract sources ---------------------------------------
 		srcs = np.array([data[var].values for var in self.source_variables])
 		#--------------------------------------------------------------------
-		
 
-		#------ Organize sources ---------
+		#------ Organize sources -----
 		srcs = srcs.squeeze(axis=0)
 		srcs = np.moveaxis(srcs,2,0)
-		if self.D == 1:
-			srcs = np.expand_dims(srcs,3)
-		#----------------------------------
+		#-----------------------------
 
 		#------ Dimensions -----
 		n,nc,ns,nd = srcs.shape
@@ -990,7 +1330,7 @@ class Inference:
 
 		#----------- Extract stds -------------------------------------------
 		if len(self.std_variables) == 0:
-			stds = np.array(self.parameters["stds"])
+			stds = np.array(self.parameters["std"])
 			stds = stds[:,np.newaxis,np.newaxis,:]
 			stds = np.tile(stds,(1,nc,ns,1))
 		else:
@@ -1008,7 +1348,7 @@ class Inference:
 				stds[:,:,:,3:] = stds_vel
 			else:
 				stds = np.array([data[var].values for var in self.std_variables])
-		#--------------------------------------------------------------------
+		#------------------------------------------------------------------------
 
 		#----------- Extract correlations -------------------------------
 		if len(self.std_variables) == 0:
@@ -1030,31 +1370,32 @@ class Inference:
 							cors_pos.shape[2],6,6))
 				cors[:,:,:,:3,:3] = cors_pos
 				cors[:,:,:,3:,3:] = cors_vel
+			elif self.D == 1:
+				cors = np.ones_like(stds)
 			else:
 				cors = np.array([data[var].values for var in self.cor_variables])
-		#------------------------------------------------------------------
+		#------------------------------------------------------------------------
 
 		#--------- Reorder indices ----------------------
-		if self.prior in ["GMM","CGMM"]:
-			if str(self.D)+"D_weights" in self.cluster_variables:
-				amps = np.array(data[str(self.D)+"D_weights"].values)
+		if "GMM" in self.prior:
+			locs = np.squeeze(locs, axis=0)
+			stds = np.squeeze(stds, axis=0)
+			cors = np.squeeze(cors, axis=0)
+
+			locs = np.moveaxis(locs,2,0)
+			stds = np.moveaxis(stds,2,0)
+			cors = np.moveaxis(cors,2,0)
+
+			if str(self.D)+"D::weights" in self.cluster_variables:
+				amps = np.array(data[str(self.D)+"D::weights"].values)
 				amps = np.moveaxis(amps,2,0)
 			else:
 				amps = np.array(self.parameters["weights"])
 				amps = amps[:,np.newaxis,np.newaxis]
 				amps = np.tile(amps,(1,nc,ns))
-
-			if self.prior == "GMM":
-				locs = np.swapaxes(locs,0,3)
-			else:
-				locs = np.moveaxis(locs,0,-1)[np.newaxis,:]
-				locs = np.tile(locs,(stds.shape[0],1,1,1))
-
 		else:
-			locs = np.moveaxis(locs,0,-1)[np.newaxis,:]
 			amps = np.ones_like(locs)[:,:,:,0]
 		#-------------------------------------------------
-
 		
 		#---------- One or multiple chains -------
 		ng,nc,ns,nd = locs.shape
@@ -1099,13 +1440,13 @@ class Inference:
 
 		return srcs,amps,locs,covs
 
-	def _classify(self,srcs,amps,locs,covs):
+	def _classify(self,srcs,amps,locs,covs,names_groups):
 		'''
 		Obtain the class of each source at each chain step
 		'''
 		print("Classifying sources ...")
 
-		if self.prior in ["GMM","CGMM"]:
+		if "GMM" in self.prior:
 			#------- Swap axes -----------------
 			pos_amps = np.swapaxes(amps,0,1)
 			pos_locs = np.swapaxes(locs,0,1)
@@ -1114,18 +1455,26 @@ class Inference:
 
 			#------ Loop over sources ----------------------------------
 			log_lk = np.zeros((srcs.shape[0],pos_amps.shape[0],pos_amps.shape[1]))
-			for i,src in enumerate(srcs):
-				for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
-					for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
-						log_lk[i,j,k] = st.multivariate_normal(mean=loc,cov=cov,
-											allow_singular=True).logpdf(dt)
+			if self.D == 1:
+				for i,src in enumerate(srcs):
+					for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
+						for k,(amp,loc,scl) in enumerate(zip(amps,locs,np.sqrt(covs))):
+							log_lk[i,j,k] = st.norm.logpdf(dt,loc=loc,scale=scl)
+			else:
+				for i,src in enumerate(srcs):
+					for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
+						for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
+							log_lk[i,j,k] = st.multivariate_normal(mean=loc,cov=cov,
+												allow_singular=True).logpdf(dt)
 
-			grps = st.mode(log_lk.argmax(axis=2),axis=1)[0].flatten()
+			idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
 
 		else:
-			grps = np.zeros(len(self.ID))
+			idx = np.zeros(len(self.ID),dtype=np.int32)
 
-		self.df_groups = pn.DataFrame(data={"group":grps},index=self.ID)
+		grps = [names_groups[i] for i in idx]
+
+		self.df_groups = pn.DataFrame(data={"group":idx,"label":grps},index=self.ID)
 
 	def _kinematic_indices(self,group="posterior",chain=None,n_samples=None):
 		'''
@@ -1136,7 +1485,7 @@ class Inference:
 										n_samples=n_samples,
 										chain=chain)
 
-		if self.prior in ["GMM","CGMM"]:
+		if "GMM" in self.prior:
 			sys.exit("Kinematic indices are not available for mixture models!")
 
 		#=============== Sources =====================================
@@ -1180,10 +1529,10 @@ class Inference:
 				sys.exit("Group not recognized")
 
 			#------------ Extract values -------------
-			kappa = np.array(data["6D_kappa"].values)
+			kappa = np.array(data["6D::kappa"].values)
 
 			if self.velocity_model == "linear":
-				omega = np.array(data["6D_omega"].values)
+				omega = np.array(data["6D::omega"].values)
 			#-----------------------------------------
 
 			#----------------- Merge --------------------
@@ -1205,21 +1554,21 @@ class Inference:
 
 			#----------- Tensor----------------
 			T = np.zeros((kappa.shape[0],3,3))
-			T[:,0,0] = kappa[:,0]
-			T[:,1,1] = kappa[:,1]
-			T[:,2,2] = kappa[:,2]
+			T[:,0,0] = kappa[:,0]*1000.
+			T[:,1,1] = kappa[:,1]*1000.
+			T[:,2,2] = kappa[:,2]*1000.
 			
 			if self.velocity_model == "linear":
-				T[:,0,1] = omega[:,0,0]
-				T[:,0,2] = omega[:,0,1]
-				T[:,1,2] = omega[:,0,2]
-				T[:,1,0] = omega[:,1,0]
-				T[:,2,0] = omega[:,1,1]
-				T[:,2,1] = omega[:,1,2]
+				T[:,0,1] = omega[:,0,0]*1000.
+				T[:,0,2] = omega[:,0,1]*1000.
+				T[:,1,2] = omega[:,0,2]*1000.
+				T[:,1,0] = omega[:,1,0]*1000.
+				T[:,2,0] = omega[:,1,1]*1000.
+				T[:,2,1] = omega[:,1,2]*1000.
 			#----------------------------------
 
 			#--------- Indicators ------------
-			exp = kappa.mean(axis=1)
+			exp = kappa.mean(axis=1)*1000.
 			if self.velocity_model == "linear":
 				omega = np.column_stack([
 						0.5*(T[:,2,1]-T[:,1,2]),
@@ -1234,8 +1583,8 @@ class Inference:
 			print(
 		"WARNING: the expansion and rotation indicators are computed from the dot and cross-product \
 		of the positions and velocities. Instead use the linear velocity model")
-			exp = srcs_exp
-			rot = srcs_rot
+			exp = srcs_exp*1000.
+			rot = srcs_rot*1000.
 			T = None
 
 		return norm_radii,mean_speed,exp,rot,T
@@ -1248,7 +1597,7 @@ class Inference:
 		fontsize_title=16,
 		labels=["X [pc]","Y [pc]","Z [pc]",
 				"U [km/s]","V [km/s]","W [km/s]"],
-		group_kwargs={"label":"Model",
+		posterior_kwargs={"label":"Model",
 						"color":"orange",
 						"linewidth":1,
 						"alpha":0.1},
@@ -1267,14 +1616,20 @@ class Inference:
 						"cmap_mix":"tab10_r",
 						"cmap_pos":"coolwarm",
 						"cmap_vel":"summer"},
-		source_labels={i:v for i,v in enumerate(ascii_uppercase)},
+		groups_kwargs={"color":{"A":"tab:blue",
+								"B":"tab:orange",
+								"C":"tab:green",
+								"D":"tab:brown",
+								"Field":"tab:gray"}},
 		ticks={"minor":16,"major":8},
 		legend_bbox_to_anchor=(0.25, 0., 0.5, 0.5)
 		):
 		"""
 		This function plots the model.
 		"""
-		assert self.D in [3,6], "Only valid for 3D and 6D models"
+		if self.D == 1:
+			print("Plot model valid only for 3D and 6D")
+			return
 
 		msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
 
@@ -1285,8 +1640,11 @@ class Inference:
 		file_plots = self.dir_out+"/Model.pdf" if (file_plots is None) else file_plots
 
 		#------------ Chain ----------------------
-		if self.prior in ["GMM","CGMM"]:
+		if "GMM" in self.prior:
 			chain = 0 if chain is None else chain
+			names_groups = self.ds_posterior.coords["component"].values
+		else:
+			names_groups = ["A"]
 		#-----------------------------------------
 
 		pdf = PdfPages(filename=file_plots)
@@ -1301,7 +1659,7 @@ class Inference:
 
 		#---------- Classify sources -------------------
 		if not hasattr(self,"df_groups"):
-			self._classify(pos_srcs,pos_amps,pos_locs,pos_covs)
+			self._classify(pos_srcs,pos_amps,pos_locs,pos_covs,names_groups)
 		#------------------------------------------------
 
 		#-- Sources mean and standard deviation ---------
@@ -1310,7 +1668,7 @@ class Inference:
 		#------------------------------------------------
 
 		#======================== Colors ================================
-		if self.prior in ["GMM","CGMM"] or self.D == 3:
+		if "GMM" in self.prior or self.D == 3:
 			#-------- Groups ---------------------------
 			groups = self.df_groups["group"].to_numpy()
 			#-------------------------------------------
@@ -1333,9 +1691,9 @@ class Inference:
 		else:
 			#--------- Kinematic indices ------------------------------
 			nrs,nvr,exp,rot,tensor = self._kinematic_indices(group="posterior")
-			print("Expansion: {0:2.2f} +/- {1:2.2f} km/s".format(
+			print("Expansion: {0:2.2f} +/- {1:2.2f} m.s-1.pc-1".format(
 											np.mean(exp),np.std(exp)))
-			print("Rotation:  {0:2.2f} +/- {1:2.2f} km/(s pc)".format(
+			print("Rotation:  {0:2.2f} +/- {1:2.2f} m.s-1.pc-1".format(
 											np.mean(rot),np.std(rot)))
 			#----------------------------------------------------------
 
@@ -1345,7 +1703,12 @@ class Inference:
 			#-------------------------------------------------
 
 			#------------ Normalizations ------------------------
-			norm_pos = TwoSlopeNorm(vcenter=0,
+			if nvr.min() > 0:
+				vcenter = 0.5*(nvr.max()-nvr.min())
+			else:
+				vcenter = 0.0
+
+			norm_pos = TwoSlopeNorm(vcenter=vcenter,
 								vmin=nvr.min(),vmax=nvr.max())
 			norm_vel = Normalize(vmin=nrs.min(),vmax=nrs.max())
 			#----------------------------------------------------
@@ -1367,13 +1730,13 @@ class Inference:
 						fmt='none',
 						ecolor=source_kwargs["error_color"],
 						elinewidth=source_kwargs["error_lw"],
-						zorder=1)
+						zorder=2)
 			ax.scatter(x=srcs_loc[:,idx[0]],
 						y=srcs_loc[:,idx[1]],
 						c=srcs_clr_pos,
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
-						zorder=1)
+						zorder=2)
 
 			#-------- Posterior ----------------------------------------------------------
 			for mus,covs in zip(pos_locs,pos_covs):
@@ -1381,12 +1744,12 @@ class Inference:
 						width, height, angle = get_principal(cov,idx)
 						ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
 										clip_box=ax.bbox,
-										edgecolor=group_kwargs["color"],
+										edgecolor=posterior_kwargs["color"],
 										facecolor=None,
 										fill=False,
-										linewidth=group_kwargs["linewidth"],
-										alpha=group_kwargs["alpha"],
-										zorder=2)
+										linewidth=posterior_kwargs["linewidth"],
+										alpha=posterior_kwargs["alpha"],
+										zorder=1)
 						ax.add_artist(ell)
 			#-----------------------------------------------------------------------------
 
@@ -1424,18 +1787,18 @@ class Inference:
 		#------------- Legend lines  ---------------------------------------
 		prior_line = mlines.Line2D([], [], color=prior_kwargs["color"], 
 								marker=None, label=prior_kwargs["label"])
-		group_line = mlines.Line2D([], [], color=group_kwargs["color"], 
-								marker=None, label=group_kwargs["label"])
+		group_line = mlines.Line2D([], [], color=posterior_kwargs["color"], 
+								marker=None, label=posterior_kwargs["label"])
 		#-------------------------------------------------------------------
 
 		#----------- Legend symbols ----------------------------------
-		if self.prior in ["GMM","CGMM"]:
+		if "GMM" in self.prior:
 			source_mrkr =  [mlines.Line2D([], [], 
 								marker=source_kwargs["marker"], color="w", 
-								markerfacecolor=cmap_pos(norm_pos(g)), 
+								markerfacecolor=cmap_pos(norm_pos(row["group"])), 
 								markersize=5,
-								label=source_labels[g]) 
-								for g in np.unique(groups)] 
+								label=row["label"]) 
+								for i,row in self.df_groups.drop_duplicates().iterrows()] 
 		else:
 			source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
 						  markerfacecolor=source_kwargs["color"], 
@@ -1453,7 +1816,7 @@ class Inference:
 		#-------------------------------------------------------------------------------
 
 		#--------- Colour bar---------------------------------------------------------------------
-		if self.prior not in ["GMM","CGMM"] and self.D == 6:
+		if "GMM" not in self.prior and self.D == 6:
 			fig.colorbar(cm.ScalarMappable(norm=norm_pos, cmap=cmap_pos),
 								ax=axs[1,1],fraction=0.3,
 								anchor=(0.0,0.0),
@@ -1477,13 +1840,13 @@ class Inference:
 							fmt='none',
 							ecolor=source_kwargs["error_color"],
 							elinewidth=source_kwargs["error_lw"],
-							zorder=1)
+							zorder=2)
 				clr_vel = ax.scatter(x=srcs_loc[:,idx[0]],
 							y=srcs_loc[:,idx[1]],
 							c=srcs_clr_vel,
 							marker=source_kwargs["marker"],
 							s=source_kwargs["size"],
-							zorder=1)
+							zorder=2)
 
 				#-------- Posterior ----------------------------------------------------------
 				for mus,covs in zip(pos_locs,pos_covs):
@@ -1491,12 +1854,12 @@ class Inference:
 							width, height, angle = get_principal(cov,idx)
 							ell  = Ellipse(mu[idx],width=width,height=height,angle=angle,
 											clip_box=ax.bbox,
-											edgecolor=group_kwargs["color"],
+											edgecolor=posterior_kwargs["color"],
 											facecolor=None,
 											fill=False,
-											linewidth=group_kwargs["linewidth"],
-											alpha=group_kwargs["alpha"],
-											zorder=2)
+											linewidth=posterior_kwargs["linewidth"],
+											alpha=posterior_kwargs["alpha"],
+											zorder=1)
 							ax.add_artist(ell)
 				#-----------------------------------------------------------------------------
 
@@ -1534,24 +1897,25 @@ class Inference:
 			#------------- Legend lines --------------------------------------
 			prior_line = mlines.Line2D([], [], color=prior_kwargs["color"], 
 									marker=None, label=prior_kwargs["label"])
-			group_line = mlines.Line2D([], [], color=group_kwargs["color"], 
-									marker=None, label=group_kwargs["label"])
+			group_line = mlines.Line2D([], [], color=posterior_kwargs["color"], 
+									marker=None, label=posterior_kwargs["label"])
 			#-----------------------------------------------------------------
 
 			#----------- Legend symbols ----------------------------------
-			if self.prior in ["GMM","CGMM"]:
-				source_mrkr = [mlines.Line2D([], [], marker=source_kwargs["marker"], 
-							  	color="w", 
-							  	markerfacecolor=cmap_vel(norm_vel(g)), 
-							  	markersize=5,
-							  	label=source_labels[g]) 
-								for g in np.unique(groups)] 
+			if "GMM" in self.prior:
+				source_mrkr =  [mlines.Line2D([], [], 
+								marker=source_kwargs["marker"],
+								color="w", 
+								markerfacecolor=cmap_vel(norm_vel(row["group"])), 
+								markersize=5,
+								label=row["label"]) 
+								for i,row in self.df_groups.drop_duplicates().iterrows()]
 			else:
 				source_mrkr = [mlines.Line2D([], [], marker=source_kwargs["marker"], 
-							  	color="w", 
-							  	markerfacecolor=source_kwargs["color"], 
-							  	markersize=5,
-							  	label=source_kwargs["label"])]
+								color="w", 
+								markerfacecolor=source_kwargs["color"], 
+								markersize=5,
+								label=source_kwargs["label"])]
 			#---------------------------------------------------------------
 
 			#----------- Handles -------------------------------------------
@@ -1565,7 +1929,7 @@ class Inference:
 			#--------------------------------------------------------------
 
 			#--------- Colour bar-------------------------------------------
-			if self.prior not in ["GMM","CGMM"]:
+			if "GMM" not in self.prior:
 				fig.colorbar(cm.ScalarMappable(norm=norm_vel, cmap=cmap_vel),
 						ax=axs[1,1],fraction=0.3,
 						anchor=(0.0,0.0),
@@ -1580,8 +1944,38 @@ class Inference:
 
 		pdf.close()
 
+	def _get_map(self,var_names):
+		#------------------------------------
+		labeller = az.labels.BaseLabeller()
+		metric_names = ["MAP"]
+		#------------------------------------
 
-	def save_statistics(self,hdi_prob=0.95,chain_gmm=[0]):
+		idx_map = np.unravel_index(np.argmax(
+			self.trace.sample_stats.lp.values),
+			shape=self.trace.sample_stats.lp.values.shape)
+		
+		data = az.extract(self.ds_posterior,var_names=var_names)
+		data_map = az.utils.get_coords(data,
+			{"chain":idx_map[0],"draw":idx_map[1]})
+		
+		joined = data_map.assign_coords(metric=metric_names).reset_coords(drop=True)
+		n_metrics = len(metric_names)
+		n_vars = np.sum([joined[var].size // n_metrics for var in joined.data_vars])
+
+		summary_df = pn.DataFrame(
+			(np.full((cast(int, n_vars), n_metrics), np.nan)), columns=metric_names
+		)
+		indices = []
+		for i, (var_name, sel, isel, values) in enumerate(
+			az.sel_utils.xarray_var_iter(joined, skip_dims={"metric"})
+		):
+			summary_df.iloc[i] = values
+			indices.append(labeller.make_label_flat(var_name, sel, isel))
+		summary_df.index = indices
+
+		return summary_df
+
+	def save_statistics(self,hdi_prob=0.95,chain_gmm=[0],stat_focus="mean"):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -1590,31 +1984,38 @@ class Inference:
 		print("Computing statistics ...")
 
 		#----------------------- Functions ---------------------------------
-		stat_funcs = {"median":lambda x:np.median(x),
-					  "mode":lambda x:my_mode(x)}
 		def distance(x,y,z):
 			return np.sqrt(x**2 + y**2 + z**2)
 		#---------------------------------------------------------------------
 		
 		#--------- Coordinates -------------------------
 		# In MM use only one chain
-		if self.prior in ["GMM","CGMM"]:
+		if "GMM" in self.prior:
 			print("WARNING: In mixture models only one "\
 				+"chain is used to compute statistics.\n"\
 				+"Set chain_gmm=[0,1,..,n_chains] to override.")
 			data = az.utils.get_coords(self.ds_posterior,{"chain":chain_gmm})
+			names_groups = self.ds_posterior.coords["component"].values
 		else:
 			data = self.ds_posterior
+			names_groups = ["A"]
 		#------------------------------------------------------------
+		
+		#--------- Get MAP ------------------------------------------
+		df_map_grp = self._get_map(var_names=self.stats_variables)
+		df_map_src = self._get_map(var_names=[self.source_variables])
+		#-------------------------------------------------------------
 
-		#-------------- Source statistics ----------------------------------------------------
+		#-------------- Source statistics ----------------------------
 		source_csv = self.dir_out +"/Sources_statistics.csv"
 		df_source  = az.summary(data,var_names=self.source_variables,
-						stat_funcs=stat_funcs,
+						stat_focus = stat_focus,
 						hdi_prob=hdi_prob,
 						extend=True)
+		df_source = df_map_src.join(df_source)
+		#--------------------------------------------------------------
 
-		#------------- Replace parameter id by source ID--------------------
+		#------------- Replace parameter id by source ID----------------
 		n_sources = len(self.ID)
 		ID  = np.repeat(self.ID,self.D,axis=0)
 		idx = np.tile(np.arange(self.D),n_sources)
@@ -1623,7 +2024,7 @@ class Inference:
 		df_source.insert(loc=0,column="parameter",value=idx)
 		#---------------------------------------------------------------
 
-		if self.D in [3,6] :
+		if self.D in [1,3,6] :
 			#---------- Classify sources -------------------
 			if not hasattr(self,"df_groups"):
 				if self.ds_posterior.sizes["draw"] > 100:
@@ -1636,7 +2037,8 @@ class Inference:
 											n_samples=n_samples,
 											chain=chain_gmm)
 				#-----------------------------------------------------------------
-				self._classify(pos_srcs,pos_amps,pos_locs,pos_covs)
+
+				self._classify(pos_srcs,pos_amps,pos_locs,pos_covs,names_groups)
 			#------------------------------------------------
 
 		
@@ -1644,62 +2046,91 @@ class Inference:
 			dfs = []
 			for i in range(self.D):
 				idx = np.where(df_source["parameter"] == i)[0]
-				tmp = df_source.drop(columns="parameter").add_suffix(self.suffixes[i])
+				tmp = df_source.drop(columns="parameter").add_suffix(
+								"_"+self.names_coords[i])
 				dfs.append(tmp.iloc[idx])
 
 			#-------- Join on index --------------------
 			df_source = dfs[0]
 			for i in range(1,self.D) :
 				df_source = df_source.join(dfs[i],
-					how="inner",lsuffix="",rsuffix=self.suffixes[i])
+					how="inner",lsuffix="",rsuffix="_"+self.names_coords[i])
 			#---------------------------------------------------------------------
 
 			#---------- Add group -----------------------------------
 			df_source = df_source.join(self.df_groups)
 			#----------------------------------------------
 
-			#------ Add distance ---------------------------------------------------------
-			df_source["mode_distance"] = df_source[["mode_X","mode_Y","mode_Z"]].apply(
-				lambda x: distance(*x),axis=1)
+			if self.D > 1:
+				#------ Add distance ---------------------------------------------------------
+				df_source["MAP_distance"] = df_source[["MAP_X","MAP_Y","MAP_Z"]].apply(
+					lambda x: distance(*x),axis=1)
 
-			df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
-				lambda x: distance(*x),axis=1)
-
-			df_source["median_distance"] = df_source[["median_X","median_Y","median_Z"]].apply(
-				lambda x: distance(*x),axis=1)
-			#----------------------------------------------------------------------------
+				df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
+					lambda x: distance(*x),axis=1)
+				#----------------------------------------------------------------------------
 
 		#---------- Save source data frame ----------------------
 		df_source.to_csv(path_or_buf=source_csv,index_label=self.id_name)
 
 		#-------------- Global statistics ----------------------------------
 		if len(self.cluster_variables) > 0:
-			global_csv = self.dir_out +"/Cluster_statistics.csv"
-			df_global = az.summary(data,var_names=self.stats_variables,
-							stat_funcs=stat_funcs,
+			grp_csv = self.dir_out +"/Cluster_statistics.csv"
+			df_grp = az.summary(data,var_names=self.stats_variables,
+							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
+							round_to=3,
 							extend=True)
+			df_grp = df_map_grp.join(df_grp)
 
-			df_global.to_csv(path_or_buf=global_csv,index_label="Parameter")
+			df_grp.to_csv(path_or_buf=grp_csv,index_label="Parameter")
 		#-------------------------------------------------------------------
 
 		#--------------- Velocity field ----------------------------------
-		if "6D_kappa" in self.cluster_variables:
+		if "6D::kappa" in self.cluster_variables:
 			field_csv = self.dir_out +"/Linear_velocity_statistics.csv"
 			_,_,exp,rot,T = self._kinematic_indices(group="posterior")
 
 			df_field = az.summary(data={
-				"Exp":exp,"Rot":rot,
-				"Txx":T[:,0,0],"Txy":T[:,0,1],"Txz":T[:,0,2],
-				"Tyx":T[:,1,0],"Tyy":T[:,1,1],"Tyz":T[:,1,2],
-				"Tzx":T[:,2,0],"Tzy":T[:,2,1],"Tzz":T[:,2,2],
+				"Exp [m.s-1.pc-1]":exp,
+				"Rot [m.s-1.pc-1]":rot,
+				"Txx [m.s-1.pc-1]":T[:,0,0],
+				"Txy [m.s-1.pc-1]":T[:,0,1],
+				"Txz [m.s-1.pc-1]":T[:,0,2],
+				"Tyx [m.s-1.pc-1]":T[:,1,0],
+				"Tyy [m.s-1.pc-1]":T[:,1,1],
+				"Tyz [m.s-1.pc-1]":T[:,1,2],
+				"Tzx [m.s-1.pc-1]":T[:,2,0],
+				"Tzy [m.s-1.pc-1]":T[:,2,1],
+				"Tzz [m.s-1.pc-1]":T[:,2,2]
 				},
-							stat_funcs=stat_funcs,
+							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
 							kind="stats",
 							extend=True)
 
 			df_field.to_csv(path_or_buf=field_csv,index_label="Parameter")
+
+			#----------- Notation as in Lindegren et al. 2000 --------------
+			lenn_csv = self.dir_out +"/Lindegren_velocity_statistics.csv"
+			df_Lenn = az.summary(data={
+				"kappa [m.s-1.pc-1]":exp,
+				"omega_x [m.s-1.pc-1]":0.5*(T[:,2,1]-T[:,1,2]),
+				"omega_y [m.s-1.pc-1]":0.5*(T[:,0,2]-T[:,2,0]),
+				"omega_z [m.s-1.pc-1]":0.5*(T[:,1,0]-T[:,0,1]),
+				"w_1 [m.s-1.pc-1]":0.5*(T[:,2,1]+T[:,1,2]),
+				"w_2 [m.s-1.pc-1]":0.5*(T[:,0,2]+T[:,2,0]),
+				"w_3 [m.s-1.pc-1]":0.5*(T[:,1,0]+T[:,0,1]),
+				"w_4 [m.s-1.pc-1]":T[:,0,0],
+				"w_5 [m.s-1.pc-1]":T[:,1,1]
+				},
+							stat_focus=stat_focus,
+							hdi_prob=hdi_prob,
+							kind="stats",
+							extend=True)
+
+			df_Lenn.to_csv(path_or_buf=lenn_csv,index_label="Parameter")
+
 		#-------------------------------------------------------------------
 
 	def save_samples(self,merge=True):
@@ -1707,6 +2138,7 @@ class Inference:
 		Saves the chain samples to an h5 file.
 		Arguments:
 		dir_csv (string) Directory where to save the samples
+		merge:: True # Merge chains into single dimension
 		'''
 		print("Saving samples ...")
 
@@ -1717,7 +2149,7 @@ class Inference:
 		#------ Open h5 file -------------------
 		file_h5 = self.dir_out + "/Samples.h5"
 
-		sources_trace = self.ds_posterior[self.source_variables].to_array().T
+		sources_trace = self.ds_posterior[self.source_variables].to_array()
 
 		with h5py.File(file_h5,'w') as hf:
 			grp_glb = hf.create_group("Cluster")
@@ -1725,18 +2157,59 @@ class Inference:
 
 			#------ Loop over global parameters ---
 			for name in self.cluster_variables:
-				data = np.array(self.ds_posterior[name]).T
+				data = np.array(self.ds_posterior[name])
 				if merge:
-					data = data.reshape((data.shape[0],-1))
+					data = data.reshape((data.shape[0]*data.shape[1],-1))
 				grp_glb.create_dataset(name, data=data)
 
 			#------ Loop over source parameters ---
 			for i,name in enumerate(IDs):
-				data = sources_trace[{str(self.D)+"D_source_dim_0" : i}].values
+				data = sources_trace.sel(source_id=name).to_numpy()
 				if merge:
-					data = data.reshape((data.shape[0],-1))
+					data = data.reshape((-1,self.D))
 				grp_src.create_dataset(name, data=data)
 
+	def save_posterior_predictive(self,
+		file_chains=None):
+		var_name = str(self.D)+"D::true"
+
+		file_chains = self.file_chains if (file_chains is None) else file_chains
+		file_base = self.dir_out+"/posterior_predictive"
+
+		#--------------- Extract observables -----------------------------------------------
+		dfg = self.trace.posterior[var_name].to_dataframe().groupby("observable")
+		dfs = []
+		for obs,df in dfg.__iter__():
+			df.reset_index("observable",drop=True,inplace=True)
+			df.rename(columns={var_name:obs},inplace=True)
+			dfs.append(df)
+		df = pn.concat(dfs,axis=1,ignore_index=False)
+		#-----------------------------------------------------------------------------------
+
+		#--------- Save H5 samples ---------------------------
+		df.to_hdf(file_base + ".h5",key="posterior_predictive")
+		#-----------------------------------------------------
+
+		#---------- Groupby source id ------------------------
+		dfg = df.groupby("source_id")
+
+		dfs = []
+		for name, df in dfg.__iter__():
+			tmp = pn.merge(
+						left=df.mean(axis=0).to_frame().T,
+						right=df.std(axis=0).to_frame().T,
+						left_index=True,right_index=True,
+						suffixes=("","_error")).set_index(
+						np.array(name).reshape(1)).rename_axis(
+						index="source_id")
+			dfs.append(tmp)
+		df = pn.concat(dfs,axis=0,ignore_index=False)
+		#-------------------------------------------------------
+		
+		#------------ Save to CSV ---------------
+		df.to_csv(file_base + ".csv",index=True)
+		#-----------------------------------------
+		
 
 	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,
 		quantiles=[0.05,0.95],
