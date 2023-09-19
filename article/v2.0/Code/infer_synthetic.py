@@ -16,8 +16,6 @@ print(list_of_distances)
 print(list_of_seeds)
 print(model)
 print(velocity_model)
-print(factor_kappa)
-print(factor_omega)
 # sys.exit()
 
 dir_kalkayotl = "/home/jromero/Repos/Kalkayotl/"
@@ -39,7 +37,7 @@ reference_system = "Galactic"
 zero_points = {
 "ra":0.,
 "dec":0.,
-"parallax":0.0,# This is Brown+2020 value
+"parallax":0.0, # This is Brown+2020 value
 "pmra":0.,
 "pmdec":0.,
 "radial_velocity":0.}  
@@ -48,8 +46,8 @@ nuts_sampler = "numpyro"
 sky_error_factor=1e6
 #--------------------------------------------------
 
-dir_base = "/home/jromero/Kalkayotl/Synthetic/{0}_{1}_fk{2}_fo{3}/".format(
-	model,velocity_model,factor_kappa,factor_omega)
+dir_base = "/home/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(
+	model,velocity_model)
 
 #========================= Cases ===========================================
 if model == "Gaussian":
