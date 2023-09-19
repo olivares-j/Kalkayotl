@@ -36,6 +36,7 @@ dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
 
 #----------- Data file -----------------------------------------------------
 file_data = dir_base + "members+rvs.csv"
+file_parameters = dir_base + "6D_Gaussian_Galactic_central_joint_numpyro_0/Cluster_statistics.csv"
 #----------------------------------------------------------------------------
 
 #------- Creates directory if it does not exists -------
