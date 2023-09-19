@@ -48,7 +48,7 @@ nuts_sampler = "numpyro"
 sky_error_factor=1e6
 #--------------------------------------------------
 
-dir_base = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}_fk{2}_fo{3}/".format(
+dir_base = "/home/jromero/Kalkayotl/Synthetic/{0}_{1}_fk{2}_fo{3}/".format(
 	model,velocity_model,factor_kappa,factor_omega)
 
 #========================= Cases ===========================================
@@ -125,11 +125,11 @@ execution_times = []
 for distance in list_of_distances:
 	for n_stars in list_of_n_stars:
 		for seed in list_of_seeds:
-			# if distance <= 500:
-			# 	parametrization = "central"
-			# else:
-			# 	parametrization = "non-central"
-			parametrization = "central"
+			if distance <= 500:
+				parametrization = "central"
+			else:
+				parametrization = "non-central"
+			#parametrization = "central"
 		
 			name = "{0}D_{1}_n{2}_d{3}_s{4}_{5}_{6:1.0E}".format(
 				dimension,
@@ -170,24 +170,24 @@ for distance in list_of_distances:
 						  hyper_parameters=case["hyper_parameters"],
 						  parametrization=parametrization)
 
-				kal.run(sample_iters=sample_iters,
-						tuning_iters=tuning_iters,
-						target_accept=target_accept,
-						chains=chains,
-						cores=cores,
-						init_iters=int(1e6),
-						init_refine=True,
-						step_size=None,
-						nuts_sampler=nuts_sampler,
-						prior_predictive=False)
+				# kal.run(sample_iters=sample_iters,
+				# 		tuning_iters=tuning_iters,
+				# 		target_accept=target_accept,
+				# 		chains=chains,
+				# 		cores=cores,
+				# 		init_iters=int(1e6),
+				# 		init_refine=True,
+				# 		step_size=None,
+				# 		nuts_sampler=nuts_sampler,
+				# 		prior_predictive=False)
 				kal.load_trace()
-				kal.convergence()
-				kal.plot_chains()
-				kal.plot_prior_check()
-				kal.plot_model()
+				# kal.convergence()
+				# kal.plot_chains()
+				# kal.plot_prior_check()
+				# kal.plot_model()
 				kal.save_statistics()
-				kal.save_posterior_predictive()
-				kal.save_samples()
+				# kal.save_posterior_predictive()
+				# kal.save_samples()
 				t1 = time.time()
 				execution_times.append(t1-t0)
 			except Exception as e:
@@ -195,5 +195,5 @@ for distance in list_of_distances:
 				print(10*"*"+" ERROR "+10*"*")
 
 #=======================================================================================
-df_times = pd.DataFrame(data={"Time":execution_times})
-df_times.to_csv("./times_{0}_{1}.csv".format(model,velocity_model))
+# df_times = pd.DataFrame(data={"Time":execution_times})
+# df_times.to_csv("./times_{0}_{1}.csv".format(model,velocity_model))
