@@ -42,7 +42,7 @@ zero_points = {
 "pmdec":0.,
 "radial_velocity":0.}  
 indep_measures = False
-nuts_sampler = "numpyro"
+nuts_sampler = "pymc"
 sky_error_factor=1e6
 #--------------------------------------------------
 
@@ -148,8 +148,8 @@ for distance in list_of_distances:
 				int(distance),
 				seed)
 
-			# if os.path.isfile(dir_case+"/Chains.nc"):
-			# 	continue
+			if os.path.isfile(dir_case+"/Chains.nc"):
+				continue
 
 			os.makedirs(dir_case,exist_ok=True)
 
@@ -168,24 +168,24 @@ for distance in list_of_distances:
 						  hyper_parameters=case["hyper_parameters"],
 						  parametrization=parametrization)
 
-				# kal.run(sample_iters=sample_iters,
-				# 		tuning_iters=tuning_iters,
-				# 		target_accept=target_accept,
-				# 		chains=chains,
-				# 		cores=cores,
-				# 		init_iters=int(1e6),
-				# 		init_refine=True,
-				# 		step_size=None,
-				# 		nuts_sampler=nuts_sampler,
-				# 		prior_predictive=False)
+				kal.run(sample_iters=sample_iters,
+						tuning_iters=tuning_iters,
+						target_accept=target_accept,
+						chains=chains,
+						cores=cores,
+						init_iters=int(1e6),
+						init_refine=False,
+						step_size=None,
+						nuts_sampler=nuts_sampler,
+						prior_predictive=False)
 				kal.load_trace()
-				# kal.convergence()
-				# kal.plot_chains()
-				# kal.plot_prior_check()
-				# kal.plot_model()
+				kal.convergence()
+				kal.plot_chains()
+				kal.plot_prior_check()
+				kal.plot_model()
 				kal.save_statistics()
-				# kal.save_posterior_predictive()
-				# kal.save_samples()
+				kal.save_posterior_predictive()
+				kal.save_samples()
 				t1 = time.time()
 				execution_times.append(t1-t0)
 			except Exception as e:
@@ -193,5 +193,5 @@ for distance in list_of_distances:
 				print(10*"*"+" ERROR "+10*"*")
 
 #=======================================================================================
-# df_times = pd.DataFrame(data={"Time":execution_times})
-# df_times.to_csv("./times_{0}_{1}.csv".format(model,velocity_model))
+df_times = pd.DataFrame(data={"Time":execution_times})
+df_times.to_csv("{0}/times.csv".format(dir_base))
