@@ -12,8 +12,6 @@ true_vel_loc      = np.array([10.,10.,10.])
 true_vel_sds      = np.array([1.,1.,1.])
 model             = "GMM"
 velocity_model    = "joint"
-factor_kappa      = 0.5
-factor_omega      = 0.5
 
 if model == "GMM":
 	astrometric_args = {
@@ -39,8 +37,8 @@ else:
 						}
 
 if velocity_model == "linear":
-	astrometric_args["velocity"]["kappa"] = factor_kappa*np.ones(3)
-	astrometric_args["velocity"]["omega"] = factor_omega*np.array([
+	astrometric_args["velocity"]["kappa"] = np.ones(3)
+	astrometric_args["velocity"]["omega"] = np.array([
 											[-1,-1,-1],
 											[1,1,1]
 											])
@@ -53,12 +51,12 @@ photometric_args = {
 "mass_prior":"Uniform"
 }
 
-dill.dump_session("./globals_{0}_{1}_fk{2}_fo{3}.pkl".format(
-	model,velocity_model,factor_kappa,factor_omega))
+dill.dump_session("./globals_{0}_{1}.pkl".format(
+	model,velocity_model))
 # sys.exit()
 dir_repos = "/home/jromero/Repos"
-dir_main  = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}_fk{2}_fo{3}/".format(
-	model,velocity_model,factor_kappa,factor_omega)
+dir_main  = "/raid/jromero/Kalkayotl/Synthetic/{0}_{1}/".format(
+	model,velocity_model)
 
 #----- Amasijo -------------------
 path_amasijo   = dir_repos + "/Amasijo/"
@@ -81,6 +79,7 @@ for distance in list_of_distances:
 
 			if model == "GMM":
 				astrometric_args["position+velocity"]["location"][0][0] = distance
+				astrometric_args["position+velocity"]["location"][1][0] = distance
 			else:
 				astrometric_args["position"]["location"] = np.array([distance,0.0,0.0])
 

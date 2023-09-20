@@ -32,7 +32,7 @@ import dill
 list_of_n_stars = [100,200,400]
 list_of_distances = [100,200,400,800,1600]
 list_of_seeds = [0,1,2,3,4]
-family = "StudentT"
+family = "GMM"
 dimension = 6
 velocity_model = "joint"
 append = "" if (dimension == 3) and (velocity_model == "joint") else "_1E+06"
@@ -48,12 +48,15 @@ base_dir  = dir_data  + "{0}D_{1}".format(dimension,family) + "_n{0}_d{1}_s{2}_{
 base_plt  = "{0}{1}_{2}/".format(dir_plots,family,velocity_model)
 
 
+
 file_plot_src = base_plt + "{0}D_{1}_{2}_source-level.pdf".format(dimension,family,velocity_model)
 file_plot_grp = base_plt + "{0}D_{1}_{2}_group-level.pdf".format(dimension,family,velocity_model)
 file_plot_cnv = base_plt + "{0}D_{1}_{2}_convergence.pdf".format(dimension,family,velocity_model)
 file_plot_rho = base_plt + "{0}D_{1}_{2}_correlation.pdf".format(dimension,family,velocity_model)
 file_plot_det = base_plt + "{0}D_{1}_{2}_detectability.png".format(dimension,family,velocity_model)
+file_plot_tme = base_plt + "{0}D_{1}_{2}_times.png".format(dimension,family,velocity_model)
 file_data_all = dir_data + "{0}D_data.h5".format(dimension)
+file_time     = dir_data  + "times.csv"
 
 do_all_dta = True
 do_plt_cnv = False
@@ -61,6 +64,7 @@ do_plt_grp = False
 do_plt_src = False
 do_plt_rho = False
 do_plt_det = False # Only for linear velocity
+do_plt_time = False # Only valid for StudentT_linear
 #---------------------------------------------------------------------------
 
 coordinates = ["X","Y","Z","U","V","W"][:dimension]
@@ -87,16 +91,36 @@ true_sds_grp  = np.array([9.,9.,9.,1.,1.,1.])[:dimension]
 true_grp_pars = np.hstack([true_loc_grp,true_sds_grp])[1:]
 true_lin_pars = np.array([1.,1.,1.,-1.,-1.,-1.,1.,1.,1.])
 
-
 true_grp_names = base_grp_names
 
+if family == "Gaussian":
+	if velocity_model == "linear":
+		true_grp_names = sum([true_grp_names,base_lin_names],[])
+		true_grp_pars = np.hstack([true_grp_pars,true_lin_pars])
+
 if family == "StudentT":
-	base_grp_names.append("6D::nu")
-
-
-if velocity_model == "linear":
-	true_grp_names = sum([base_grp_names,base_lin_names],[])
-	true_grp_pars = np.hstack([true_grp_pars,true_lin_pars])
+	if velocity_model == "linear":
+		true_grp_pars = np.hstack([true_grp_pars,np.array([10.,10.])])
+		true_grp_names.append("6D::nu[0]")
+		true_grp_names.append("6D::nu[1]")
+		true_grp_names = sum([true_grp_names,base_lin_names],[])
+		true_grp_pars = np.hstack([true_grp_pars,true_lin_pars])
+	else:
+		true_grp_pars = np.hstack([true_grp_pars,np.array([10.])])
+		true_grp_names.append("6D::nu")
+		
+if family == "GMM":
+	if velocity_model == "joint":
+		components = ["A","B"]
+		true_grp_names = sum([
+					["{0}D::loc[{1},{2}]".format(dimension,comp,coord) for coord in coordinates for comp in components ],
+					["{0}D::std[{1},{2}]".format(dimension,comp,coord) for coord in coordinates for comp in components ],
+					["{0}D::std[{1},{2}]".format(dimension,comp,coord) for coord in coordinates for comp in components ],
+					["{0}D::weights[{1}]".format(dimension,comp) for comp in components ],
+					],[])
+	else:
+		sys.exit("Not valid")
+		
 
 units = {}
 for name in true_grp_names:
@@ -151,14 +175,41 @@ if do_all_dta:
 					columns=["true"],
 					index=true_grp_names).rename_axis(
 					index="Parameter")
-	#-------------------------------------------------------------
+	#------------------------------------------------------
 
+	#=================== Execution times =========================
+	#-------------- Read and rename ---------------------------
+	df_tme = pn.read_csv(file_time,usecols=["Time"])
+	df_tme.set_index(pn.MultiIndex.from_product(
+					[list_of_distances,list_of_n_stars,list_of_seeds]),
+					inplace=True)
+	df_tme.rename_axis(index=["distance","n_stars","seed"],
+					inplace=True)
+	#--------------------------------------------------------
+
+
+	#---------------- statisitcs --------------------
+	dfg_tme = df_tme.groupby(["distance","n_stars"],sort=False)
+	df_tme_hdi  = pn.merge(
+					left=dfg_tme.quantile(q=0.025),
+					right=dfg_tme.quantile(q=0.975),
+					left_index=True,
+					right_index=True,
+					suffixes=("_low","_up"))
+	df_sts_tme  = pn.merge(
+					left=dfg_tme.mean(),
+					right=df_tme_hdi,
+					left_index=True,
+					right_index=True).reset_index()
+	#------------------------------------------------------------
+
+	#-----------------------------------------------------
 	dfs_grp = []
 	dfs_sts = []
 	dfs_src = []
 	dfs_lin = []
-	for n,n_stars in enumerate(list_of_n_stars):
-		for d,distance in enumerate(list_of_distances):
+	for d,distance in enumerate(list_of_distances):
+		for n,n_stars in enumerate(list_of_n_stars):
 			for s,seed in enumerate(list_of_seeds):
 				#------------- Parametrization --------------------
 				if distance <= 500.:
@@ -188,7 +239,11 @@ if do_all_dta:
 				df_obs_grp.set_index("Parameter",inplace=True)
 				#--------------------------------------------------------------
 
-				df_true_grp.loc["{0}D::loc[X]".format(dimension),"true"] = distance
+				if family == "GMM":
+					df_true_grp.loc["{0}D::loc[A,X]".format(dimension),"true"] = distance
+					df_true_grp.loc["{0}D::loc[B,X]".format(dimension),"true"] = distance
+				else:
+					df_true_grp.loc["{0}D::loc[X]".format(dimension),"true"] = distance
 
 				#---------- Join ------------------------
 				df_grp = pn.merge(
@@ -314,6 +369,7 @@ if do_all_dta:
 	df_sts_src.to_hdf(file_data_all,key="df_sts_src")
 	df_grp.to_hdf(file_data_all,key="df_grp")
 	df_src.to_hdf(file_data_all,key="df_src")
+	df_sts_tme.to_hdf(file_data_all,key="df_time")
 	#-------------------------------------------------
 
 	if velocity_model == "linear":
@@ -609,3 +665,32 @@ if do_plt_det:
 	plt.savefig(file_plot_det,bbox_inches='tight',dpi=200)
 	plt.close()
 	#-------------------------------------------------------------------------
+
+if do_plt_time:
+	#------------ Read data -------------------------------------
+	df_time = pn.read_hdf(file_data_all,key="df_time")
+	#------------------------------------------------------------
+
+	#------------------------------------------------------------
+	df_time.reset_index(drop=False,inplace=True)
+	for tmp in ["Time","Time_low","Time_up"]:
+		df_time[tmp] = df_time[tmp]/3600.
+	#-----------------------------------------------------------
+
+	fg = sns.FacetGrid(data=df_time,
+					palette="viridis_r",
+					hue="distance",
+					legend_out=True,
+					height=3,
+					aspect=1)
+	fg.map(sns.lineplot,"n_stars","Time")
+	fg.map(plt.fill_between,"n_stars",
+			"Time_low",
+			"Time_up",
+			alpha=0.2)
+	fg.add_legend(title="Distance [pc]")
+	fg.set(xlabel="N stars",ylabel="Time [hrs]")
+
+	plt.savefig(file_plot_tme,bbox_inches='tight',dpi=200)
+	plt.close()
+
