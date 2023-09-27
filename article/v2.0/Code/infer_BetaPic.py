@@ -16,6 +16,7 @@ from kalkayotl.inference import Inference
 #----------- Directories and files -------------------------------
 # authors = "Crundall_2019"
 # authors = "Couture_2023"
+#authors = "Couture+2023_clean"
 authors = "Miret-Roig_2020"
 dir_case = "/home/jolivares/Repos/Kalkayotl/article/v2.0/BetaPic/"
 dir_base = "{0}{1}/".format(dir_case,authors)
@@ -30,7 +31,7 @@ os.makedirs(dir_base,exist_ok=True)
 dimension = 6
 chains    = 2
 cores     = 2
-tuning_iters  = 3000
+tuning_iters  = 5000
 sample_iters  = 2000
 target_accept = 0.65
 sky_error_factor = 1e6
@@ -104,27 +105,26 @@ for rs in rss:
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"])
 
-	# kal.run(sample_iters=sample_iters,
-	# 		tuning_iters=tuning_iters,
-	# 		target_accept=target_accept,
-	# 		chains=chains,
-	# 		cores=cores,
-	# 		init_iters=int(1e6),
-	# 		init_refine=True,
-	# 		step_size=2e-3,
-	# 		nuts_sampler=nuts_sampler,
-	# 		prior_predictive=True)
+	kal.run(sample_iters=sample_iters,
+			tuning_iters=tuning_iters,
+			target_accept=target_accept,
+			chains=chains,
+			cores=cores,
+			init_iters=int(1e6),
+			init_refine=False,
+			nuts_sampler=nuts_sampler,
+			prior_predictive=False)
 
 	kal.load_trace()
-	# kal.convergence()
-	# kal.plot_chains()
+	kal.convergence()
+	kal.plot_chains()
 	# kal.plot_prior_check()
-	# kal.plot_model()
+	kal.plot_model()
 	kal.save_statistics()
 	# kal.save_statistics(hdi_prob=0.682689492137)
 	# kal.save_statistics(hdi_prob=0.954499736104)
 	# kal.save_statistics(hdi_prob=0.997300203937)
 	# kal.save_statistics(hdi_prob=0.999936657516)
 	# kal.save_statistics(hdi_prob=0.999999426697)
-	# kal.save_samples()
+	kal.save_samples()
 #=======================================================================================

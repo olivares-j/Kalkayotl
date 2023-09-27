@@ -27,27 +27,23 @@ from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 import dill
 
-# dill.load_session(str(sys.argv[1]))
-#dill.load_session("./globals_Gaussian.pkl")
 list_of_n_stars = [100,200,400]
 list_of_distances = [100,200,400,800,1600]
 list_of_seeds = [0,1,2,3,4]
-family = "GMM"
+family = "Gaussian"
 dimension = 6
-velocity_model = "joint"
+velocity_model = "linear"
 append = "" if (dimension == 3) and (velocity_model == "joint") else "_1E+06"
 
 #---------------------- Directories and data -------------------------------
 dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/Synthetic/"
 dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/"
 
-dir_data  = "{0}{1}_{2}_fk1.0_fo1.0/".format(dir_main,family,velocity_model)
+dir_data  = "{0}{1}_{2}/".format(dir_main,family,velocity_model)
 dir_data  = "{0}{1}_{2}/".format(dir_main,family,velocity_model)
 base_data = dir_data  + family + "_n{0}_d{1}_s{2}.csv"
 base_dir  = dir_data  + "{0}D_{1}".format(dimension,family) + "_n{0}_d{1}_s{2}_{3}"+append+"/"
 base_plt  = "{0}{1}_{2}/".format(dir_plots,family,velocity_model)
-
-
 
 file_plot_src = base_plt + "{0}D_{1}_{2}_source-level.pdf".format(dimension,family,velocity_model)
 file_plot_grp = base_plt + "{0}D_{1}_{2}_group-level.pdf".format(dimension,family,velocity_model)
@@ -58,11 +54,11 @@ file_plot_tme = base_plt + "{0}D_{1}_{2}_times.png".format(dimension,family,velo
 file_data_all = dir_data + "{0}D_data.h5".format(dimension)
 file_time     = dir_data  + "times.csv"
 
-do_all_dta = True
+do_all_dta = False
 do_plt_cnv = False
-do_plt_grp = False
-do_plt_src = False
-do_plt_rho = False
+do_plt_grp = True
+do_plt_src = True
+do_plt_rho = True
 do_plt_det = False # Only for linear velocity
 do_plt_time = False # Only valid for StudentT_linear
 #---------------------------------------------------------------------------
@@ -75,7 +71,7 @@ obs_src_columns = sum([["source_id"],
 					["hdi_97.5%_"+c for c in coordinates],
 					],[])
 
-obs_grp_columns = ["Parameter","mean","hdi_2.5%","hdi_97.5%","ess_bulk","r_hat"]
+obs_grp_columns = ["Parameter","mean","hdi_2.5%","hdi_97.5%"]
 base_grp_names = sum([
 					["{0}D::loc[{1}]".format(dimension,c) for c in coordinates],
 					["{0}D::std[{1}]".format(dimension,c) for c in coordinates],
@@ -88,7 +84,7 @@ base_lin_names = sum([
 #-------------- True parameters --------------------------------
 true_loc_grp  = np.array([0.0,0.0,0.0,10.,10.,10.])[:dimension]
 true_sds_grp  = np.array([9.,9.,9.,1.,1.,1.])[:dimension]
-true_grp_pars = np.hstack([true_loc_grp,true_sds_grp])[1:]
+true_grp_pars = np.hstack([true_loc_grp,true_sds_grp])
 true_lin_pars = np.array([1.,1.,1.,-1.,-1.,-1.,1.,1.,1.])
 
 true_grp_names = base_grp_names
@@ -113,14 +109,17 @@ if family == "GMM":
 	if velocity_model == "joint":
 		components = ["A","B"]
 		true_grp_names = sum([
-					["{0}D::loc[{1},{2}]".format(dimension,comp,coord) for coord in coordinates for comp in components ],
-					["{0}D::std[{1},{2}]".format(dimension,comp,coord) for coord in coordinates for comp in components ],
-					["{0}D::std[{1},{2}]".format(dimension,comp,coord) for coord in coordinates for comp in components ],
+					["{0}D::loc[{1}, {2}]".format(dimension,comp,coord) for comp in components for coord in coordinates ],
+					["{0}D::std[{1}, {2}]".format(dimension,comp,coord) for comp in components for coord in coordinates ],
 					["{0}D::weights[{1}]".format(dimension,comp) for comp in components ],
 					],[])
+		true_grp_pars = np.hstack([
+			np.array([0.,0.,0.,10.,10.,10.,0.,0.,50.,10.,10.,10.]),
+			np.array([9.,9.,9.,1.,1.,1.,9.,9.,9.,1.,1.,1.]),
+			np.array([0.5,0.5])
+			])
 	else:
 		sys.exit("Not valid")
-		
 
 units = {}
 for name in true_grp_names:
@@ -130,26 +129,7 @@ for name in true_grp_names:
 		units[name] = "$\\rm{km\\,s^{-1}}$" 
 	else:
 		units[name] = "$\\rm{km\\,s^{-1}\\,pc^{-1}}$"
-	
-true_grp_names.pop(0)
 #---------------------------------------------------------------
-
-#----------------------- Gaussian ---------------------------------------------------------------
-if family == "Gaussian":
-	parameters = [
-				{"name":"Location","xlim":[90,5000],"ylim":[[-0.11,0.11],[0.0005,0.15],[0,101]]},
-				{"name":"Scale",   "xlim":[90,2100],"ylim":[[-0.15,0.75],[0.01,0.25],  [0.0,101]]}
-				]
-#------------------------------------------------------------------------------------------------
-
-#----------------------- Gaussian ---------------------------------------------------------------
-if family == "GMM":
-	parameters = [
-				{"name":"Location", "xlim":[90,5000],"ylim":[[-0.19,0.09],[0.0005,0.15],[0,101]]},
-				{"name":"Scale",    "xlim":[90,5000],"ylim":[[-0.69,0.99],[0.01,0.99],  [0.0,101]]},
-				{"name":"Amplitude","xlim":[90,5000],"ylim":[[-0.85,0.85],[-0.19,1.25],   [0.0,101]]}
-				]
-#------------------------------------------------------------------------------------------------
 
 #------------------------Statistics -----------------------------------
 sts_grp = [
@@ -177,31 +157,37 @@ if do_all_dta:
 					index="Parameter")
 	#------------------------------------------------------
 
-	#=================== Execution times =========================
-	#-------------- Read and rename ---------------------------
-	df_tme = pn.read_csv(file_time,usecols=["Time"])
-	df_tme.set_index(pn.MultiIndex.from_product(
-					[list_of_distances,list_of_n_stars,list_of_seeds]),
-					inplace=True)
-	df_tme.rename_axis(index=["distance","n_stars","seed"],
-					inplace=True)
-	#--------------------------------------------------------
+	#=================== Execution times ======================================
+
+	if family == "StudentT" and velocity_model == "linear":
+		#-------------- Read and rename ---------------------------
+		df_tme = pn.read_csv(file_time,usecols=["Time"])
+		df_tme.set_index(pn.MultiIndex.from_product(
+						[list_of_distances,list_of_n_stars,list_of_seeds]),
+						inplace=True)
+		df_tme.rename_axis(index=["distance","n_stars","seed"],
+						inplace=True)
+		#--------------------------------------------------------
 
 
-	#---------------- statisitcs --------------------
-	dfg_tme = df_tme.groupby(["distance","n_stars"],sort=False)
-	df_tme_hdi  = pn.merge(
-					left=dfg_tme.quantile(q=0.025),
-					right=dfg_tme.quantile(q=0.975),
-					left_index=True,
-					right_index=True,
-					suffixes=("_low","_up"))
-	df_sts_tme  = pn.merge(
-					left=dfg_tme.mean(),
-					right=df_tme_hdi,
-					left_index=True,
-					right_index=True).reset_index()
-	#------------------------------------------------------------
+		#---------------- statisitcs --------------------
+		dfg_tme = df_tme.groupby(["distance","n_stars"],sort=False)
+		df_tme_hdi  = pn.merge(
+						left=dfg_tme.quantile(q=0.025),
+						right=dfg_tme.quantile(q=0.975),
+						left_index=True,
+						right_index=True,
+						suffixes=("_low","_up"))
+		df_sts_tme  = pn.merge(
+						left=dfg_tme.mean(),
+						right=df_tme_hdi,
+						left_index=True,
+						right_index=True).reset_index()
+		#------------------------------------------------------------
+
+
+		df_sts_tme.to_hdf(file_data_all,key="df_time")
+	#=======================================================================
 
 	#-----------------------------------------------------
 	dfs_grp = []
@@ -211,6 +197,15 @@ if do_all_dta:
 	for d,distance in enumerate(list_of_distances):
 		for n,n_stars in enumerate(list_of_n_stars):
 			for s,seed in enumerate(list_of_seeds):
+
+				#-------------------- True distance ---------------------------------------
+				if family == "GMM":
+					df_true_grp.loc["{0}D::loc[A, X]".format(dimension),"true"] = distance
+					df_true_grp.loc["{0}D::loc[B, X]".format(dimension),"true"] = distance
+				else:
+					df_true_grp.loc["{0}D::loc[X]".format(dimension),"true"] = distance
+				#--------------------------------------------------------------------------
+
 				#------------- Parametrization --------------------
 				if distance <= 500.:
 					parametrization = "central"
@@ -218,13 +213,13 @@ if do_all_dta:
 					parametrization = "non-central"
 				#-------------------------------------------
 
-				#------------- Files ------------------------------
+				#------------- Files ----------------------------------------------------
 				dir_chains = base_dir.format(n_stars,int(distance),seed,parametrization)
 				file_obs_grp   = dir_chains  + "Cluster_statistics.csv"
 				file_obs_src   = dir_chains  + "Sources_statistics.csv"
 				file_obs_lin   = dir_chains  + "Lindegren_velocity_statistics.csv"
 				file_true_src  = base_data.format(n_stars,int(distance),seed)
-				#--------------------------------------------------
+				#------------------------------------------------------------------------
 
 				#-------------------- Read sources -------------------------------
 				df_true_src = pn.read_csv(file_true_src, usecols=true_src_columns)
@@ -237,13 +232,8 @@ if do_all_dta:
 				#---------------- Read parameters ----------------------------
 				df_obs_grp = pn.read_csv(file_obs_grp,usecols=obs_grp_columns)
 				df_obs_grp.set_index("Parameter",inplace=True)
-				#--------------------------------------------------------------
-
-				if family == "GMM":
-					df_true_grp.loc["{0}D::loc[A,X]".format(dimension),"true"] = distance
-					df_true_grp.loc["{0}D::loc[B,X]".format(dimension),"true"] = distance
-				else:
-					df_true_grp.loc["{0}D::loc[X]".format(dimension),"true"] = distance
+				df_obs_grp = df_obs_grp.reindex(true_grp_names)
+				#-------------------------------------------------------------
 
 				#---------- Join ------------------------
 				df_grp = pn.merge(
@@ -268,7 +258,10 @@ if do_all_dta:
 				#----------------------------------------------------------------------------------------------------
 
 				#----------------------------- Sources statistics ----------------------------------------------------------
-				true_loc = df_grp.loc[["{0}D::loc[{1}]".format(dimension,coord) for coord in coordinates],"true"].to_numpy()
+				if family == "GMM":
+					true_loc = df_grp.loc[["{0}D::loc[A, {1}]".format(dimension,coord) for coord in coordinates],"true"].to_numpy()
+				else:
+					true_loc = df_grp.loc[["{0}D::loc[{1}]".format(dimension,coord) for coord in coordinates],"true"].to_numpy()
 				df_src["r_ctr"] = df_src.apply(lambda x: np.sqrt(np.sum((
 												np.array([x[coord] for coord in coordinates])-true_loc)**2)),
 												axis = 1)
@@ -369,7 +362,6 @@ if do_all_dta:
 	df_sts_src.to_hdf(file_data_all,key="df_sts_src")
 	df_grp.to_hdf(file_data_all,key="df_grp")
 	df_src.to_hdf(file_data_all,key="df_src")
-	df_sts_tme.to_hdf(file_data_all,key="df_time")
 	#-------------------------------------------------
 
 	if velocity_model == "linear":
@@ -386,13 +378,30 @@ if do_all_dta:
 
 					#------------- Files ------------------------------
 					dir_chains = base_dir.format(n_stars,int(distance),seed,parametrization)
-
 					file_obs_lin   = dir_chains  + "Lindegren_velocity_statistics.csv"
+					file_obs_grp   = dir_chains  + "Cluster_statistics.csv"
 					#--------------------------------------------------
 		
 					#-------- Read Linear parameters -----------
-					df_lin = pn.read_csv(file_obs_lin,nrows=4)
+					df_lin = pn.read_csv(file_obs_lin,nrows=4,usecols=obs_grp_columns)
+					df_kap = pn.read_csv(file_obs_grp,usecols=obs_grp_columns)
 					#-------------------------------------------
+
+					#------------------------------------------------------------------------
+					df_kap.set_index("Parameter",inplace=True)
+					df_kap = df_kap.loc[["6D::kappa[0]","6D::kappa[1]","6D::kappa[2]"]]
+					df_kap.loc["kappa_x [m.s-1.pc-1]",:] = df_kap.loc["6D::kappa[0]",:]*1000.
+					df_kap.loc["kappa_y [m.s-1.pc-1]",:] = df_kap.loc["6D::kappa[1]",:]*1000.
+					df_kap.loc["kappa_z [m.s-1.pc-1]",:] = df_kap.loc["6D::kappa[2]",:]*1000.
+					df_kap.reset_index(inplace=True)
+					df_lin = pn.concat([df_lin,df_kap],ignore_index=False)
+					df_lin.set_index("Parameter",inplace=True)
+					df_lin = df_lin.loc[
+					["kappa_x [m.s-1.pc-1]","omega_x [m.s-1.pc-1]",
+					 "kappa_y [m.s-1.pc-1]","omega_y [m.s-1.pc-1]",
+					 "kappa_z [m.s-1.pc-1]","omega_z [m.s-1.pc-1]"]]
+					df_lin.reset_index(inplace=True)
+					#------------------------------------------------------------------------
 
 					#---------------------------- Parameter statistics --------------------------------
 					df_lin["unc"] = df_lin.apply(lambda x: (x["hdi_97.5%"]-x["hdi_2.5%"]),  axis = 1)
@@ -635,7 +644,7 @@ if do_plt_det:
 	#------------------------------------------------------------
 
 	tmp_sts_lin = df_sts_lin.loc[df_sts_lin["distance"]<500].copy()
-	tmp_sts_lin.loc[:,"upper"] = np.tile([100,130,130,130],int(tmp_sts_lin.shape[0]/4))
+	tmp_sts_lin.loc[:,"upper"] = np.tile([150,130,180,120,190,120],int(tmp_sts_lin.shape[0]/6))
 	#---------------- Group-level linear velocity detectability ---------------
 	fg = sns.FacetGrid(data=tmp_sts_lin,
 					col="Parameter",
@@ -655,7 +664,7 @@ if do_plt_det:
 
 	#------------ Units ----------------------------
 	axs = fg.axes_dict
-	par_names = ["$|\\kappa|$","$\\omega_x$","$\\omega_y$","$\\omega_z$"]
+	par_names = ["$\\kappa_x$","$\\omega_x$","$\\kappa_y$","$\\omega_y$","$\\kappa_z$","$\\omega_z$"]
 	for (par,name) in zip(tmp_sts_lin["Parameter"],par_names):
 		axs[par].set_xlabel("Distance [pc]")
 		axs[par].set_ylabel("$2\\sigma$ uncertainty [$\\rm{m\\,s^{-1}\\,pc^{-1}}$]")

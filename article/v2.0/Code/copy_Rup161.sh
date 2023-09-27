@@ -1,1 +1,0 @@
-rsync -av -r -e ssh --exclude='*.nc' --exclude='*.h5' dance13:/raid/jromero/Kalkayotl/Rup161/* /home/jolivares/Repos/Kalkayotl/article/v2.0/Rup161/

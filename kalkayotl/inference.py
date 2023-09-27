@@ -497,11 +497,12 @@ class Inference:
 					"loc":[x,y,z,u,v,w],
 					"scl":[xyz_sd,xyz_sd,xyz_sd,uvw_sd,uvw_sd,uvw_sd]}
 
-			for name,loc,scl in zip(
+			for name,loc,scl,unit in zip(
 				self.names_coords,
 				self.hyper["alpha"]["loc"],
-				self.hyper["alpha"]["scl"]):
-				print("{0}: {1:2.1f} +/- {2:2.1f} pc".format(name,loc,scl))	
+				self.hyper["alpha"]["scl"],
+				np.array(["pc","pc","pc","km/s","km/s","km/s"])[:self.D]):
+				print("{0}: {1:2.1f} +/- {2:2.1f} {3}".format(name,loc,scl,unit))	
 			#---------------------------------------------------------------------------------
 
 		else:
@@ -583,8 +584,12 @@ class Inference:
 					sys.exit("ERROR:Unrecognized type of hyper_beta")
 
 			print("The beta hyper-parameter has been set to:")
-			for name,scl in zip(self.names_coords,self.hyper["beta"]):
-				print("{0}: {1:2.1f} pc".format(name,scl))	
+			for name,scl,unit in zip(
+				self.names_coords,
+				self.hyper["beta"],
+				np.array(["pc","pc","pc","km/s","km/s","km/s"])[:self.D]
+				):
+				print("{0}: {1:2.1f} {2}".format(name,scl,unit))	
 
 		else:
 
@@ -964,7 +969,6 @@ class Inference:
 				trace = pm.sample(
 					draws=sample_iters,
 					initvals=initial_points,
-					step=None,
 					nuts_sampler=nuts_sampler,
 					tune=tuning_iters,
 					chains=chains, 
@@ -973,7 +977,7 @@ class Inference:
 					target_accept=target_accept,
 					discard_tuned_samples=True,
 					return_inferencedata=True,
-					nuts_sampler_kwargs={"step_size":step_size},
+					#nuts_sampler_kwargs={"step_size":step_size},
 					model=self.Model
 					)
 				#--------------------------------
@@ -2115,6 +2119,9 @@ class Inference:
 			lenn_csv = self.dir_out +"/Lindegren_velocity_statistics.csv"
 			df_Lenn = az.summary(data={
 				"kappa [m.s-1.pc-1]":exp,
+				"kappa_x [m.s-1.pc-1]":T[:,0,0],
+				"kappa_y [m.s-1.pc-1]":T[:,1,1],
+				"kappa_z [m.s-1.pc-1]":T[:,2,2],
 				"omega_x [m.s-1.pc-1]":0.5*(T[:,2,1]-T[:,1,2]),
 				"omega_y [m.s-1.pc-1]":0.5*(T[:,0,2]-T[:,2,0]),
 				"omega_z [m.s-1.pc-1]":0.5*(T[:,1,0]-T[:,0,1]),
