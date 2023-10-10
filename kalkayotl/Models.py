@@ -1188,7 +1188,6 @@ class Model3D_tails(Model):
 		#--------------------------------------------------------------
 
 		#------------ Tails params ------------------------------------
-		alpha = pm.Uniform("alpha", lower=1.0,upper=5.0,shape=2)
 		if parameters["alpha"] is None:
 			hn = pm.HalfNormal("hn", sigma=10)
 			alpha = pm.Deterministic("alpha", 1.0+hn)

@@ -16,8 +16,8 @@ def cluster_logp(
     value:TensorVariable,   # Value where the logp will be computed
     mu:TensorVariable,      # Central cluster position
     chol_cr:TensorVariable, # Cholesky decomposition of central covariance
-    chol_ta:TensorVariable, # Cholesky decomposition of tail A
-    chol_tb:TensorVariable, # Cholesky decomposition of tail B
+    chol_tn:TensorVariable, # Cholesky decomposition of tail A
+    chol_tp:TensorVariable, # Cholesky decomposition of tail B
     weights:TensorVariable, # Weights of the three components
     alpha:TensorVariable    # Parameter of Gamma distribution
     )->TensorVariable:
