@@ -1343,7 +1343,8 @@ class Inference:
 		if n_samples is not None:
 			idx = np.random.choice(
 				  np.arange(srcs.shape[1]),
-						replace=False,
+						#replace=False,
+						replace=True,
 						size=n_samples)
 			srcs = srcs[:,idx]
 		#------------------------------------
@@ -1453,7 +1454,8 @@ class Inference:
 		if n_samples is not None:
 			idx = np.random.choice(
 				  np.arange(locs.shape[1]),
-						replace=False,
+						#replace=False,
+						replace=True,
 						size=n_samples)
 
 			amps = amps[:,idx]
@@ -1505,6 +1507,16 @@ class Inference:
 								if k == 0:
 									log_lk[i,j,k]  = st.multivariate_normal(mean=loc,cov=cov,
 														allow_singular=True).logpdf(dt)
+								# else:
+								# 	log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
+								# 						cov=cov[::2,::2],
+								# 						allow_singular=True).logpdf(dt[::2])
+								# 	log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(dt[1])
+								elif k == 1:
+									log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
+														cov=cov[::2,::2],
+														allow_singular=True).logpdf(dt[::2])
+									log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(dt[1])
 								else:
 									log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
 														cov=cov[::2,::2],
@@ -1686,7 +1698,7 @@ class Inference:
 
 		msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
 
-		assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
+		#assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
 
 		print("Plotting model ...")
 
