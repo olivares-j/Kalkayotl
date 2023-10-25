@@ -14,10 +14,10 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #----------- Directories and files -------------------------------
-# authors = "Crundall_2019"
-# authors = "Couture_2023"
+authors = "Crundall+2019"
+# authors = "Couture+2023"
 #authors = "Couture+2023_clean"
-authors = "Miret-Roig_2020"
+# authors = "Miret-Roig_2020"
 dir_case = "/home/jolivares/Repos/Kalkayotl/article/v2.0/BetaPic/"
 dir_base = "{0}{1}/".format(dir_case,authors)
 file_data = "{0}members.csv".format(dir_base)
@@ -33,8 +33,8 @@ chains    = 2
 cores     = 2
 tuning_iters  = 5000
 sample_iters  = 2000
-target_accept = 0.65
-sky_error_factor = 1e6
+target_accept = 0.85
+sky_error_factor = 1e7
 
 sampling_space   = "physical"
 indep_measures   = False
@@ -59,7 +59,9 @@ prior = {"type":"Gaussian",
 							"beta":None,
 							"gamma":None,
 							"delta":None,
-							"eta":None
+							"eta":None,
+							"kappa":None,
+							"omega":None
 							},
 		"parametrization":"central"}
 
@@ -113,12 +115,12 @@ for rs in rss:
 			init_iters=int(1e6),
 			init_refine=False,
 			nuts_sampler=nuts_sampler,
-			prior_predictive=False)
+			prior_predictive=True)
 
 	kal.load_trace()
 	kal.convergence()
 	kal.plot_chains()
-	# kal.plot_prior_check()
+	kal.plot_prior_check()
 	kal.plot_model()
 	kal.save_statistics()
 	# kal.save_statistics(hdi_prob=0.682689492137)

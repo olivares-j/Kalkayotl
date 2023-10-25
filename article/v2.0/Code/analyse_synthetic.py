@@ -28,11 +28,11 @@ import seaborn as sns
 import dill
 
 list_of_n_stars = [100,200,400]
-list_of_distances = [100,200,400,800,1600]
+list_of_distances = [100,200,400]#,800,1600]
 list_of_seeds = [0,1,2,3,4]
-family = "Gaussian"
+family = "GMM"
 dimension = 6
-velocity_model = "linear"
+velocity_model = "joint"
 append = "" if (dimension == 3) and (velocity_model == "joint") else "_1E+06"
 
 #---------------------- Directories and data -------------------------------
@@ -54,11 +54,11 @@ file_plot_tme = base_plt + "{0}D_{1}_{2}_times.png".format(dimension,family,velo
 file_data_all = dir_data + "{0}D_data.h5".format(dimension)
 file_time     = dir_data  + "times.csv"
 
-do_all_dta = False
+do_all_dta = True
 do_plt_cnv = False
 do_plt_grp = True
 do_plt_src = True
-do_plt_rho = True
+do_plt_rho = False
 do_plt_det = False # Only for linear velocity
 do_plt_time = False # Only valid for StudentT_linear
 #---------------------------------------------------------------------------
@@ -111,12 +111,12 @@ if family == "GMM":
 		true_grp_names = sum([
 					["{0}D::loc[{1}, {2}]".format(dimension,comp,coord) for comp in components for coord in coordinates ],
 					["{0}D::std[{1}, {2}]".format(dimension,comp,coord) for comp in components for coord in coordinates ],
-					["{0}D::weights[{1}]".format(dimension,comp) for comp in components ],
+					#["{0}D::weights[{1}]".format(dimension,comp) for comp in components ],
 					],[])
 		true_grp_pars = np.hstack([
 			np.array([0.,0.,0.,10.,10.,10.,0.,0.,50.,10.,10.,10.]),
 			np.array([9.,9.,9.,1.,1.,1.,9.,9.,9.,1.,1.,1.]),
-			np.array([0.5,0.5])
+			#np.array([0.5,0.5])
 			])
 	else:
 		sys.exit("Not valid")
@@ -159,34 +159,34 @@ if do_all_dta:
 
 	#=================== Execution times ======================================
 
-	if family == "StudentT" and velocity_model == "linear":
-		#-------------- Read and rename ---------------------------
-		df_tme = pn.read_csv(file_time,usecols=["Time"])
-		df_tme.set_index(pn.MultiIndex.from_product(
-						[list_of_distances,list_of_n_stars,list_of_seeds]),
-						inplace=True)
-		df_tme.rename_axis(index=["distance","n_stars","seed"],
-						inplace=True)
-		#--------------------------------------------------------
+	# if ((family == "StudentT" and velocity_model == "linear") |
+	#    (family == "GMM" and velocity_model == "joint")):
+	# 	#-------------- Read and rename ---------------------------
+	# 	df_tme = pn.read_csv(file_time,usecols=["Time"])
+	# 	df_tme.set_index(pn.MultiIndex.from_product(
+	# 					[list_of_distances,list_of_n_stars,list_of_seeds]),
+	# 					inplace=True)
+	# 	df_tme.rename_axis(index=["distance","n_stars","seed"],
+	# 					inplace=True)
+	# 	#--------------------------------------------------------
+
+	# 	#---------------- statisitcs --------------------
+	# 	dfg_tme = df_tme.groupby(["distance","n_stars"],sort=False)
+	# 	df_tme_hdi  = pn.merge(
+	# 					left=dfg_tme.quantile(q=0.025),
+	# 					right=dfg_tme.quantile(q=0.975),
+	# 					left_index=True,
+	# 					right_index=True,
+	# 					suffixes=("_low","_up"))
+	# 	df_sts_tme  = pn.merge(
+	# 					left=dfg_tme.mean(),
+	# 					right=df_tme_hdi,
+	# 					left_index=True,
+	# 					right_index=True).reset_index()
+	# 	#------------------------------------------------------------
 
 
-		#---------------- statisitcs --------------------
-		dfg_tme = df_tme.groupby(["distance","n_stars"],sort=False)
-		df_tme_hdi  = pn.merge(
-						left=dfg_tme.quantile(q=0.025),
-						right=dfg_tme.quantile(q=0.975),
-						left_index=True,
-						right_index=True,
-						suffixes=("_low","_up"))
-		df_sts_tme  = pn.merge(
-						left=dfg_tme.mean(),
-						right=df_tme_hdi,
-						left_index=True,
-						right_index=True).reset_index()
-		#------------------------------------------------------------
-
-
-		df_sts_tme.to_hdf(file_data_all,key="df_time")
+	# 	df_sts_tme.to_hdf(file_data_all,key="df_time")
 	#=======================================================================
 
 	#-----------------------------------------------------
@@ -207,10 +207,10 @@ if do_all_dta:
 				#--------------------------------------------------------------------------
 
 				#------------- Parametrization --------------------
-				if distance <= 500.:
-					parametrization = "central"
-				else:
+				if distance > 500. and family != "GMM":
 					parametrization = "non-central"
+				else:
+					parametrization = "central"
 				#-------------------------------------------
 
 				#------------- Files ----------------------------------------------------
@@ -249,6 +249,14 @@ if do_all_dta:
 								right_index=True)
 				#----------------------------------------
 
+				#------------------- Fix label shuffling in GMM --------------------------
+				if family == "GMM":
+					df_grp["err"] = df_grp.apply(lambda x: (x["mean"] - x["true"]),  axis = 1)
+					if np.abs(df_grp.loc["6D::loc[A, Z]","err"]) > 25.0:
+						df_grp.loc["6D::loc[A, Z]","true"] = 50.0
+						df_grp.loc["6D::loc[B, Z]","true"] =  0.0
+				#---------------------------------------------------------------------------------
+
 				#---------------------------- Parameter statistics -----------------------------------------------------
 				df_grp["err"] = df_grp.apply(lambda x: (x["mean"] - x["true"]),  axis = 1)
 				df_grp["unc"] = df_grp.apply(lambda x: (x["hdi_97.5%"]-x["hdi_2.5%"]),  axis = 1)
@@ -256,6 +264,12 @@ if do_all_dta:
 															 (x["true"] <= x["hdi_97.5%"])),
 															axis = 1)
 				#----------------------------------------------------------------------------------------------------
+				if any(df_grp.loc[["6D::loc[B, X]","6D::loc[B, Y]","6D::loc[B, Z]"],"unc"]>10):
+					print("B","n",n_stars,"d",distance,"s",seed)
+				if any(df_grp.loc[["6D::loc[A, X]","6D::loc[A, Y]","6D::loc[A, Z]"],"unc"]>10):
+					print("A","n",n_stars,"d",distance,"s",seed)
+
+
 
 				#----------------------------- Sources statistics ----------------------------------------------------------
 				if family == "GMM":

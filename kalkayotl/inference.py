@@ -735,6 +735,14 @@ class Inference:
 				assert self.hyper["gamma"] is not None, msg_gamma
 		else:
 			self.hyper["gamma"] = None
+
+		if self.velocity_model in ["constant","linear"]:
+			if self.hyper["kappa"] is None:
+				self.hyper["kappa"] = 0.1
+			if self.hyper["omega"] is None:
+				self.hyper["omega"] = 0.1
+			print("The kappa hyper parameter has been set to: {0:2.2f} m.s-1.pc-1".format(self.hyper["kappa"]*1000.))
+			print("The omega hyper parameter has been set to: {0:2.2f} m.s-1.pc-1".format(self.hyper["omega"]*1000.))
 		#===========================================================================================================
 
 		if self.D == 1:
@@ -789,6 +797,8 @@ class Inference:
 								hyper_gamma=self.hyper["gamma"],
 								hyper_delta=self.hyper["delta"],
 								hyper_eta=self.hyper["eta"],
+								hyper_kappa=self.hyper["kappa"],
+								hyper_omega=self.hyper["omega"],
 								hyper_nu=self.hyper["nu"],
 								transformation=self.forward,
 								parametrization=self.parametrization,

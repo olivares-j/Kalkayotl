@@ -142,7 +142,9 @@ list_of_prior = [
 							"beta":None,
 							"gamma":None,
 							"delta":None,
-							"eta":None
+							"eta":None,
+							"kappa":None,
+							"omega":None
 							},
 		"parametrization":"central"},
 	# {"type":"StudentT",
