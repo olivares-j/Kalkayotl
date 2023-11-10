@@ -1717,10 +1717,10 @@ class Inference:
 			#-------------------------------------------------
 
 			#------------ Normalizations ------------------------
-			if nvr.min()  < 0 and nvr.max() > 0:
+			if nvr.min() < 0 and nvr.max() > 0:
 				vcenter = 0.0
 			else:
-				vcenter = 0.5*(nvr.max()-nvr.min())
+				vcenter = np.sign(nvr.min())*0.5*np.abs((nvr.max()-nvr.min()))
 
 			print(nvr.min(),vcenter,nvr.max())
 
