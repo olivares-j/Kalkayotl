@@ -1722,6 +1722,8 @@ class Inference:
 			else:
 				vcenter = 0.5*(nvr.max()-nvr.min())
 
+			print(nvr.min(),vcenter,nvr.max())
+
 			norm_pos = TwoSlopeNorm(vcenter=vcenter,
 								vmin=nvr.min(),vmax=nvr.max())
 			norm_vel = Normalize(vmin=nrs.min(),vmax=nrs.max())
