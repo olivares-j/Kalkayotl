@@ -544,8 +544,8 @@ class Inference:
 			
 			if isinstance(self.parameters["location"],np.ndarray):
 				assert self.parameters["location"].shape[0] == self.D, msg_loc
-				for name,loc in zip(self.names_coords,self.parameters["location"]):
-					print("{0}: {1:2.1f} pc".format(name,loc))
+				#for name,loc in zip(self.names_coords,self.parameters["location"]):
+				#	print("{0}: {1:2.1f} pc".format(name,loc))
 
 			#-------------- Mixture model ----------------------------
 			elif isinstance(self.parameters["location"],list):
@@ -944,7 +944,7 @@ class Inference:
 						del vals[key]
 			# TO BE REMOVED once pymc5 solves this issue
 			#----------------------------------------------------------------------------
-
+			sys.exit()
 			#================================================================================
 
 			#=================== Sampling ==================================================
@@ -1116,6 +1116,7 @@ class Inference:
 					or "std" in var
 					or "weights" in var
 					or "perezsala" in var
+					or "alpha" in var
 					or "corr" in var 
 					or "omega" in var
 					or "kappa" in var):
@@ -1521,7 +1522,7 @@ class Inference:
 									log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
 														cov=cov[::2,::2],
 														allow_singular=True).logpdf(dt[::2])
-									log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(dt[1])
+									log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(-dt[1])
 
 								log_lk[i,j,k] += np.log(amp)
 				else:
@@ -1532,7 +1533,10 @@ class Inference:
 													allow_singular=True).logpdf(dt)
 								log_lk[i,j,k] += np.log(amp)
 
-			idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
+			#idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=False)[0].flatten()
+			#idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
+			idx = np.median(log_lk.argmax(axis=2),axis=1,keepdims=True).astype('int').flatten()
+			#idx = np.mean(log_lk.argmax(axis=2),axis=1,keepdims=True).astype('int')[0].flatten()
 
 		else:
 			idx = np.zeros(len(self.ID),dtype=np.int32)

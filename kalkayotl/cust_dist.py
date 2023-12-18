@@ -27,8 +27,15 @@ def cluster_logp(
 
     # ---------------- Logp -----------------------------------------------------------
     lp_cr  = tt.log(weights[0]) + pm.logp(pm.MvNormal.dist(mu=mu, chol=chol_cr), value)
-    lp_tn  = tt.log(weights[1]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tn[1,1]), -y)
-    lp_tp  = tt.log(weights[2]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tp[1,1]),  y)
+    # lp_tn  = tt.log(weights[1]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tn[1,1]), -y)
+    # lp_tp  = tt.log(weights[2]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tp[1,1]),  y)
+    # lp_tn += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tn[::2,::2]), value[:,::2])
+    # lp_tp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tp[::2,::2]), value[:,::2])
+    # lp_cr  = tt.log(weights[0]) + pm.MvNormal.logp(value, mu=mu, chol=chol_cr)
+    lp_tn  = tt.log(weights[1]) + pm.Gamma.logp(-y, alpha=alpha, inv_beta=1/chol_tn[1,1])
+    lp_tp  = tt.log(weights[2]) + pm.Gamma.logp(y, alpha=alpha, inv_beta=1/chol_tp[1,1])
+    # lp_tn += pm.MvNormal.logp(value[:,::2], mu=mu[::2], chol=chol_tn[::2,::2])
+    # lp_tp += pm.MvNormal.logp(value[:,::2], mu=mu[::2], chol=chol_tp[::2,::2])
     lp_tn += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tn[::2,::2]), value[:,::2])
     lp_tp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tp[::2,::2]), value[:,::2])
     lp     = pm.logsumexp(tt.stack([lp_cr,lp_tn,lp_tp]), axis=0)

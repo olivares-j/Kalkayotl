@@ -23,7 +23,7 @@ import string
 from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
-from kalkayotl.Rotations import cluster_to_galactic
+from kalkayotl.Rotations import cluster_to_galactic, XY_angle_rotation
 from kalkayotl.cust_dist import cluster_logp, cluster_random
 
 ################################## Model 1D ####################################
@@ -1115,7 +1115,14 @@ class Model3D_tails(Model):
 		#--------------------------------------------------------------
 
 		#--------- Rotation parameters -------------------------------
-		perezsala = np.zeros(3)#pm.Uniform("perezsala",lower=0, upper=1,shape=3)
+		# if parameters["perezsala"] is None:
+		# 	perezsala = pm.Uniform("perezsala",lower=0, upper=1,shape=3)#np.zeros(3)
+		# else:
+		# 	perezsala = pytensor.shared(parameters["perezsala"])
+		if parameters["rot_angle"] is None:
+    		rot_angle = pm.Uniform("rot_angle",lower=0, upper=2*np.pi,shape=1)#np.zeros(3)
+		else:
+			rot_angle = pytensor.shared(parameters["rot_angle"])
 		#-------------------------------------------------------------
 
 		#----------- Location ------------------------------------------
@@ -1156,6 +1163,8 @@ class Model3D_tails(Model):
 						)
 			for i,name in enumerate(names_components):
 				chol_i = np.eye(3)*stds[i]
+				# if i==0:
+				# 	chol_i = np.eye(3)*(stds[i]*pytensor.shared(np.array([0.05,1,1])))
 				corr_i = np.eye(3)
 				chol = tt.set_subtensor(chol[i],chol_i)
 				corr = tt.set_subtensor(corr[i],corr_i)
@@ -1197,7 +1206,8 @@ class Model3D_tails(Model):
 		#--------------------------------------------------------------
 
 		#-------------------------- True values -------------------------------------
-		source = pm.CustomDist("source", loc[0], chol[0],chol[1],chol[2],
+		source = pm.CustomDist("source", np.zeros(3), chol[0],chol[1],chol[2],
+		#source = pm.CustomDist("source", loc[0], chol[0],chol[1],chol[2],
 				weights,
 				alpha,
 				logp=cluster_logp, 
@@ -1205,16 +1215,19 @@ class Model3D_tails(Model):
 				shape=(n_sources,dimension), 
 				dims=("source_id","coordinate")
 				)
-		pos_cls = pm.Deterministic("pos_cls", source-loc[0])
+		pos_cls = pm.Deterministic("pos_cls", source)
+		#pos_cls = pm.Deterministic("pos_cls", source-loc[0])
 		#----------------------------------------------------------------------------
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		# = pm.Deterministic("source",cluster_to_galactic(pos_cls, perezsala, self.centre),
-		#								dims=("source_id","coordinate"))
+		true = pm.Deterministic("true",cluster_to_galactic(source, perezsala, loc[0]),
+									dims=("source_id","coordinate"))
+		#true = pm.Deterministic("true",cluster_to_galactic(source, perezsala, loc[0]),
+		#							dims=("source_id","coordinate"))
 
-		true = pm.Deterministic("true",transformation(source),
-										dims=("source_id","observable"))
+		# true = pm.Deterministic("true",transformation(source),
+		#  								dims=("source_id","observable"))
 		#-----------------------------------------------------------------------------
 
 		#----------------------- Likelihood ----------------------------------------

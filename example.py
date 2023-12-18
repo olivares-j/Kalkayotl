@@ -28,6 +28,8 @@ import datetime
 import pymc as pm
 
 #----- Import the module -------------------------------
+#dir_kalkayotl  = "/home/cosmin/Documentos/GitHub/Kalkayotl/" 
+# dir_kalkayotl  = "/home/simul3/Documentos/Cosmin/Kalkayotl/" 
 dir_kalkayotl  = "/home/minu99/Documentos/GitHub/Kalkayotl/" 
 # dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
 sys.path.append(dir_kalkayotl)
@@ -69,14 +71,14 @@ tuning_iters = 2000
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 1000
+sample_iters = 4000
 
 
 #----- Target_accept-------
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
 # Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
 # of the sampler but increases the computing time.
-target_accept = 0.65
+target_accept = 0.7
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------
@@ -161,19 +163,19 @@ list_of_prior = [
 	# 						"nu":None,
 	# 						},
 	# 	"parametrization":"central"},
-	# {"type":"GMM",     
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(1,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"parametrization":"central"},
+	#{"type":"GMM",     
+	#	"parameters":{"location":None,
+	#				  "scale":None,
+	#				  "weights":None},
+	#	"hyper_parameters":{
+	#						"alpha":None,
+	#						"beta":None, 
+	#						"gamma":None,
+	#						"delta":np.repeat(1,2),
+	#						"eta":None,
+	#						"n_components":2
+	#						},
+	#	"parametrization":"central"},
 	# {"type":"CGMM",     
 	# 	"parameters":{"location":file_parameters,
 	# 				  "scale":file_parameters,
@@ -238,14 +240,15 @@ list_of_prior = [
 	# 						},
 	# 	"parametrization":"central"},
 	{"type":"TGMM",      
-		"parameters":{"location":None,
+		"parameters":{"location":np.array([[-6.704457, -6.23209, 84.41157],[-6.704457, -6.23209, 84.41157],[-6.704457, -6.23209, 84.41157]]),#None,
 					  "scale":None,
-					  "weights":np.array([0.2,0.4,0.4]),
-					  "alpha":1.0
+					  "weights":np.array([0.4359270217638399, 0.2935087252031403, 0.2705642530330198]),
+					  "alpha":None,#1.0
+					  "perezsala":np.array([1, 0, -0.02891667])
 					  },
 		"hyper_parameters":{
 							"alpha":None,
-							"beta":None, 
+							"beta":np.array([10,1,10]),#np.array([40,1,10]),#None, 
 							"delta":np.array([40,30,30]),
 							"eta":None,
 							"n_components":3
@@ -261,13 +264,15 @@ current = datetime.datetime.now()
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}".format(
 		dimension,
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
-		prior["velocity_model"],
-		f"{current.year}-{current.month}-{current.day}-{current.hour}-{current.minute}-{current.second}"
+		#prior["velocity_model"],
+		#'2023-10-20-19-27-24'
+		#f"{current.year}-{current.month}-{current.day}-{current.hour}-{current.minute}-{current.second}"
+		"actual_test3"
 		)
 	#------------------------------------------------------------
 
@@ -300,14 +305,14 @@ for prior in list_of_prior:
 	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	kal.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			chains=chains,
-			cores=cores,
-			init_iters=int(1e5),
-			nuts_sampler=nuts_sampler,
-			prior_predictive=True)
+	# kal.run(sample_iters=sample_iters,
+	# 		tuning_iters=tuning_iters,
+	# 		target_accept=target_accept,
+	# 		chains=chains,
+	# 		cores=cores,
+	# 		init_iters=int(1e6),
+	# 		nuts_sampler=nuts_sampler,
+	# 		prior_predictive=True)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------
