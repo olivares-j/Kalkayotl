@@ -26,6 +26,7 @@ import numpy as np
 import h5py
 import datetime
 import pymc as pm
+import math
 
 #----- Import the module -------------------------------
 #dir_kalkayotl  = "/home/cosmin/Documentos/GitHub/Kalkayotl/" 
@@ -66,12 +67,12 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 2000
+tuning_iters = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 4000
+sample_iters = 1000
 
 
 #----- Target_accept-------
@@ -241,10 +242,11 @@ list_of_prior = [
 	# 	"parametrization":"central"},
 	{"type":"TGMM",      
 		"parameters":{"location":np.array([[-6.704457, -6.23209, 84.41157],[-6.704457, -6.23209, 84.41157],[-6.704457, -6.23209, 84.41157]]),#None,
-					  "scale":None,
+					  "scale":[np.diag([103.7, 3.4, 2.5])**2, np.diag([15.0,0.1,3.2])**2, np.diag([18.9,0.1,3.1])**2],
 					  "weights":np.array([0.4359270217638399, 0.2935087252031403, 0.2705642530330198]),
-					  "alpha":None,#1.0
-					  "perezsala":np.array([1, 0, -0.02891667])
+					  "alpha":2.0,
+					  #"perezsala":np.array([1, 0, -0.02891667])
+					  "rot_angle":math.radians(360-40)
 					  },
 		"hyper_parameters":{
 							"alpha":None,
@@ -270,9 +272,9 @@ for prior in list_of_prior:
 		reference_system,
 		prior["parametrization"],
 		#prior["velocity_model"],
-		#'2023-10-20-19-27-24'
-		#f"{current.year}-{current.month}-{current.day}-{current.hour}-{current.minute}-{current.second}"
-		"actual_test3"
+		#'2023-12-19-12-22-46'
+		f"{current.year}-{current.month}-{current.day}-{current.hour}-{current.minute}-{current.second}"
+		#"actual_test3"
 		)
 	#------------------------------------------------------------
 
@@ -305,14 +307,14 @@ for prior in list_of_prior:
 	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
-	# kal.run(sample_iters=sample_iters,
-	# 		tuning_iters=tuning_iters,
-	# 		target_accept=target_accept,
-	# 		chains=chains,
-	# 		cores=cores,
-	# 		init_iters=int(1e6),
-	# 		nuts_sampler=nuts_sampler,
-	# 		prior_predictive=True)
+	kal.run(sample_iters=sample_iters,
+			tuning_iters=tuning_iters,
+			target_accept=target_accept,
+			chains=chains,
+			cores=cores,
+			init_iters=int(1e7),
+			nuts_sampler=nuts_sampler,
+			prior_predictive=True)
 	#-------------------------------------
 
 	# -------- Load the chains --------------------------------

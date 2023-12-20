@@ -23,7 +23,7 @@ import string
 from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
-from kalkayotl.Rotations import cluster_to_galactic, XY_angle_rotation
+from kalkayotl.Rotations import cluster_to_galactic, cluster_to_galactic_XY
 from kalkayotl.cust_dist import cluster_logp, cluster_random
 
 ################################## Model 1D ####################################
@@ -102,7 +102,7 @@ class Model1D(Model):
 					loc = pm.Deterministic("loc",loc,
 						dims=("component","coordinate"))
 					#--------------------------------------------------
-					
+
 			else:
 				#----------------- Fixed location -----------------
 				loc  = pytensor.shared(np.zeros((n_components,dimension)))
@@ -244,7 +244,7 @@ class Model1D(Model):
 		# 							shape=(n_sources,dimension))
 		# 		source = pm.Deterministic("source",loc + std*offset,
 		# 							dims=("source_id","coordinate"))
-			
+
 		# elif prior == "EDSD":
 		# 	source = EDSD("source",scale=std,
 		# 							shape=(n_sources,dimension),
@@ -253,7 +253,7 @@ class Model1D(Model):
 		# 	source = GGD("source",scale=std,alpha=alpha,beta=beta,
 		# 							shape=(n_sources,dimension),
 		# 							dims=("source_id","coordinate"))
-		elif "GMM" in prior:				
+		elif "GMM" in prior:
 			comps = [ pm.Normal.dist(mu=loc[i],sigma=std[i]) for i in range(n_components)]
 
 			source = pm.Mixture("source",w=weights,comp_dists=comps,
@@ -355,7 +355,7 @@ class Model3D6D(Model):
 					loc = pm.Deterministic("loc",loc,
 						dims=("component","coordinate"))
 					#--------------------------------------------------
-					
+
 			else:
 				#----------------- Fixed location -----------------
 				loc  = pytensor.shared(np.zeros((n_components,dimension)))
@@ -375,9 +375,9 @@ class Model3D6D(Model):
 			if parameters["scale"] is None and prior in ["GMM","CGMM"]:
 				for i,name in enumerate(names_components):
 					chol_i,corr_i,stds_i = pm.LKJCholeskyCov(
-											"chol_{0}".format(name), 
-											n=dimension, 
-											eta=hyper_eta, 
+											"chol_{0}".format(name),
+											n=dimension,
+											eta=hyper_eta,
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
 												beta=hyper_beta),
@@ -390,9 +390,9 @@ class Model3D6D(Model):
 			elif parameters["scale"] is None and prior == "FGMM":
 				for i in range(n_components-1):
 					chol_i,corr_i,stds_i = pm.LKJCholeskyCov(
-											"chol_{0}".format(names_components[i]), 
-											n=dimension, 
-											eta=hyper_eta, 
+											"chol_{0}".format(names_components[i]),
+											n=dimension,
+											eta=hyper_eta,
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
 												beta=hyper_beta),
@@ -449,9 +449,9 @@ class Model3D6D(Model):
 
 			#---------- Covariance matrix ------------------------------------
 			if parameters["scale"] is None:
-				chol,corr,stds = pm.LKJCholeskyCov("chol", 
-								n=dimension, 
-								eta=hyper_eta, 
+				chol,corr,stds = pm.LKJCholeskyCov("chol",
+								n=dimension,
+								eta=hyper_eta,
 								sd_dist=pm.Gamma.dist(
 									alpha=2.0,
 									beta=hyper_beta),
@@ -468,7 +468,7 @@ class Model3D6D(Model):
 				inv_stds = 1. / stds_i
 				corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
 				#---------------------------------------------------
-				
+
 				chol = pytensor.shared(chol_i)
 				corr = pm.Deterministic("corr", pytensor.shared(corr_i))
 				stds = pm.Deterministic("std",  pytensor.shared(stds_i),
@@ -477,7 +477,7 @@ class Model3D6D(Model):
 		#----------------------------------------------------------------------------
 		#==============================================================================
 
-		#===================== True values ============================================		
+		#===================== True values ============================================
 		if prior == "Gaussian":
 			if parametrization == "central":
 				pm.MvNormal("source",mu=loc,chol=chol,
@@ -545,7 +545,7 @@ class Model3D6D(Model):
 			#---- Sample from the mixture ----------------------------------
 			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
-		
+
 		else:
 			sys.exit("The specified prior is not supported")
 		#=================================================================================
@@ -556,7 +556,7 @@ class Model3D6D(Model):
 		#-------------------------------------------------------------
 
 		#----------------------- Likelihood ----------------------------------------
-		pm.MvNormal('obs',	mu=pm.math.flatten(true)[idx_observed], 
+		pm.MvNormal('obs',	mu=pm.math.flatten(true)[idx_observed],
 							tau=tau_data,
 							observed=mu_data)
 		#---------------------------------------------------------------------------
@@ -650,24 +650,24 @@ class Model3D6D(Model):
 # 			#---------- Covariance matrices -----------------------------------
 # 			if parameters["scale"] is None:
 # 				for i in range(n_components):
-# 					choli_pos = pm.LKJCholeskyCov("chol_pos_{0}".format(i), 
-# 										n=3, eta=hyper_eta, 
+# 					choli_pos = pm.LKJCholeskyCov("chol_pos_{0}".format(i),
+# 										n=3, eta=hyper_eta,
 # 										sd_dist=pm.Gamma.dist(
 # 											alpha=2.0,
 # 											beta=hyper_beta),
 # 										compute_corr=False,
 # 										store_in_trace=False)
-				
+
 # 					chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
 
-# 					choli_vel = pm.LKJCholeskyCov("chol_vel_{0}".format(i), 
-# 										n=3, eta=hyper_eta, 
+# 					choli_vel = pm.LKJCholeskyCov("chol_vel_{0}".format(i),
+# 										n=3, eta=hyper_eta,
 # 										sd_dist=pm.Gamma.dist(
 # 											alpha=2.0,
 # 											beta=hyper_beta),
 # 										compute_corr=False,
 # 										store_in_trace=False)
-				
+
 # 					chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
 
 # 			else:
@@ -700,18 +700,18 @@ class Model3D6D(Model):
 
 # 			#---------- Covariance matrix ------------------------------------
 # 			if parameters["scale"] is None:
-# 				chol_pos = pm.LKJCholeskyCov("chol_pos", 
-# 									n=3, 
-# 									eta=hyper_eta, 
+# 				chol_pos = pm.LKJCholeskyCov("chol_pos",
+# 									n=3,
+# 									eta=hyper_eta,
 # 									sd_dist=pm.Gamma.dist(
 # 										alpha=2.0,
 # 										beta=hyper_beta),
 # 									compute_corr=False,
 # 									store_in_trace=False)
 
-# 				chol_vel = pm.LKJCholeskyCov("chol_vel", 
-# 									n=3, 
-# 									eta=hyper_eta, 
+# 				chol_vel = pm.LKJCholeskyCov("chol_vel",
+# 									n=3,
+# 									eta=hyper_eta,
 # 									sd_dist=pm.Gamma.dist(
 # 										alpha=2.0,
 # 										beta=hyper_beta),
@@ -725,7 +725,7 @@ class Model3D6D(Model):
 # 		#----------------------------------------------------------------------------
 # 		#==============================================================================
 
-# 		#===================== True values ============================================		
+# 		#===================== True values ============================================
 # 		if prior == "Gaussian":
 # 			if parametrization == "central":
 # 				source_pos = pm.MvNormal("source_pos",mu=loc_pos,chol=chol_vel,shape=(n_sources,3))
@@ -760,7 +760,7 @@ class Model3D6D(Model):
 # 			#---- Sample from the mixture ----------------------------------
 # 			source_pos = pm.Mixture("source_pos",w=weights,comp_dists=comps_pos,shape=(n_sources,3))
 # 			source_vel = pm.Mixture("source_vel",w=weights,comp_dists=comps_vel,shape=(n_sources,3))
-		
+
 # 		else:
 # 			sys.exit("The specified prior is not supported")
 
@@ -775,7 +775,7 @@ class Model3D6D(Model):
 # 		#-------------------------------------------------------------
 
 # 		#----------------------- Likelihood --------------------------------------
-# 		pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
+# 		pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data],
 # 					tau=tau_data,observed=mu_data)
 # 		#-------------------------------------------------------------------------
 
@@ -857,7 +857,7 @@ class Model6D_linear(Model):
 					loc = pm.Deterministic("loc",loc,
 						dims=("component","coordinate"))
 					#--------------------------------------------------
-					
+
 			else:
 				#----------------- Fixed location -----------------
 				loc  = pytensor.shared(np.zeros((n_components,6)))
@@ -877,9 +877,9 @@ class Model6D_linear(Model):
 			if parameters["scale"] is None and prior in ["GMM","CGMM"]:
 				for i,name in enumerate(names_components):
 					chol_i,corr_i,stds_i = pm.LKJCholeskyCov(
-											"chol_{0}".format(name), 
-											n=dimension, 
-											eta=hyper_eta, 
+											"chol_{0}".format(name),
+											n=dimension,
+											eta=hyper_eta,
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
 												beta=hyper_beta),
@@ -892,9 +892,9 @@ class Model6D_linear(Model):
 			elif parameters["scale"] is None and prior == "FGMM":
 				for i in range(n_components-1):
 					chol_i,corr_i,stds_i = pm.LKJCholeskyCov(
-											"chol_{0}".format(names_components[i]), 
-											n=dimension, 
-											eta=hyper_eta, 
+											"chol_{0}".format(names_components[i]),
+											n=dimension,
+											eta=hyper_eta,
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
 												beta=hyper_beta),
@@ -951,17 +951,17 @@ class Model6D_linear(Model):
 
 			#---------- Covariance matrix ------------------------------------
 			if parameters["scale"] is None:
-				chol_pos,corr_pos,stds_pos = pm.LKJCholeskyCov("chol_pos", 
-								n=3, 
-								eta=hyper_eta, 
+				chol_pos,corr_pos,stds_pos = pm.LKJCholeskyCov("chol_pos",
+								n=3,
+								eta=hyper_eta,
 								sd_dist=pm.Gamma.dist(
 									alpha=2.0,
 									beta=hyper_beta[:3]),
 								compute_corr=True,
 								store_in_trace=False)
-				chol_vel,corr_vel,stds_vel = pm.LKJCholeskyCov("chol_vel", 
-								n=3, 
-								eta=hyper_eta, 
+				chol_vel,corr_vel,stds_vel = pm.LKJCholeskyCov("chol_vel",
+								n=3,
+								eta=hyper_eta,
 								sd_dist=pm.Gamma.dist(
 									alpha=2.0,
 									beta=hyper_beta[3:]),
@@ -987,7 +987,7 @@ class Model6D_linear(Model):
 				inv_stds = 1. / stds_vel_i
 				corr_vel_i = inv_stds[None, :] * cov * inv_stds[:, None]
 				#----------------------------------------------------------
-				
+
 				chol_pos = pytensor.shared(chol_pos_i)
 				chol_vel = pytensor.shared(chol_vel_i)
 
@@ -996,7 +996,7 @@ class Model6D_linear(Model):
 
 				corr_pos = pm.Deterministic("corr_pos", pytensor.shared(corr_pos_i))
 				corr_vel = pm.Deterministic("corr_vel", pytensor.shared(corr_vel_i))
-				
+
 			#--------------------------------------------------------------
 
 			stds = pm.Deterministic("std",
@@ -1019,7 +1019,7 @@ class Model6D_linear(Model):
 		lnv = tt.set_subtensor(lnv[np.diag_indices(3)],kappa)
 		#=================================================================
 
-		#===================== True values ============================================		
+		#===================== True values ============================================
 		if prior == "Gaussian":
 			if parametrization == "central":
 				source_pos = pm.MvNormal("source_pos",mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
@@ -1032,7 +1032,7 @@ class Model6D_linear(Model):
 				jitter_vel = loc[3:] + tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
 				offset_pos = tt.nlinalg.matrix_dot(tau[:,:3],chol_pos)
 				source_pos = loc[:3] + offset_pos
-				
+
 			source_vel = jitter_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
 
 		elif prior == "StudentT":
@@ -1048,9 +1048,9 @@ class Model6D_linear(Model):
 				jitter_vel = loc[3:] + tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
 				offset_pos = tt.nlinalg.matrix_dot(tau[:,:3],chol_pos)
 				source_pos = loc[:3] + offset_pos
-				
+
 			source_vel = jitter_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
-		
+
 		else:
 			sys.exit("The specified prior is not yet supported")
 
@@ -1065,7 +1065,7 @@ class Model6D_linear(Model):
 		#-------------------------------------------------------------
 
 		#----------------------- Likelihood --------------------------------------
-		pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
+		pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data],
 					tau=tau_data,observed=mu_data)
 		#-------------------------------------------------------------------------
 
@@ -1118,11 +1118,11 @@ class Model3D_tails(Model):
 		# if parameters["perezsala"] is None:
 		# 	perezsala = pm.Uniform("perezsala",lower=0, upper=1,shape=3)#np.zeros(3)
 		# else:
-		# 	perezsala = pytensor.shared(parameters["perezsala"])
+		# 	perezsala = pm.Deterministic("perezsala",pytensor.shared(parameters["perezsala"]))
 		if parameters["rot_angle"] is None:
-    		rot_angle = pm.Uniform("rot_angle",lower=0, upper=2*np.pi,shape=1)#np.zeros(3)
+			rot_angle = pm.Uniform("rot_angle",lower=0, upper=2*np.pi)#np.zeros(3)
 		else:
-			rot_angle = pytensor.shared(parameters["rot_angle"])
+			rot_angle = pm.Deterministic("rot_angle", pytensor.shared(parameters["rot_angle"]))
 		#-------------------------------------------------------------
 
 		#----------- Location ------------------------------------------
@@ -1210,9 +1210,9 @@ class Model3D_tails(Model):
 		#source = pm.CustomDist("source", loc[0], chol[0],chol[1],chol[2],
 				weights,
 				alpha,
-				logp=cluster_logp, 
-				random=cluster_random, 
-				shape=(n_sources,dimension), 
+				logp=cluster_logp,
+				random=cluster_random,
+				shape=(n_sources,dimension),
 				dims=("source_id","coordinate")
 				)
 		pos_cls = pm.Deterministic("pos_cls", source)
@@ -1221,7 +1221,7 @@ class Model3D_tails(Model):
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		true = pm.Deterministic("true",cluster_to_galactic(source, perezsala, loc[0]),
+		true = pm.Deterministic("true",cluster_to_galactic_XY(source, rot_angle, loc[0]),
 									dims=("source_id","coordinate"))
 		#true = pm.Deterministic("true",cluster_to_galactic(source, perezsala, loc[0]),
 		#							dims=("source_id","coordinate"))
@@ -1231,7 +1231,7 @@ class Model3D_tails(Model):
 		#-----------------------------------------------------------------------------
 
 		#----------------------- Likelihood ----------------------------------------
-		pm.MvNormal('obs',	mu=pm.math.flatten(true)[idx_observed], 
+		pm.MvNormal('obs',	mu=pm.math.flatten(true)[idx_observed],
 							tau=tau_data,
 							observed=mu_data)
 		#---------------------------------------------------------------------------

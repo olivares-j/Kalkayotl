@@ -89,9 +89,24 @@ def random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters):
 
 
 def XY_angle_rotation(xyz, angle):
-	r = pytensor.shared(np.array([[np.cos(angle), -np.sin(angle), 0],
-							[np.sin(angle), np.cos(angle), 0],
-							[0, 0, 1]]))
+	r = tt.zeros(shape=(3,3))
+	r_0 = tt.zeros((3,))
+	r_1 = tt.zeros((3,))
+	r_2 = tt.zeros((3,))
+	r_0 = tt.set_subtensor(r_0[0], tt.cos(angle))
+	r_0 = tt.set_subtensor(r_0[1], -tt.sin(angle))
+	r_0 = tt.set_subtensor(r_0[2], 0)
+	r_1 = tt.set_subtensor(r_1[0], tt.sin(angle))
+	r_1 = tt.set_subtensor(r_1[1], tt.cos(angle))
+	r_1 = tt.set_subtensor(r_1[2], 0)
+	r_2 = tt.set_subtensor(r_2[0], 0)
+	r_2 = tt.set_subtensor(r_2[1], 0)
+	r_2 = tt.set_subtensor(r_2[2], 1)
+	
+	r = tt.set_subtensor(r[0], r_0)
+	r = tt.set_subtensor(r[1],r_1)
+	r = tt.set_subtensor(r[2],r_2)
+
 	return tt.dot(xyz, r)
 
 def translation_cluster_to_galactic(xyz, loc_galactic):

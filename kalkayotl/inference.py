@@ -944,7 +944,7 @@ class Inference:
 						del vals[key]
 			# TO BE REMOVED once pymc5 solves this issue
 			#----------------------------------------------------------------------------
-			sys.exit()
+			#sys.exit()
 			#================================================================================
 
 			#=================== Sampling ==================================================
@@ -1069,6 +1069,7 @@ class Inference:
 		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
 		cluster_variables = list(filter(lambda x: ( ("loc" in x)
 											or ("perezsala" in x)
+											or ("rot_angle" in x)
 											or ("corr" in x)
 											or ("std" in x)
 											or ("std" in x)
@@ -1116,6 +1117,7 @@ class Inference:
 					or "std" in var
 					or "weights" in var
 					or "perezsala" in var
+					or "rot_angle" in var
 					or "alpha" in var
 					or "corr" in var 
 					or "omega" in var
@@ -1534,8 +1536,8 @@ class Inference:
 								log_lk[i,j,k] += np.log(amp)
 
 			#idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=False)[0].flatten()
-			#idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
-			idx = np.median(log_lk.argmax(axis=2),axis=1,keepdims=True).astype('int').flatten()
+			idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
+			#idx = np.median(log_lk.argmax(axis=2),axis=1,keepdims=True).astype('int').flatten()
 			#idx = np.mean(log_lk.argmax(axis=2),axis=1,keepdims=True).astype('int')[0].flatten()
 
 		else:
@@ -1806,7 +1808,9 @@ class Inference:
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
 						zorder=2)
-
+			if idx == [0,1]:
+				ax.set_xlim([-90,90])
+				ax.set_ylim([-90,90])
 			#-------- Posterior ----------------------------------------------------------
 			for mus,covs in zip(pos_locs,pos_covs):
 				for mu,cov in zip(mus,covs):
