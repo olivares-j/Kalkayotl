@@ -544,8 +544,8 @@ class Inference:
 			
 			if isinstance(self.parameters["location"],np.ndarray):
 				assert self.parameters["location"].shape[0] == self.D, msg_loc
-				for name,loc in zip(self.names_coords,self.parameters["location"]):
-					print("{0}: {1:2.1f} pc".format(name,loc))
+				#for name,loc in zip(self.names_coords,self.parameters["location"]):
+				#	print("{0}: {1:2.1f} pc".format(name,loc))
 
 			#-------------- Mixture model ----------------------------
 			elif isinstance(self.parameters["location"],list):
@@ -1069,6 +1069,7 @@ class Inference:
 		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
 		cluster_variables = list(filter(lambda x: ( ("loc" in x)
 											or ("perezsala" in x)
+											or ("rot_angle" in x)
 											or ("corr" in x)
 											or ("std" in x)
 											or ("std" in x)
@@ -1116,6 +1117,8 @@ class Inference:
 					or "std" in var
 					or "weights" in var
 					or "perezsala" in var
+					or "rot_angle" in var
+					or "alpha" in var
 					or "corr" in var 
 					or "omega" in var
 					or "kappa" in var):
@@ -1343,7 +1346,8 @@ class Inference:
 		if n_samples is not None:
 			idx = np.random.choice(
 				  np.arange(srcs.shape[1]),
-						replace=False,
+						#replace=False,
+						replace=True,
 						size=n_samples)
 			srcs = srcs[:,idx]
 		#------------------------------------
@@ -1453,7 +1457,8 @@ class Inference:
 		if n_samples is not None:
 			idx = np.random.choice(
 				  np.arange(locs.shape[1]),
-						replace=False,
+						#replace=False,
+						replace=True,
 						size=n_samples)
 
 			amps = amps[:,idx]
@@ -1505,11 +1510,21 @@ class Inference:
 								if k == 0:
 									log_lk[i,j,k]  = st.multivariate_normal(mean=loc,cov=cov,
 														allow_singular=True).logpdf(dt)
-								else:
+								# else:
+								# 	log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
+								# 						cov=cov[::2,::2],
+								# 						allow_singular=True).logpdf(dt[::2])
+								# 	log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(dt[1])
+								elif k == 1:
 									log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
 														cov=cov[::2,::2],
 														allow_singular=True).logpdf(dt[::2])
 									log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(dt[1])
+								else:
+									log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
+														cov=cov[::2,::2],
+														allow_singular=True).logpdf(dt[::2])
+									log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(-dt[1])
 
 								log_lk[i,j,k] += np.log(amp)
 				else:
@@ -1521,6 +1536,8 @@ class Inference:
 								log_lk[i,j,k] += np.log(amp)
 
 			idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
+			#idx = np.median(log_lk.argmax(axis=2),axis=1,keepdims=True).astype('int').flatten()
+			#idx = np.mean(log_lk.argmax(axis=2),axis=1,keepdims=True).astype('int')[0].flatten()
 
 		else:
 			idx = np.zeros(len(self.ID),dtype=np.int32)
@@ -1686,7 +1703,7 @@ class Inference:
 
 		msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
 
-		assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
+		#assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
 
 		print("Plotting model ...")
 
@@ -1790,7 +1807,9 @@ class Inference:
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
 						zorder=2)
-
+			if idx == [0,1]:
+				ax.set_xlim([-90,90])
+				ax.set_ylim([-90,90])
 			#-------- Posterior ----------------------------------------------------------
 			for mus,covs in zip(pos_locs,pos_covs):
 				for mu,cov in zip(mus,covs):
@@ -2302,8 +2321,7 @@ class Inference:
 		
 		#------------ Save to CSV ---------------
 		df.to_csv(file_base + ".csv",index=True)
-		#-----------------------------------------
-		
+		#-----------------------------------------	
 
 	def evidence(self,N_samples=None,M_samples=1000,dlogz=1.0,nlive=None,
 		quantiles=[0.05,0.95],

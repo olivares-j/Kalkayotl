@@ -7,6 +7,7 @@ import pytensor
 import pytensor.tensor as tt
 import scipy as sp
 from pytensor.tensor import TensorVariable
+from pymc.math import logsumexp
 import arviz as az
 
 
@@ -24,25 +25,32 @@ def cluster_logp(
     # Auxiliar Y variable
     y = value[:,1] - mu[1]
 
-
     # ---------------- Logp -----------------------------------------------------------
     lp_cr  = tt.log(weights[0]) + pm.logp(pm.MvNormal.dist(mu=mu, chol=chol_cr), value)
-    lp_tn  = tt.log(weights[1]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tn[1,1]), -y)
-    lp_tp  = tt.log(weights[2]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tp[1,1]),  y)
+    # lp_tn  = tt.log(weights[1]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tn[1,1]), -y)
+    # lp_tp  = tt.log(weights[2]) + pm.logp(pm.Gamma.dist(alpha=alpha, beta=chol_tp[1,1]),  y)
+    # lp_tn += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tn[::2,::2]), value[:,::2])
+    # lp_tp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tp[::2,::2]), value[:,::2])
+    # lp_cr  = tt.log(weights[0]) + pm.MvNormal.logp(value, mu=mu, chol=chol_cr)
+    lp_tn  = tt.log(weights[1]) + pm.Gamma.logp(-y, alpha=alpha, inv_beta=1/chol_tn[1,1])
+    lp_tp  = tt.log(weights[2]) + pm.Gamma.logp(y, alpha=alpha, inv_beta=1/chol_tp[1,1])
+    # lp_tn += pm.MvNormal.logp(value[:,::2], mu=mu[::2], chol=chol_tn[::2,::2])
+    # lp_tp += pm.MvNormal.logp(value[:,::2], mu=mu[::2], chol=chol_tp[::2,::2])
     lp_tn += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tn[::2,::2]), value[:,::2])
     lp_tp += pm.logp(pm.MvNormal.dist(mu=mu[::2], chol=chol_tp[::2,::2]), value[:,::2])
     lp     = pm.logsumexp(tt.stack([lp_cr,lp_tn,lp_tp]), axis=0)
     return lp
 
 def cluster_random(
-    mu,
-    chol_cr, 
-    chol_tn,
-    chol_tp, 
-    weights, 
-    alpha,
-    rng=None, 
-    size=None):
+    mu,         # Central cluster position
+    chol_cr,    # Cholesky decomposition of central covariance
+    chol_tn,    # Cholesky decomposition of tail Negative
+    chol_tp,    # Cholesky decomposition of tail Positive
+    weights,    # Weights of the three components 
+    alpha,      # Parameter of Gamma distribution
+    rng=None,   # Random generator 
+    size=None   # Size of the sample
+    ): 
 
     size = list(size)
     #--------- Numbers ------------

@@ -24,10 +24,15 @@ os.environ["MKL_NUM_THREADS"] = "1" # Avoids overlapping of processes
 os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
+import datetime
+import pymc as pm
+import math
 
 #----- Import the module -------------------------------
-# dir_kalkayotl  = "/home/minu99/Documentos/Github/Kalkayotl/" 
-dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
+#dir_kalkayotl  = "/home/cosmin/Documentos/GitHub/Kalkayotl/" 
+# dir_kalkayotl  = "/home/simul3/Documentos/Cosmin/Kalkayotl/" 
+dir_kalkayotl  = "/home/minu99/Documentos/GitHub/Kalkayotl/" 
+# dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
 sys.path.append(dir_kalkayotl)
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
@@ -36,7 +41,8 @@ from kalkayotl.inference import Inference
 dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core+Tails/" 
 
 #----------- Data file -----------------------------------------------------
-file_data = dir_base + "members+rvs_sample.csv"
+#file_data = dir_base + "members+rvs_sample.csv"
+file_data = dir_base + "members+rvs.csv"
 file_parameters = None
 #----------------------------------------------------------------------------
 
@@ -60,7 +66,7 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 2000
+tuning_iters = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
@@ -157,19 +163,19 @@ list_of_prior = [
 	# 						"nu":None,
 	# 						},
 	# 	"parametrization":"central"},
-	# {"type":"GMM",     
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(1,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"parametrization":"central"},
+	#{"type":"GMM",     
+	#	"parameters":{"location":None,
+	#				  "scale":None,
+	#				  "weights":None},
+	#	"hyper_parameters":{
+	#						"alpha":None,
+	#						"beta":None, 
+	#						"gamma":None,
+	#						"delta":np.repeat(1,2),
+	#						"eta":None,
+	#						"n_components":2
+	#						},
+	#	"parametrization":"central"},
 	# {"type":"CGMM",     
 	# 	"parameters":{"location":file_parameters,
 	# 				  "scale":file_parameters,
@@ -234,14 +240,17 @@ list_of_prior = [
 	# 						},
 	# 	"parametrization":"central"},
 	{"type":"TGMM",      
-		"parameters":{"location":None,#[np.array([0,0,86.]),np.array([0,0,86.]),np.array([0,0,86.])],
-					  "scale":None,#[np.array([[100,0,0],[0,100,0],[0,0,100]]),np.array([[100,0,0],[0,100,0],[0,0,100]]),np.array([[100,0,0],[0,10,0],[0,0,100]])],
-					  "weights":np.array([0.2,0.4,0.4]),
-					  "alpha":1.0
+		"parameters":{"location":np.array([[-6.704457, -6.23209, 84.41157],[-6.704457, -6.23209, 84.41157],[-6.704457, -6.23209, 84.41157]]),#None,
+					  "scale":[np.diag([103.7, 3.4, 2.5])**2, np.diag([15.0,0.1,3.2])**2, np.diag([18.9,0.1,3.1])**2],
+					  "weights":np.array([0.4359270217638399, 0.2935087252031403, 0.2705642530330198]),
+					  "alpha":2.0,
+					  #"perezsala":np.array([1, 0, -0.02891667])
+					  "rot_angle":math.radians(360-40)
 					  },
 		"hyper_parameters":{
 							"alpha":None,
-							"beta":None,
+							"beta":np.array([10,1,10]),#np.array([40,1,10]),#None, 
+
 							"delta":np.array([40,30,30]),
 							"eta":None,
 							"n_components":3
@@ -253,15 +262,20 @@ list_of_prior = [
 #======================= Inference and Analysis =====================================================
 
 #--------------------- Loop over prior types ------------------------------------
+current = datetime.datetime.now()
 for prior in list_of_prior:
 
 	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_test".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}".format(
 		dimension,
 		prior["type"],
 		reference_system,
 		prior["parametrization"],
-		prior["velocity_model"])
+		#prior["velocity_model"],
+		#'2023-12-19-12-22-46'
+		f"{current.year}-{current.month}-{current.day}-{current.hour}-{current.minute}-{current.second}"
+		#"actual_test3"
+		)
 	#------------------------------------------------------------
 
 	#---------- Create prior directory -------------
@@ -287,6 +301,9 @@ for prior in list_of_prior:
 			  hyper_parameters=prior["hyper_parameters"],
 			  parametrization=prior["parametrization"],
 			  )
+	gv = pm.model_graph.model_to_graphviz(kal.Model)
+	gv.format = 'png'
+	gv.render(filename='model_graph')
 	# sys.exit()
 	#============ Sampling with HMC ======================================
 	#------- Run the sampler ---------------------
@@ -295,7 +312,7 @@ for prior in list_of_prior:
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e5),
+			init_iters=int(1e7),
 			nuts_sampler=nuts_sampler,
 			prior_predictive=True)
 	#-------------------------------------
