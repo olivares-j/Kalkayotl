@@ -16,8 +16,8 @@ def cluster_logp(
     value:TensorVariable,   # Value where the logp will be computed
     mu:TensorVariable,      # Central cluster position
     chol_cr:TensorVariable, # Cholesky decomposition of central covariance
-    chol_tn:TensorVariable, # Cholesky decomposition of tail A
-    chol_tp:TensorVariable, # Cholesky decomposition of tail B
+    chol_tn:TensorVariable, # Cholesky decomposition of tail negative
+    chol_tp:TensorVariable, # Cholesky decomposition of tail positive
     weights:TensorVariable, # Weights of the three components
     alpha:TensorVariable    # Parameter of Gamma distribution
     )->TensorVariable:
@@ -51,6 +51,7 @@ def cluster_random(
     rng=None,   # Random generator 
     size=None   # Size of the sample
     ): 
+
     size = list(size)
     #--------- Numbers ------------
     n_tn = int(weights[1]*size[0])

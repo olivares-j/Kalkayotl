@@ -38,8 +38,7 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-#dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/" 
-dir_base = dir_kalkayotl+"article/v2.0/ComaBer/Core/" 
+dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core+Tails/" 
 
 #----------- Data file -----------------------------------------------------
 #file_data = dir_base + "members+rvs_sample.csv"
@@ -79,7 +78,7 @@ sample_iters = 1000
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
 # Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
 # of the sampler but increases the computing time.
-target_accept = 0.7
+target_accept = 0.65
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------
@@ -251,6 +250,7 @@ list_of_prior = [
 		"hyper_parameters":{
 							"alpha":None,
 							"beta":np.array([10,1,10]),#np.array([40,1,10]),#None, 
+
 							"delta":np.array([40,30,30]),
 							"eta":None,
 							"n_components":3
@@ -293,7 +293,7 @@ for prior in list_of_prior:
 
 	#-------- Load the data set --------------------
 	# It will use the Gaia column names by default.
-	kal.load_data(file_data,)#radec_precision_arcsec=5.*60.)
+	kal.load_data(file_data)
 
 	#------ Prepares the model -------------------
 	kal.setup(prior=prior["type"],

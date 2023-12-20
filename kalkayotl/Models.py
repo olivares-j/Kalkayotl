@@ -25,7 +25,6 @@ import pytensor
 from pytensor import tensor as tt, function,printing,pp
 from kalkayotl.Rotations import cluster_to_galactic, cluster_to_galactic_XY
 from kalkayotl.cust_dist import cluster_logp, cluster_random
-
 ################################## Model 1D ####################################
 class Model1D(Model):
 	'''
@@ -125,7 +124,7 @@ class Model1D(Model):
 			elif parameters["scale"] is None and prior == "FGMM":
 				stds = pytensor.shared(np.zeros((n_components,dimension)))
 
-				stds_i = pm.Gamma("stds_cls",
+				stds_i = pm.Gamma("sds_cls",
 							alpha=2.0,
 							beta=1./hyper_beta,
 							shape=(n_components-1,dimension))
@@ -253,6 +252,7 @@ class Model1D(Model):
 		# 	source = GGD("source",scale=std,alpha=alpha,beta=beta,
 		# 							shape=(n_sources,dimension),
 		# 							dims=("source_id","coordinate"))
+
 		elif "GMM" in prior:
 			comps = [ pm.Normal.dist(mu=loc[i],sigma=std[i]) for i in range(n_components)]
 
@@ -1193,7 +1193,9 @@ class Model3D_tails(Model):
 		if parameters["weights"] is None:
 			weights = pm.Dirichlet("weights",a=hyper_delta,dims="component")
 		else:
-			weights = pm.Deterministic("weights",pytensor.shared(parameters["weights"]),dims="component")
+			weights = pm.Deterministic("weights",
+						pytensor.shared(parameters["weights"]),
+						dims="component")
 		#--------------------------------------------------------------
 
 		#------------ Tails params ------------------------------------
@@ -1225,7 +1227,6 @@ class Model3D_tails(Model):
 									dims=("source_id","coordinate"))
 		#true = pm.Deterministic("true",cluster_to_galactic(source, perezsala, loc[0]),
 		#							dims=("source_id","coordinate"))
-
 		# true = pm.Deterministic("true",transformation(source),
 		#  								dims=("source_id","observable"))
 		#-----------------------------------------------------------------------------

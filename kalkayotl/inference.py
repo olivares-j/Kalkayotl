@@ -944,7 +944,7 @@ class Inference:
 						del vals[key]
 			# TO BE REMOVED once pymc5 solves this issue
 			#----------------------------------------------------------------------------
-			#sys.exit()
+
 			#================================================================================
 
 			#=================== Sampling ==================================================
@@ -1535,7 +1535,6 @@ class Inference:
 													allow_singular=True).logpdf(dt)
 								log_lk[i,j,k] += np.log(amp)
 
-			#idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=False)[0].flatten()
 			idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
 			#idx = np.median(log_lk.argmax(axis=2),axis=1,keepdims=True).astype('int').flatten()
 			#idx = np.mean(log_lk.argmax(axis=2),axis=1,keepdims=True).astype('int')[0].flatten()
