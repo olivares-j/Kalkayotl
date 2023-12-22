@@ -38,7 +38,11 @@ def np_XY_angle_rotation(xyz, angle):
 	rot_matrix =  np.array([[np.cos(angle), -np.sin(angle), 0],
 							[np.sin(angle), np.cos(angle), 0],
 							[0, 0, 1]])
-	return np.dot(xyz, rot_matrix)
+	print(rot_matrix)
+	print(xyz[0])
+	rotated = np.dot(rot_matrix, xyz.T)
+	print(rotated.T[0])
+	return rotated.T
 
 def np_translation_cluster_to_galactic_by_matrix(loc_galactic, tam=4):
     eye = np.eye(tam)
@@ -107,7 +111,7 @@ def XY_angle_rotation(xyz, angle):
 	r = tt.set_subtensor(r[1],r_1)
 	r = tt.set_subtensor(r[2],r_2)
 
-	return tt.dot(xyz, r)
+	return tt.dot(r, xyz.T).T
 
 def translation_cluster_to_galactic(xyz, loc_galactic):
 	return xyz + loc_galactic
@@ -301,7 +305,7 @@ def apply_compare_rotation():
 	members = pd.read_csv('article/v2.0/ComaBer/Core/members+rvs_tails.csv')
 	res = tr.np_radecplx_to_galactic_xyz(np.array([[members.get('ra'), members.get('dec'), members.get('parallax')]]))[0]
 
-	rot_angle = math.radians(360-40)
+	rot_angle = math.radians(40)
 
 	#res_rotated = np_XY_angle_rotation(res, rot_angle)
 	f = pytensor.function([], XY_angle_rotation(res, rot_angle))

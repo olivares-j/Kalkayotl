@@ -1223,13 +1223,14 @@ class Model3D_tails(Model):
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		true = pm.Deterministic("true",cluster_to_galactic_XY(source, rot_angle, loc[0]),
-									dims=("source_id","coordinate"))
+		src_galactic = pm.Deterministic("src_galactic",cluster_to_galactic_XY(source, rot_angle, loc[0]),
+											dims=("source_id","coordinate"))
 		#true = pm.Deterministic("true",cluster_to_galactic(source, perezsala, loc[0]),
-		#							dims=("source_id","coordinate"))
-		# true = pm.Deterministic("true",transformation(source),
-		#  								dims=("source_id","observable"))
-		#-----------------------------------------------------------------------------
+		#                                                       dims=("source_id","coordinate"))
+
+		true = pm.Deterministic("true",transformation(src_galactic),
+									dims=("source_id","observable"))
+	#-----------------------------------------------------------------------------
 
 		#----------------------- Likelihood ----------------------------------------
 		pm.MvNormal('obs',	mu=pm.math.flatten(true)[idx_observed],
