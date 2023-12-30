@@ -381,7 +381,7 @@ class Model3D6D(Model):
 											eta=hyper_eta, 
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
-												beta=hyper_beta),
+												beta=1./hyper_beta),
 											compute_corr=True,
 											store_in_trace=False)
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -396,7 +396,7 @@ class Model3D6D(Model):
 											eta=hyper_eta, 
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
-												beta=hyper_beta),
+												beta=1./hyper_beta),
 											compute_corr=True,
 											store_in_trace=False)
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -455,7 +455,7 @@ class Model3D6D(Model):
 								eta=hyper_eta, 
 								sd_dist=pm.Gamma.dist(
 									alpha=2.0,
-									beta=hyper_beta),
+									beta=1./hyper_beta),
 								compute_corr=True,
 								store_in_trace=False)
 				corr = pm.Deterministic("corr", corr)
@@ -488,7 +488,7 @@ class Model3D6D(Model):
 				pm.Normal("offset",mu=0,sigma=1,
 					shape=(n_sources,dimension))
 				pm.Deterministic("source",
-					loc + tt.nlinalg.matrix_dot(self.offset,chol),
+					loc + tt.nlinalg.matrix_dot(chol,self.offset.T).T,
 					dims=("source_id","coordinate"))
 
 		elif prior == "StudentT":
@@ -501,7 +501,7 @@ class Model3D6D(Model):
 				pm.StudentT("offset",nu=self.nu,mu=0,sigma=1,
 					shape=(n_sources,dimension))
 				pm.Deterministic("source",
-					loc + tt.nlinalg.matrix_dot(self.offset,chol),
+					loc + tt.nlinalg.matrix_dot(chol,self.offset.T).T,
 					dims=("source_id","coordinate"))
 
 		# elif prior == "King":
@@ -561,224 +561,6 @@ class Model3D6D(Model):
 							tau=tau_data,
 							observed=mu_data)
 		#---------------------------------------------------------------------------
-
-# class Model6D_independent(Model):
-# 	'''
-# 	Model to infer the 6-dimensional parameter vector of a cluster
-# 	'''
-# 	def __init__(self,
-# 		n_sources,mu_data,tau_data,idx_data,
-# 		prior="Gaussian",
-# 		parameters={"location":None,"scale":None},
-# 		hyper_alpha=None,
-# 		hyper_beta=None,
-# 		hyper_gamma=None,
-# 		hyper_delta=None,
-# 		hyper_eta=None,
-# 		hyper_kappa=None,
-# 		hyper_omega=None,
-# 		hyper_nu=None,
-# 		transformation=None,
-# 		parametrization="non-central",
-# 		name="6D",
-# 		identifiers=None,
-# 		coordinates=["X","Y","Z","U","V","W"],
-# 		observables=["ra","dec","parallax","pmra","pmdec","radial_velocity"]):
-# 		super().__init__(name, model=None)
-# 		self.add_coord("source_id",values=identifiers)
-# 		self.add_coord("coordinate",values=coordinates)
-# 		self.add_coord("observable",values=observables)
-
-# 		#------------------- Data ------------------------------------------------------
-# 		if n_sources == 0:
-# 			sys.exit("Data has length zero! You must provide at least one data point.")
-# 		#-------------------------------------------------------------------------------
-
-# 		print("Using {0} parametrization".format(parametrization))
-
-
-# 		#================ Hyper-parameters =====================================
-# 		#----------------- Mixture prior families ----------------------------
-# 		if prior in ["GMM","CGMM"]:
-# 			#------------- Shapes -------------------------
-# 			n_components = len(hyper_delta)
-
-# 			loc_pos  = pytensor.shared(np.zeros((n_components,3)))
-# 			loc_vel  = pytensor.shared(np.zeros((n_components,3)))
-# 			chol_pos = pytensor.shared(np.zeros((n_components,3,3)))
-# 			chol_vel = pytensor.shared(np.zeros((n_components,3,3)))
-# 			#----------------------------------------------
-
-# 			#----------- Locations ------------------------------------------
-# 			if parameters["location"] is None:
-# 				if prior in ["CGMM"]:
-# 					#----------------- Concentric prior --------------------
-# 					location_pos = pm.Normal("loc_pos",
-# 										mu=hyper_alpha["loc"][:3],
-# 										sigma=hyper_alpha["scl"][:3],
-# 										shape=3)
-
-# 					location_vel = pm.Normal("loc_vel",
-# 										mu=hyper_alpha["loc"][3:],
-# 										sigma=hyper_alpha["scl"][3:],
-# 										shape=3)
-
-# 					for i in range(n_components):
-# 						loc_pos  = tt.set_subtensor(loc_pos[i],loci_pos)
-# 						loc_vel  = tt.set_subtensor(loc_vel[i],loci_vel)
-# 					#---------------------------------------------------------
-
-# 				else:
-# 					#----------- Non-concentric prior ----------------------------
-# 					location_pos = pm.Normal("loc_pos",
-# 										mu=hyper_alpha["loc"][:3],
-# 										sigma=hyper_alpha["scl"][:3],
-# 										shape=(n_components,3))
-
-# 					location_vel = pm.Normal("loc_vel",
-# 										mu=hyper_alpha["loc"][3:],
-# 										sigma=hyper_alpha["scl"][3:],
-# 										shape=(n_components,3))
-# 					#---------------------------------------------------------
-# 				#-------------------------------------------------------------------
-# 			else:
-# 				for i in range(n_components):
-# 					loc_pos  = tt.set_subtensor(loc_pos[i],
-# 								np.array(parameters["location"][i][:3]))
-# 					loc_vel  = tt.set_subtensor(loc_vel[i],
-# 								np.array(parameters["location"][i][3:]))
-
-# 			#---------- Covariance matrices -----------------------------------
-# 			if parameters["scale"] is None:
-# 				for i in range(n_components):
-# 					choli_pos = pm.LKJCholeskyCov("chol_pos_{0}".format(i), 
-# 										n=3, eta=hyper_eta, 
-# 										sd_dist=pm.Gamma.dist(
-# 											alpha=2.0,
-# 											beta=hyper_beta),
-# 										compute_corr=False,
-# 										store_in_trace=False)
-				
-# 					chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
-
-# 					choli_vel = pm.LKJCholeskyCov("chol_vel_{0}".format(i), 
-# 										n=3, eta=hyper_eta, 
-# 										sd_dist=pm.Gamma.dist(
-# 											alpha=2.0,
-# 											beta=hyper_beta),
-# 										compute_corr=False,
-# 										store_in_trace=False)
-				
-# 					chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
-
-# 			else:
-# 				for i in range(n_components):
-# 					choli_pos = np.linalg.cholesky(parameters["scale"][i][:3])
-# 					choli_vel = np.linalg.cholesky(parameters["scale"][i][3:])
-# 					chol_pos = tt.set_subtensor(chol_pos[i],choli_pos)
-# 					chol_vel = tt.set_subtensor(chol_vel[i],choli_vel)
-# 			#--------------------------------------------------------------------
-# 		#---------------------------------------------------------------------------------
-
-# 		#-------------- Non-mixture prior families ----------------------------------
-# 		else:
-# 			#--------- Location ----------------------------------
-# 			if parameters["location"] is None:
-# 				location_pos = pm.Normal("loc_pos",
-# 										mu=hyper_alpha["loc"][:3],
-# 										sigma=hyper_alpha["scl"][:3],
-# 										shape=3)
-
-# 				location_vel = pm.Normal("loc_vel",
-# 										mu=hyper_alpha["loc"][3:],
-# 										sigma=hyper_alpha["scl"][3:],
-# 										shape=3)
-
-# 			else:
-# 				loc_pos = parameters["location"][:3]
-# 				loc_vel = parameters["location"][3:]
-# 			#------------------------------------------------------
-
-# 			#---------- Covariance matrix ------------------------------------
-# 			if parameters["scale"] is None:
-# 				chol_pos = pm.LKJCholeskyCov("chol_pos", 
-# 									n=3, 
-# 									eta=hyper_eta, 
-# 									sd_dist=pm.Gamma.dist(
-# 										alpha=2.0,
-# 										beta=hyper_beta),
-# 									compute_corr=False,
-# 									store_in_trace=False)
-
-# 				chol_vel = pm.LKJCholeskyCov("chol_vel", 
-# 									n=3, 
-# 									eta=hyper_eta, 
-# 									sd_dist=pm.Gamma.dist(
-# 										alpha=2.0,
-# 										beta=hyper_beta),
-# 									compute_corr=False,
-# 									store_in_trace=False)
-
-# 			else:
-# 				chol_pos = np.linalg.cholesky(parameters["scale"][:3])
-# 				chol_vel = np.linalg.cholesky(parameters["scale"][3:])
-# 			#--------------------------------------------------------------
-# 		#----------------------------------------------------------------------------
-# 		#==============================================================================
-
-# 		#===================== True values ============================================		
-# 		if prior == "Gaussian":
-# 			if parametrization == "central":
-# 				source_pos = pm.MvNormal("source_pos",mu=loc_pos,chol=chol_vel,shape=(n_sources,3))
-# 				source_vel = pm.MvNormal("source_vel",mu=loc_vel,chol=chol_vel,shape=(n_sources,3))
-# 			else:
-# 				tau_pos = pm.Normal("tau_pos",mu=0,sigma=1,shape=(n_sources,3))
-# 				tau_vel = pm.Normal("tau_vel",mu=0,sigma=1,shape=(n_sources,3))
-
-# 				source_pos = pm.Deterministic("source_pos",
-# 								loc_pos + tt.nlinalg.matrix_dot(tau_pos,chol_pos))
-# 				source_vel = pm.Deterministic("source_vel",
-# 								loc_vel + tt.nlinalg.matrix_dot(tau_vel,chol_vel))
-
-# 		elif prior == "StudentT":
-# 			nu = pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"],shape=2)
-# 			if parametrization == "central":
-# 				source_pos = pm.MvStudentT("source_pos",nu=nu[0],mu=loc_pos,chol=chol_vel,shape=(n_sources,3))
-# 				source_vel = pm.MvStudentT("source_vel",nu=nu[1],mu=loc_vel,chol=chol_vel,shape=(n_sources,3))
-# 			else:
-# 				tau_pos = pm.StudentT("tau_pos",nu=nu[0],mu=0,sigma=1,shape=(n_sources,3))
-# 				tau_vel = pm.StudentT("tau_vel",nu=nu[1],mu=0,sigma=1,shape=(n_sources,3))
-
-# 				source_pos = pm.Deterministic("source_pos",
-# 								loc_pos + tt.nlinalg.matrix_dot(tau_pos,chol_pos))
-# 				source_vel = pm.Deterministic("source_vel",
-# 								loc_vel + tt.nlinalg.matrix_dot(tau_vel,chol_vel))
-
-# 		elif "GMM" in prior:
-# 			comps_pos = [pm.MvNormal.dist(mu=loc_pos[i],chol=chol_pos[i]) for i in range(n_components)]
-# 			comps_vel = [pm.MvNormal.dist(mu=loc_vel[i],chol=chol_vel[i]) for i in range(n_components)]
-
-# 			#---- Sample from the mixture ----------------------------------
-# 			source_pos = pm.Mixture("source_pos",w=weights,comp_dists=comps_pos,shape=(n_sources,3))
-# 			source_vel = pm.Mixture("source_vel",w=weights,comp_dists=comps_vel,shape=(n_sources,3))
-		
-# 		else:
-# 			sys.exit("The specified prior is not supported")
-
-# 		source = pm.Deterministic("source",
-# 					tt.concatenate([source_pos,source_vel],axis=1),
-# 					dims=("source_id","coordinate"))
-# 		#=================================================================================
-
-# 		#----------------------- Transformation-----------------------
-# 		true = pm.Deterministic("true",Transformation(source),
-# 					dims=("source_id","observable"))
-# 		#-------------------------------------------------------------
-
-# 		#----------------------- Likelihood --------------------------------------
-# 		pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
-# 					tau=tau_data,observed=mu_data)
-# 		#-------------------------------------------------------------------------
 
 class Model6D_linear(Model):
 	'''
@@ -883,7 +665,7 @@ class Model6D_linear(Model):
 											eta=hyper_eta, 
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
-												beta=hyper_beta),
+												beta=1./hyper_beta),
 											compute_corr=True,
 											store_in_trace=False)
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -898,7 +680,7 @@ class Model6D_linear(Model):
 											eta=hyper_eta, 
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
-												beta=hyper_beta),
+												beta=1./hyper_beta),
 											compute_corr=True,
 											store_in_trace=False)
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -957,7 +739,7 @@ class Model6D_linear(Model):
 								eta=hyper_eta, 
 								sd_dist=pm.Gamma.dist(
 									alpha=2.0,
-									beta=hyper_beta[:3]),
+									beta=1./hyper_beta[:3]),
 								compute_corr=True,
 								store_in_trace=False)
 				chol_vel,corr_vel,stds_vel = pm.LKJCholeskyCov("chol_vel", 
@@ -965,7 +747,7 @@ class Model6D_linear(Model):
 								eta=hyper_eta, 
 								sd_dist=pm.Gamma.dist(
 									alpha=2.0,
-									beta=hyper_beta[3:]),
+									beta=1./hyper_beta[3:]),
 								compute_corr=True,
 								store_in_trace=False)
 
@@ -1030,11 +812,11 @@ class Model6D_linear(Model):
 			else:
 				tau = pm.Normal("tau",mu=0,sigma=1,shape=(n_sources,6))
 
-				jitter_vel = loc[3:] + tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
-				offset_pos = tt.nlinalg.matrix_dot(tau[:,:3],chol_pos)
+				jitter_vel = loc[3:] + tt.nlinalg.matrix_dot(chol_vel,tau[:,3:].T).T
+				offset_pos = tt.nlinalg.matrix_dot(chol_pos,tau[:,:3].T).T
 				source_pos = loc[:3] + offset_pos
 				
-			source_vel = jitter_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
+			source_vel = jitter_vel + tt.nlinalg.matrix_dot(lnv,offset_pos.T).T
 
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"],shape=2)
@@ -1050,7 +832,7 @@ class Model6D_linear(Model):
 				offset_pos = tt.nlinalg.matrix_dot(tau[:,:3],chol_pos)
 				source_pos = loc[:3] + offset_pos
 				
-			source_vel = jitter_vel + tt.nlinalg.matrix_dot(offset_pos,lnv)
+			source_vel = jitter_vel + tt.nlinalg.matrix_dot(lnv,offset_pos.T).T
 		
 		else:
 			sys.exit("The specified prior is not yet supported")
