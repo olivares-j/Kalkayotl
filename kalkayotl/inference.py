@@ -1070,6 +1070,7 @@ class Inference:
 		cluster_variables = list(filter(lambda x: ( ("loc" in x)
 											or ("perezsala" in x)
 											or ("rot_angle" in x)
+											or ("rot_angles" in x)
 											or ("corr" in x)
 											or ("std" in x)
 											or ("std" in x)
@@ -1118,6 +1119,7 @@ class Inference:
 					or "weights" in var
 					or "perezsala" in var
 					or "rot_angle" in var
+					or "rot_angles" in var
 					or "alpha" in var
 					or "corr" in var 
 					or "omega" in var

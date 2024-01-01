@@ -23,7 +23,7 @@ import string
 from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
-from kalkayotl.Rotations import cluster_to_galactic, cluster_to_galactic_XY
+from kalkayotl.Rotations import cluster_to_galactic, cluster_to_galactic_XY, cluster_to_galactic_XZ, cluster_to_galactic_YZ, cluster_to_galactic_3ang
 from kalkayotl.cust_dist import cluster_logp, cluster_random
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -1119,10 +1119,14 @@ class Model3D_tails(Model):
 		# 	perezsala = pm.Uniform("perezsala",lower=0, upper=1,shape=3)#np.zeros(3)
 		# else:
 		# 	perezsala = pm.Deterministic("perezsala",pytensor.shared(parameters["perezsala"]))
-		if parameters["rot_angle"] is None:
-			rot_angle = pm.Uniform("rot_angle",lower=0, upper=2*np.pi)#np.zeros(3)
+		# if parameters["rot_angle"] is None:
+		# 	rot_angle = pm.Uniform("rot_angle",lower=0, upper=2*np.pi)#np.zeros(3)
+		# else:
+		# 	rot_angle = pm.Deterministic("rot_angle", pytensor.shared(parameters["rot_angle"]))
+		if parameters["rot_angles"] is None:
+			rot_angles = pm.Uniform("rot_angles",lower=0, upper=2*np.pi, shape=(dimension))
 		else:
-			rot_angle = pm.Deterministic("rot_angle", pytensor.shared(parameters["rot_angle"]))
+			rot_angles = pm.Deterministic("rot_angles", pytensor.shared(parameters["rot_angles"]))
 		#-------------------------------------------------------------
 
 		#----------- Location ------------------------------------------
@@ -1223,7 +1227,7 @@ class Model3D_tails(Model):
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		src_galactic = pm.Deterministic("src_galactic",cluster_to_galactic_XY(source, rot_angle, loc[0]),
+		src_galactic = pm.Deterministic("src_galactic",cluster_to_galactic_3ang(source, rot_angles, loc[0]),
 											dims=("source_id","coordinate"))
 		#true = pm.Deterministic("true",cluster_to_galactic(source, perezsala, loc[0]),
 		#                                                       dims=("source_id","coordinate"))
