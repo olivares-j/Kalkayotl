@@ -129,6 +129,47 @@ def random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters):
 	
 	return tt.dot(xyz, q)
 
+def YZ_angle_rotation(xyz, angle):
+	r = tt.zeros(shape=(3,3))
+	r_0 = tt.zeros((3,))
+	r_1 = tt.zeros((3,))
+	r_2 = tt.zeros((3,))
+	r_0 = tt.set_subtensor(r_0[0], 1)
+	r_0 = tt.set_subtensor(r_0[1], 0)
+	r_0 = tt.set_subtensor(r_0[2], 0)
+	r_1 = tt.set_subtensor(r_1[0], 0)
+	r_1 = tt.set_subtensor(r_1[1], tt.cos(angle))
+	r_1 = tt.set_subtensor(r_1[2], -tt.sin(angle))
+	r_2 = tt.set_subtensor(r_2[0], 0)
+	r_2 = tt.set_subtensor(r_2[1], tt.sin(angle))
+	r_2 = tt.set_subtensor(r_2[2], tt.cos(angle))
+	
+	r = tt.set_subtensor(r[0], r_0)
+	r = tt.set_subtensor(r[1],r_1)
+	r = tt.set_subtensor(r[2],r_2)
+
+	return tt.dot(r, xyz.T).T
+
+def XZ_angle_rotation(xyz, angle):
+	r = tt.zeros(shape=(3,3))
+	r_0 = tt.zeros((3,))
+	r_1 = tt.zeros((3,))
+	r_2 = tt.zeros((3,))
+	r_0 = tt.set_subtensor(r_0[0], tt.cos(angle))
+	r_0 = tt.set_subtensor(r_0[1], 0)
+	r_0 = tt.set_subtensor(r_0[2], tt.sin(angle))
+	r_1 = tt.set_subtensor(r_1[0], 0)
+	r_1 = tt.set_subtensor(r_1[1], 1)
+	r_1 = tt.set_subtensor(r_1[2], 0)
+	r_2 = tt.set_subtensor(r_2[0], -tt.sin(angle))
+	r_2 = tt.set_subtensor(r_2[1], 0)
+	r_2 = tt.set_subtensor(r_2[2], tt.cos(angle))
+	
+	r = tt.set_subtensor(r[0], r_0)
+	r = tt.set_subtensor(r[1],r_1)
+	r = tt.set_subtensor(r[2],r_2)
+
+	return tt.dot(r, xyz.T).T
 
 def XY_angle_rotation(xyz, angle):
 	r = tt.zeros(shape=(3,3))
@@ -151,6 +192,12 @@ def XY_angle_rotation(xyz, angle):
 
 	return tt.dot(r, xyz.T).T
 
+def angles3_rotation(xyz, angles):
+	rotated_XY = XY_angle_rotation(xyz, angles[0])
+	rotated_XZ = XZ_angle_rotation(rotated_XY, angles[1])
+	rotated = YZ_angle_rotation(rotated_XZ, angles[2])
+	return rotated
+
 def translation_cluster_to_galactic(xyz, loc_galactic):
 	return xyz + loc_galactic
 
@@ -158,8 +205,20 @@ def cluster_to_galactic(xyz, perezsala_parameters, loc_galactic):
     rotated = random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters)
     return translation_cluster_to_galactic(rotated, loc_galactic)
 
+def cluster_to_galactic_YZ(xyz, rot_angle, loc_galactic):
+	rotated = YZ_angle_rotation(xyz, rot_angle)
+	return translation_cluster_to_galactic(rotated, loc_galactic)
+
+def cluster_to_galactic_XZ(xyz, rot_angle, loc_galactic):
+	rotated = XZ_angle_rotation(xyz, rot_angle)
+	return translation_cluster_to_galactic(rotated, loc_galactic)
+
 def cluster_to_galactic_XY(xyz, rot_angle, loc_galactic):
 	rotated = XY_angle_rotation(xyz, rot_angle)
+	return translation_cluster_to_galactic(rotated, loc_galactic)
+
+def cluster_to_galactic_3ang(xyz, rot_angles, loc_galactic):
+	rotated = angles3_rotation(xyz, rot_angles)
 	return translation_cluster_to_galactic(rotated, loc_galactic)
 
 #-------------------------- PerezSala Parameters to Euler Angles ---------------------------
@@ -335,7 +394,7 @@ def search_besty_rotation():
 	ax6.set_ylabel('Z')
 	plt.show()
 
-def apply_compare_rotation(wich_plane:str='XY', centered:bool=True):
+def apply_compare_rotation(wich_plane:str='XY', centered:bool=True, is_np:bool=False):
 	import Transformations as tr
 	import matplotlib.pyplot as plt
 	import pandas as pd
@@ -352,13 +411,29 @@ def apply_compare_rotation(wich_plane:str='XY', centered:bool=True):
 		rot_angle = [math.radians(40), math.radians(10), math.radians(25)]
 
 	if wich_plane=='YZ':
-		res_rotated = np_YZ_angle_rotation(res, rot_angle)
+		if is_np:
+			res_rotated = np_YZ_angle_rotation(res, rot_angle)
+		else:
+			f = pytensor.function([], YZ_angle_rotation(res, rot_angle))
+			res_rotated = f()
 	elif wich_plane=='XZ':
-		res_rotated = np_XZ_angle_rotation(res, rot_angle)
+		if is_np:
+			res_rotated = np_XZ_angle_rotation(res, rot_angle)
+		else:
+			f = pytensor.function([], XZ_angle_rotation(res, rot_angle))
+			res_rotated = f()
 	elif wich_plane=='XY':
-		res_rotated = np_XY_angle_rotation(res, rot_angle)
+		if is_np:
+			res_rotated = np_XY_angle_rotation(res, rot_angle)
+		else:
+			f = pytensor.function([], XY_angle_rotation(res, rot_angle))
+			res_rotated = f()
 	elif wich_plane=='all':
-		res_rotated = np_angles3_rotation(res, rot_angle)
+		if is_np:
+			res_rotated = np_angles3_rotation(res, rot_angle)
+		else:
+			f = pytensor.function([], angles3_rotation(res, rot_angle))
+			res_rotated = f()
 	else:
 		raise Exception(f'Not recognized plane {wich_plane}')
 
