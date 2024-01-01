@@ -34,6 +34,26 @@ def np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters, is
 	
 	return res
 
+def np_YZ_angle_rotation(xyz, angle):
+	rot_matrix =  np.array([[1, 0, 0],
+							[0, np.cos(angle), -np.sin(angle)],
+							[0, np.sin(angle), np.cos(angle)]])
+	print(rot_matrix)
+	print(xyz[0])
+	rotated = np.dot(rot_matrix, xyz.T)
+	print(rotated.T[0])
+	return rotated.T
+
+def np_XZ_angle_rotation(xyz, angle):
+	rot_matrix =  np.array([[np.cos(angle), 0, np.sin(angle)],
+							[0, 1, 0],
+							[-np.sin(angle), 0, np.cos(angle)]])
+	print(rot_matrix)
+	print(xyz[0])
+	rotated = np.dot(rot_matrix, xyz.T)
+	print(rotated.T[0])
+	return rotated.T
+
 def np_XY_angle_rotation(xyz, angle):
 	rot_matrix =  np.array([[np.cos(angle), -np.sin(angle), 0],
 							[np.sin(angle), np.cos(angle), 0],
@@ -43,6 +63,12 @@ def np_XY_angle_rotation(xyz, angle):
 	rotated = np.dot(rot_matrix, xyz.T)
 	print(rotated.T[0])
 	return rotated.T
+
+def np_angles3_rotation(xyz, angles):
+	rotated_XY = np_XY_angle_rotation(xyz, angles[0])
+	rotated_XZ = np_XZ_angle_rotation(rotated_XY, angles[1])
+	rotated = np_YZ_angle_rotation(rotated_XZ, angles[2])
+	return rotated
 
 def np_translation_cluster_to_galactic_by_matrix(loc_galactic, tam=4):
     eye = np.eye(tam)
@@ -64,8 +90,20 @@ def np_cluster_to_galactic(xyz, perezsala_parameters, loc_galactic):
     rotated = np.dot(xyz, q)
     return np_translation_cluster_to_galactic(rotated, loc_galactic)
 
+def np_cluster_to_galactic_YZ(xyz, rot_angle, loc_galactic):
+	rotated = np_YZ_angle_rotation(xyz, rot_angle)
+	return np_translation_cluster_to_galactic(rotated, loc_galactic)
+
+def np_cluster_to_galactic_XZ(xyz, rot_angle, loc_galactic):
+	rotated = np_XZ_angle_rotation(xyz, rot_angle)
+	return np_translation_cluster_to_galactic(rotated, loc_galactic)
+
 def np_cluster_to_galactic_XY(xyz, rot_angle, loc_galactic):
 	rotated = np_XY_angle_rotation(xyz, rot_angle)
+	return np_translation_cluster_to_galactic(rotated, loc_galactic)
+
+def np_cluster_to_galactic_3ang(xyz, rot_angles, loc_galactic):
+	rotated = np_angles3_rotation(xyz, rot_angles)
 	return np_translation_cluster_to_galactic(rotated, loc_galactic)
 
 def quaternions_rotation_matrix(a,b,c,d):
@@ -297,7 +335,7 @@ def search_besty_rotation():
 	ax6.set_ylabel('Z')
 	plt.show()
 
-def apply_compare_rotation():
+def apply_compare_rotation(wich_plane:str='XY', centered:bool=True):
 	import Transformations as tr
 	import matplotlib.pyplot as plt
 	import pandas as pd
@@ -305,46 +343,85 @@ def apply_compare_rotation():
 	members = pd.read_csv('article/v2.0/ComaBer/Core/members+rvs_tails.csv')
 	res = tr.np_radecplx_to_galactic_xyz(np.array([[members.get('ra'), members.get('dec'), members.get('parallax')]]))[0]
 
+	center_pos = np.mean(res, axis=0)
+	if centered:
+		res = res - center_pos
+
 	rot_angle = math.radians(40)
+	if wich_plane=='all':
+		rot_angle = [math.radians(40), math.radians(10), math.radians(25)]
+
+	if wich_plane=='YZ':
+		res_rotated = np_YZ_angle_rotation(res, rot_angle)
+	elif wich_plane=='XZ':
+		res_rotated = np_XZ_angle_rotation(res, rot_angle)
+	elif wich_plane=='XY':
+		res_rotated = np_XY_angle_rotation(res, rot_angle)
+	elif wich_plane=='all':
+		res_rotated = np_angles3_rotation(res, rot_angle)
+	else:
+		raise Exception(f'Not recognized plane {wich_plane}')
 
 	#res_rotated = np_XY_angle_rotation(res, rot_angle)
-	f = pytensor.function([], XY_angle_rotation(res, rot_angle))
-	res_rotated = f()
+	#f = pytensor.function([], XY_angle_rotation(res, rot_angle))
+	#res_rotated = f()
 	print(np.shape(res_rotated))
 
 	ax1 = plt.subplot(2, 4, 1)
 	plt.scatter(res[:,0], res[:,1], s=5)
 	ax1.set_xlabel('X')
 	ax1.set_ylabel('Y')
-	ax1.set_xlim([-90,90])
-	ax1.set_ylim([-90,90])
+	if wich_plane in ['XY', 'all']:
+		ax1.set_xlim([-90,90])
+		ax1.set_ylim([-90,90])
 
 	ax2 = plt.subplot(2, 4, 2)
 	plt.scatter(res[:,2], res[:,1], s=5)
 	ax2.set_xlabel('Z')
 	ax2.set_ylabel('Y')
+	if wich_plane in ['YZ', 'all']:
+		ax2.set_xlim([10, 130])
+		if centered:
+			ax2.set_xlim([-30, 30])
+		ax2.set_ylim([-120,120])
 
 	ax3 = plt.subplot(2, 4, 5)
 	plt.scatter(res[:,0], res[:,2], s=5)
 	ax3.set_xlabel('X')
 	ax3.set_ylabel('Z')
+	if wich_plane in ['XZ', 'all']:
+		ax3.set_xlim([-90, 90])
+		ax3.set_ylim([30,130])
+		if centered:
+			ax3.set_ylim([-30,30])
 
 	ax4 = plt.subplot(2, 4, 3)
 	plt.scatter(res_rotated[:,0], res_rotated[:,1], s=5)
 	ax4.set_xlabel('X')
 	ax4.set_ylabel('Y')
-	ax4.set_xlim([-90,90])
-	ax4.set_ylim([-90,90])
+	if wich_plane in ['XY', 'all']:
+		ax4.set_xlim([-90,90])
+		ax4.set_ylim([-90,90])
 
 	ax5 = plt.subplot(2, 4, 4)
 	plt.scatter(res_rotated[:,2], res_rotated[:,1], s=5)
 	ax5.set_xlabel('Z')
 	ax5.set_ylabel('Y')
+	if wich_plane in ['YZ', 'all']:
+		ax5.set_xlim([10, 130])
+		if centered:
+			ax5.set_xlim([-30, 30])
+		ax5.set_ylim([-120,120])
 
 	ax6 = plt.subplot(2, 4, 7)
 	plt.scatter(res_rotated[:,0], res_rotated[:,2], s=5)
 	ax6.set_xlabel('X')
 	ax6.set_ylabel('Z')
+	if wich_plane in ['XZ', 'all']:
+		ax6.set_xlim([-90, 90])
+		ax6.set_ylim([30,130])
+		if centered:
+			ax6.set_ylim([-30,30])
 	plt.show()
 
 
@@ -550,5 +627,5 @@ if __name__ == "__main__":
 	#found_angley()
 	#search_besty_rotation()
 	#compare_conversions()
-	apply_compare_rotation()
+	apply_compare_rotation('all')
 
