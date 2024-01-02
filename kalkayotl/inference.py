@@ -246,11 +246,10 @@ class Inference:
 		data["dec_error"] *= self.mas2deg
 		#------------------------------------------
 
-		#--- Increase sky uncertainty ----------
+		#--- Increase uncertainty ------------------------
 		data["ra_error"]  *= sky_error_factor
 		data["dec_error"] *= sky_error_factor
-		#--------------------------------------
-
+		#-------------------------------------------------
 
 		#---------- Zero-points --------------------
 		for key,val in self.zero_points.items():
@@ -377,12 +376,19 @@ class Inference:
 		sg_data = sg_data[np.ix_(idx_obs,idx_obs)]
 		#-------------------------------------------------------
 
-		#-------- Compute inverse of covariance matrix --------------------
+		#------- Compute sd or cholesky -----------
+		if self.indep_measures:
+			tau_data = np.sqrt(np.diag(sg_data))
+		else:
+			tau_data = np.linalg.cholesky(sg_data)
+		#------------------------------------------
+
+		#---- Save as class variables -------
 		self.idx_data  = idx_obs
 		self.mu_data  = mu_data
 		self.sg_data  = sg_data
-		self.tau_data = np.linalg.inv(sg_data)
-		#---------------------------------------------------------------
+		self.tau_data = tau_data
+		#------------------------------------
 		#=================================================================================
 
 		print("Data correctly loaded")
@@ -737,12 +743,24 @@ class Inference:
 			self.hyper["gamma"] = None
 
 		if self.velocity_model in ["constant","linear"]:
-			if self.hyper["kappa"] is None:
-				self.hyper["kappa"] = 0.1
-			if self.hyper["omega"] is None:
-				self.hyper["omega"] = 0.1
-			print("The kappa hyper parameter has been set to: {0:2.2f} m.s-1.pc-1".format(self.hyper["kappa"]*1000.))
-			print("The omega hyper parameter has been set to: {0:2.2f} m.s-1.pc-1".format(self.hyper["omega"]*1000.))
+			if self.parameters["kappa"] is None :
+				print("The kappa hyper parameter has been set to:")
+				if self.hyper["kappa"] is None:
+					self.hyper["kappa"] = 0.1
+				print("{0:2.2f} m.s-1.pc-1".format(self.hyper["kappa"]*1000.))
+			else:
+				print("The kappa parameter has been fixed to:")
+				print(self.parameters["kappa"])
+
+			if self.velocity_model == "linear":
+				if self.parameters["omega"] is None :
+					print("The omega hyper parameter has been set to:")
+					if self.hyper["omega"] is None:
+						self.hyper["omega"] = 0.1
+					print("{0:2.2f} m.s-1.pc-1".format(self.hyper["omega"]*1000.))
+				else:
+					print("The omega parameter has been fixed to:")
+					print(self.parameters["omega"])
 		#===========================================================================================================
 
 		if self.D == 1:
@@ -750,6 +768,7 @@ class Inference:
 								n_sources=self.n_sources,
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
+								indep_measures=self.indep_measures,
 								dimension=self.D,
 								prior=self.prior,
 								parameters=self.parameters,
@@ -769,7 +788,8 @@ class Inference:
 								n_sources=self.n_sources,
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
-								idx_observed=self.idx_data,
+								idx_data=self.idx_data,
+								indep_measures=self.indep_measures,
 								dimension=self.D,
 								prior=self.prior,
 								parameters=self.parameters,
@@ -790,6 +810,7 @@ class Inference:
 								mu_data=self.mu_data,
 								tau_data=self.tau_data,
 								idx_data=self.idx_data,
+								indep_measures=self.indep_measures,
 								prior=self.prior,
 								parameters=self.parameters,
 								hyper_alpha=self.hyper["alpha"],
@@ -871,9 +892,9 @@ class Inference:
 
 				random_seed_list = pymc.util._get_seeds_per_chain(random_seed, chains)
 				cb = [pm.callbacks.CheckParametersConvergence(
-						tolerance=init_absolute_tol, diff="absolute"),
+						tolerance=init_absolute_tol, diff="absolute",ord=None),
 					  pm.callbacks.CheckParametersConvergence(
-						tolerance=init_relative_tol, diff="relative")]
+						tolerance=init_relative_tol, diff="relative",ord=None)]
 
 				approx = pm.fit(
 					start=start,
@@ -890,7 +911,6 @@ class Inference:
 				plt.figure()
 				plt.plot(approx.hist[-init_plot_iters:])
 				plt.xlabel("Last {0} iterations".format(init_plot_iters))
-				# plt.yscale("log")
 				plt.ylabel("Average Loss")
 				plt.savefig(self.dir_out+"/Initializations.png")
 				plt.close()
@@ -918,7 +938,10 @@ class Inference:
 				#------------------ Save initial point ------------------------------
 				df = pn.DataFrame(data=initial_points[0]["{0}D::true".format(self.D)],
 					columns=self.names_mu)
-				df.to_csv(self.dir_out+"/initial_point.csv",index=False)
+				df.to_csv(self.dir_out+"/initial_true.csv",index=False)
+				df = pn.DataFrame(data=initial_points[0]["{0}D::source".format(self.D)],
+					columns=self.names_coords)
+				df.to_csv(self.dir_out+"/initial_source.csv",index=False)
 				#---------------------------------------------------------------------
 
 			#----------- Extract ---------------------
