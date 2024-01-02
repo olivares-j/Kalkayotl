@@ -31,8 +31,8 @@ class Model1D(Model):
 	'''
 	Model to infer the distance of a series of stars
 	'''
-	def __init__(self,
-		n_sources,mu_data,tau_data,
+	def __init__(self,n_sources,mu_data,tau_data,
+		indep_measures=False,
 		dimension=1,
 		prior="Gaussian",
 		parameters={"location":None,"scale": None},
@@ -270,9 +270,14 @@ class Model1D(Model):
 		true = pm.Deterministic("true",transformation(source),
 									dims=("source_id","observable"))
 
-		#----------------------- Likelihood ----------------------------------------
-		pm.MvNormal('obs', mu=pm.math.flatten(true), tau=tau_data,observed=mu_data)
-		#------------------------------------------------------------------------------
+		#----------------------- Likelihood --------------------------------------
+		if indep_measures:
+			pm.Normal('obs', mu=pm.math.flatten(true), 
+						sigma=tau_data,observed=mu_data)
+		else:
+			pm.MvNormal('obs', mu=pm.math.flatten(true), 
+						chol=tau_data,observed=mu_data)
+		#-------------------------------------------------------------------------
 ####################################################################################################
 
 ############################ ND Model ###########################################################
@@ -280,11 +285,8 @@ class Model3D6D(Model):
 	'''
 	Model to infer the n_sources-dimensional parameter vector of a cluster
 	'''
-	def __init__(self,
-		n_sources,
-		mu_data,
-		tau_data,
-		idx_observed,
+	def __init__(self,n_sources,mu_data,tau_data,idx_data,
+		indep_measures=False,
 		dimension=3,
 		prior="Gaussian",
 		parameters={"location":None,"scale":None},
@@ -485,23 +487,21 @@ class Model3D6D(Model):
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
 			else:
-				pm.Normal("offset",mu=0,sigma=1,
+				offset = pm.Normal("offset",mu=0,sigma=1,
 					shape=(n_sources,dimension))
-				pm.Deterministic("source",
-					loc + tt.nlinalg.matrix_dot(chol,self.offset.T).T,
+				pm.Deterministic("source",loc + chol.dot(offset.T).T,
 					dims=("source_id","coordinate"))
 
 		elif prior == "StudentT":
-			pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"])
+			nu = pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"])
 			if parametrization == "central":
-				pm.MvStudentT("source",nu=self.nu,mu=loc,chol=chol,
+				pm.MvStudentT("source",nu=nu,mu=loc,chol=chol,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
 			else:
-				pm.StudentT("offset",nu=self.nu,mu=0,sigma=1,
+				offset = pm.StudentT("offset",nu=nu,mu=0,sigma=1,
 					shape=(n_sources,dimension))
-				pm.Deterministic("source",
-					loc + tt.nlinalg.matrix_dot(chol,self.offset.T).T,
+				pm.Deterministic("source",loc + chol.dot(offset.T).T,
 					dims=("source_id","coordinate"))
 
 		# elif prior == "King":
@@ -556,19 +556,23 @@ class Model3D6D(Model):
 					dims=("source_id","observable"))
 		#-------------------------------------------------------------
 
-		#----------------------- Likelihood ----------------------------------------
-		pm.MvNormal('obs',	mu=pm.math.flatten(true)[idx_observed], 
-							tau=tau_data,
-							observed=mu_data)
-		#---------------------------------------------------------------------------
+		#----------------------- Likelihood --------------------------------------
+		if indep_measures:
+			pm.Normal('obs', mu=pm.math.flatten(true)[idx_data], 
+						sigma=tau_data,observed=mu_data)
+		else:
+			pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
+						chol=tau_data,observed=mu_data)
+		#-------------------------------------------------------------------------
 
 class Model6D_linear(Model):
 	'''
 	Model to infer the 6-dimensional parameter vector of a cluster
 	'''
 	def __init__(self,n_sources,mu_data,tau_data,idx_data,
+		indep_measures=False,
 		prior="Gaussian",
-		parameters={"location":None,"scale":None},
+		parameters={"location":None,"scale":None,"kappa":None,"omega":None},
 		hyper_alpha=None,
 		hyper_beta=None,
 		hyper_gamma=None,
@@ -790,10 +794,24 @@ class Model6D_linear(Model):
 
 		#=================== Velocity field ==============================
 		lnv = pytensor.shared(np.zeros((3,3)))
-		kappa = pm.Normal("kappa",mu=0.0,sigma=hyper_kappa,shape=3)
+
+		#-------------------------- Kappa ----------------------------------------
+		if parameters["kappa"] is None:
+			kappa = pm.Normal("kappa",mu=0.0,sigma=hyper_kappa,shape=3)
+		else:
+			kappa = pm.Deterministic("kappa",pytensor.shared(parameters["kappa"]))
+		#-------------------------------------------------------------------------
+		
 		if velocity_model == "linear":
 			print("Working with the linear velocity model")
-			omega = pm.Normal("omega",mu=0.0,sigma=hyper_omega,shape=(2,3))
+
+			#-------------------------- Omega ----------------------------------------
+			if parameters["omega"] is None:
+				omega = pm.Normal("omega",mu=0.0,sigma=hyper_omega,shape=(2,3))
+			else:
+				omega = pm.Deterministic("omega",pytensor.shared(parameters["omega"]))
+			#-------------------------------------------------------------------------
+			
 			lnv = tt.set_subtensor(lnv[np.triu_indices(3,1)],omega[0])
 			lnv = tt.set_subtensor(lnv[np.tril_indices(3,-1)],omega[1])
 		else:
@@ -802,7 +820,7 @@ class Model6D_linear(Model):
 		lnv = tt.set_subtensor(lnv[np.diag_indices(3)],kappa)
 		#=================================================================
 
-		#===================== True values ============================================		
+		#===================== True values =========================================================================	
 		if prior == "Gaussian":
 			if parametrization == "central":
 				source_pos = pm.MvNormal("source_pos",mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
@@ -812,11 +830,11 @@ class Model6D_linear(Model):
 			else:
 				tau = pm.Normal("tau",mu=0,sigma=1,shape=(n_sources,6))
 
-				jitter_vel = loc[3:] + tt.nlinalg.matrix_dot(chol_vel,tau[:,3:].T).T
-				offset_pos = tt.nlinalg.matrix_dot(chol_pos,tau[:,:3].T).T
+				jitter_vel = loc[3:] + chol_vel.dot(tau[:,3:].T).T
+				offset_pos = chol_pos.dot(tau[:,:3].T).T
 				source_pos = loc[:3] + offset_pos
 				
-			source_vel = jitter_vel + tt.nlinalg.matrix_dot(lnv,offset_pos.T).T
+			source_vel = jitter_vel + lnv.dot(offset_pos.T).T
 
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper_nu["alpha"],beta=hyper_nu["beta"],shape=2)
@@ -828,11 +846,11 @@ class Model6D_linear(Model):
 			else:
 				tau = pm.StudentT("tau_pos",nu=nu[0],mu=0,sigma=1,shape=(n_sources,6))
 
-				jitter_vel = loc[3:] + tt.nlinalg.matrix_dot(tau[:,3:],chol_vel)
-				offset_pos = tt.nlinalg.matrix_dot(tau[:,:3],chol_pos)
+				jitter_vel = loc[3:] + chol_vel.dot(tau[:,3:].T).T
+				offset_pos = chol_pos.dot(tau[:,:3].T).T
 				source_pos = loc[:3] + offset_pos
 				
-			source_vel = jitter_vel + tt.nlinalg.matrix_dot(lnv,offset_pos.T).T
+			source_vel = jitter_vel + lnv.dot(offset_pos.T).T
 		
 		else:
 			sys.exit("The specified prior is not yet supported")
@@ -840,7 +858,7 @@ class Model6D_linear(Model):
 		source = pm.Deterministic("source",
 						tt.concatenate([source_pos,source_vel],axis=1),
 						dims=("source_id","coordinate"))
-		#=================================================================================
+		#=========================================================================================================
 
 		#----------------------- Transformation-----------------------
 		true = pm.Deterministic("true",transformation(source),
@@ -848,6 +866,10 @@ class Model6D_linear(Model):
 		#-------------------------------------------------------------
 
 		#----------------------- Likelihood --------------------------------------
-		pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
-					tau=tau_data,observed=mu_data)
+		if indep_measures:
+			pm.Normal('obs', mu=pm.math.flatten(true)[idx_data], 
+						sigma=tau_data,observed=mu_data)
+		else:
+			pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
+						chol=tau_data,observed=mu_data)
 		#-------------------------------------------------------------------------
