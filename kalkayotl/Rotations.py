@@ -21,18 +21,13 @@ def np_quaternions_rotation_matrix(a,b,c,d):
 
 	return r
 
-def np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters, is_dot=True):
+def np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters):
 	theta1 = 2*np.pi*perezsala_parameters[1]
 	theta2 = 2*np.pi*perezsala_parameters[2]
 	r1 = np.sqrt(1 - perezsala_parameters[0])
 	r2 = np.sqrt(perezsala_parameters[0])
-	q = np_quaternions_rotation_matrix(np.cos(theta2)*r2, np.sin(theta1)*r1, np.cos(theta1)*r1, np.sin(theta2)*r2)
-
-	res = q
-	if is_dot:
-		res = np.dot(xyz, q)
-	
-	return res
+	q = np_quaternions_rotation_matrix(np.cos(theta2)*r2, np.sin(theta1)*r1, np.cos(theta1)*r1, np.sin(theta2)*r2)	
+	return q
 
 def np_YZ_angle_rotation(xyz, angle):
 	rot_matrix =  np.array([[1, 0, 0],
@@ -80,14 +75,14 @@ def np_translation_cluster_to_galactic(perezsala_parameters, loc_galactic):
 	return perezsala_parameters + loc_galactic
 
 def np_cluster_to_galactic_by_matrix(xyz, perezsala_parameters, loc_galactic):
-    q = np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters, is_dot=False)
+    q = np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters)
     t = np_translation_cluster_to_galactic(loc_galactic)
-    rotated = np.dot(q, xyz)
+    rotated = np.dot(q, xyz.T).T
     return np.dot(t, np.append(rotated, 1))[:-1]
 
 def np_cluster_to_galactic(xyz, perezsala_parameters, loc_galactic):
-    q = np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters, is_dot=False)
-    rotated = np.dot(xyz, q)
+    q = np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters)
+    rotated = np.dot(q, xyz.T).T
     return np_translation_cluster_to_galactic(rotated, loc_galactic)
 
 def np_cluster_to_galactic_YZ(xyz, rot_angle, loc_galactic):
@@ -127,7 +122,7 @@ def random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters):
 	r2 = tt.sqrt(perezsala_parameters[0])
 	q = quaternions_rotation_matrix(tt.cos(theta2)*r2, tt.sin(theta1)*r1, tt.cos(theta1)*r1, tt.sin(theta2)*r2)
 	
-	return tt.dot(xyz, q)
+	return tt.dot(q, xyz.T).T
 
 def YZ_angle_rotation(xyz, angle):
 	r = tt.zeros(shape=(3,3))
@@ -269,9 +264,9 @@ def np_eulerangles_to_perezsala(eulerangles):
 	qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
 	qx = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
 	
-	x2 = (np.arctan2(qx, qy) / (2*np.pi))
-	x3 = (np.arctan2(qz, qw) / (2*np.pi))
-	x1 = (qw/np.cos(2*np.pi*x3))**2
+	x2 = (np.arctan2(qx, qy) / (2*np.pi)) % 1
+	x3 = (np.arctan2(qz, qw) / (2*np.pi)) % 1
+	x1 = (qw/np.cos(2*np.pi*x3))**2 % 1
 	
 	return np.array([x1, x2, x3])
 
@@ -356,7 +351,7 @@ def search_besty_rotation():
 	deg_ang_ps = [math.degrees(ang_ps[0]), math.degrees(ang_ps[1]), math.degrees(ang_ps[2])]
 	print(f'Euler angles from Euler angles [deg]: {deg_ang_ps}')
 
-	res_rotated = np_random_uniform_rotation_cluster_to_galactic(res, perezsala_parameters, is_dot=True)
+	res_rotated =  np_cluster_to_galactic(res, perezsala_parameters, loc_galactic, np.zeros(3))
 	print(np.shape(res_rotated))
 
 	ax1 = plt.subplot(2, 4, 1)
