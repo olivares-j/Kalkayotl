@@ -577,14 +577,17 @@ class Inference:
 						"ERROR: incorrect length of hyperparameter beta!"
 					self.hyper["beta"] = np.array(self.hyper["beta"])
 				elif isinstance(self.hyper["beta"],np.ndarray):
-					assert self.hyper["beta"].ndim == 1 and self.hyper["beta"].shape[0] == self.D,\
+					assert (self.hyper["beta"].ndim == 2 or self.hyper["beta"].ndim == 1) and self.hyper["beta"].shape[0] == self.D,\
 						"ERROR: incorrect shape of hyperparameter beta!"
 				else:
 					sys.exit("ERROR:Unrecognized type of hyper_beta")
 
 			print("The beta hyper-parameter has been set to:")
 			for name,scl in zip(self.names_coords,self.hyper["beta"]):
-				print("{0}: {1:2.1f} pc".format(name,scl))	
+				if self.hyper["beta"].ndim == 2:
+					print("{0}: {1} pc".format(name,scl))   
+				else:
+					print("{0}: {1:2.1f} pc".format(name,scl))
 
 		else:
 
