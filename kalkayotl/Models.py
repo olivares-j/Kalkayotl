@@ -410,7 +410,7 @@ class Model3D6D(Model):
 				cov = np.dot(chol_i, chol_i.T)
 				stds_i = np.sqrt(np.diag(cov))
 				inv_stds = 1. / stds_i
-				corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
 
 				chol = tt.set_subtensor(chol[-1],chol_i)
 				corr = tt.set_subtensor(corr[-1],corr_i)
@@ -424,7 +424,7 @@ class Model3D6D(Model):
 					cov = np.dot(chol_i, chol_i.T)
 					stds_i = np.sqrt(np.diag(cov))
 					inv_stds = 1. / stds_i
-					corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
+					corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
 					#---------------------------------------------------
 
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -469,7 +469,7 @@ class Model3D6D(Model):
 				cov = np.dot(chol_i, chol_i.T)
 				stds_i = np.sqrt(np.diag(cov))
 				inv_stds = 1. / stds_i
-				corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
 				#---------------------------------------------------
 				
 				chol = pytensor.shared(chol_i)
@@ -696,7 +696,7 @@ class Model6D_linear(Model):
 				cov = np.dot(chol_i, chol_i.T)
 				stds_i = np.sqrt(np.diag(cov))
 				inv_stds = 1. / stds_i
-				corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
 
 				chol = tt.set_subtensor(chol[-1],chol_i)
 				corr = tt.set_subtensor(corr[-1],corr_i)
@@ -710,7 +710,7 @@ class Model6D_linear(Model):
 					cov = np.dot(chol_i, chol_i.T)
 					stds_i = np.sqrt(np.diag(cov))
 					inv_stds = 1. / stds_i
-					corr_i = inv_stds[None, :] * cov * inv_stds[:, None]
+					corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
 					#---------------------------------------------------
 
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -764,7 +764,7 @@ class Model6D_linear(Model):
 				cov = np.dot(chol_pos_i, chol_pos_i.T)
 				stds_pos_i = np.sqrt(np.diag(cov))
 				inv_stds = 1. / stds_pos_i
-				corr_pos_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				corr_pos_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
 				#----------------------------------------------------------
 
 				#------------- Extract scale of velocities -------------------
@@ -772,7 +772,7 @@ class Model6D_linear(Model):
 				cov = np.dot(chol_vel_i, chol_vel_i.T)
 				stds_vel_i = np.sqrt(np.diag(cov))
 				inv_stds = 1. / stds_vel_i
-				corr_vel_i = inv_stds[None, :] * cov * inv_stds[:, None]
+				corr_vel_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
 				#----------------------------------------------------------
 				
 				chol_pos = pytensor.shared(chol_pos_i)
@@ -797,7 +797,7 @@ class Model6D_linear(Model):
 
 		#-------------------------- Kappa ----------------------------------------
 		if parameters["kappa"] is None:
-			kappa = pm.Normal("kappa",mu=0.0,sigma=hyper_kappa,shape=3)
+			kappa = pm.Normal("kappa",mu=hyper_kappa["loc"],sigma=hyper_kappa["scl"],shape=3)
 		else:
 			kappa = pm.Deterministic("kappa",pytensor.shared(parameters["kappa"]))
 		#-------------------------------------------------------------------------
