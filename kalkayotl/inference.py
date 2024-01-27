@@ -422,6 +422,8 @@ class Inference:
 		msg_non_central = "Only the non-central parametrization is valid for this configuration."
 		msg_weights = "weights must be greater than 5%."
 
+		assert self.parametrization in ["central","non-central"], "Error in parametrization"
+
 		#============== Mixtures =====================================================
 		if "GMM" in self.prior:
 			n_components = self.hyper["n_components"]
@@ -552,7 +554,8 @@ class Inference:
 			if isinstance(self.parameters["location"],np.ndarray):
 				assert self.parameters["location"].shape[0] == self.D, msg_loc
 				for name,loc in zip(self.names_coords,self.parameters["location"]):
-					print("{0}: {1:2.1f} pc".format(name,loc))
+					unit = "pc" if name in ["X","Y","Z"] else "km.s-1"
+					print("{0}: {1:2.1f} [{2}]".format(name,loc,unit))
 
 			#-------------- Mixture model ----------------------------
 			elif isinstance(self.parameters["location"],list):
@@ -744,20 +747,20 @@ class Inference:
 
 		if self.velocity_model in ["constant","linear"]:
 			if self.parameters["kappa"] is None :
-				print("The kappa hyper parameter has been set to:")
+				print("The kappa prior has been set to:")
 				if self.hyper["kappa"] is None:
-					self.hyper["kappa"] = 0.1
-				print("{0:2.2f} m.s-1.pc-1".format(self.hyper["kappa"]*1000.))
+					self.hyper["kappa"]={"loc":0.0,"scl":0.1}
+				print("Normal~(loc={0:2.3f},scl={1:2.3f}) [km.s-1.pc-1]".format(self.hyper["kappa"]["loc"],self.hyper["kappa"]["scl"]))
 			else:
 				print("The kappa parameter has been fixed to:")
 				print(self.parameters["kappa"])
 
 			if self.velocity_model == "linear":
 				if self.parameters["omega"] is None :
-					print("The omega hyper parameter has been set to:")
+					print("The omega prior has been set to:")
 					if self.hyper["omega"] is None:
 						self.hyper["omega"] = 0.1
-					print("{0:2.2f} m.s-1.pc-1".format(self.hyper["omega"]*1000.))
+					print("Normal~(loc=0.000,scl={0:2.3f}) [km.s-1.pc-1]".format(self.hyper["omega"]))
 				else:
 					print("The omega parameter has been fixed to:")
 					print(self.parameters["omega"])
@@ -882,13 +885,13 @@ class Inference:
 				print("Finding initial positions ...")
 
 			if approx is None or (approx is not None and init_refine):
-				# -------- Fix problem with initial solution of cholesky cov-packed ----------
-				name_ccp = "_cholesky-cov-packed__" 
-				for key,value in start.copy().items():
-					if name_ccp in key:
-						del start[key]
-				# TO BE REMOVED once pymc5 solves this issue
-				#----------------------------------------------------------------------------
+				# # -------- Fix problem with initial solution of cholesky cov-packed ----------
+				# name_ccp = "_cholesky-cov-packed__" 
+				# for key,value in start.copy().items():
+				# 	if name_ccp in key:
+				# 		del start[key]
+				# # TO BE REMOVED once pymc5 solves this issue
+				# #----------------------------------------------------------------------------
 
 				random_seed_list = pymc.util._get_seeds_per_chain(random_seed, chains)
 				cb = [pm.callbacks.CheckParametersConvergence(
@@ -950,14 +953,14 @@ class Inference:
 			initial_points = approx["initial_points"]
 			#-----------------------------------------
 
-			# -------- Fix problem with initial solution of cholesky cov-packed ----------
-			name_ccp = "_cholesky-cov-packed__" 
-			for vals in initial_points:
-				for key,value in vals.copy().items():
-					if name_ccp in key:
-						del vals[key]
-			# TO BE REMOVED once pymc5 solves this issue
-			#----------------------------------------------------------------------------
+			# # -------- Fix problem with initial solution of cholesky cov-packed ----------
+			# name_ccp = "_cholesky-cov-packed__" 
+			# for vals in initial_points:
+			# 	for key,value in vals.copy().items():
+			# 		if name_ccp in key:
+			# 			del vals[key]
+			# # TO BE REMOVED once pymc5 solves this issue
+			# #----------------------------------------------------------------------------
 
 			#================================================================================
 
