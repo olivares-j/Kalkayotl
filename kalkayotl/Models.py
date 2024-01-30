@@ -24,7 +24,8 @@ from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
 
-# from kalkayotl.Priors import EDSD,EFF,King,GGD
+from kalkayotl.GGD import GeneralizedGamma
+
 
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -581,6 +582,7 @@ class Model6D_linear(Model):
 		hyper_kappa=None,
 		hyper_omega=None,
 		hyper_nu=None,
+		hyper_age=None,
 		transformation=None,
 		parametrization="central",
 		velocity_model="linear",
@@ -590,6 +592,7 @@ class Model6D_linear(Model):
 		super().__init__(name="6D", model=None)
 		self.add_coord("source_id",values=identifiers)
 		self.add_coord("coordinate",values=coordinates)
+		self.add_coord("positions",values=["X","Y","Z"])
 		self.add_coord("observable",values=observables)
 
 		#------------------- Data ------------------------------------------------------
@@ -797,9 +800,27 @@ class Model6D_linear(Model):
 
 		#-------------------------- Kappa ----------------------------------------
 		if parameters["kappa"] is None:
-			kappa = pm.Normal("kappa",mu=hyper_kappa["loc"],sigma=hyper_kappa["scl"],shape=3)
+			if "age" in parameters.keys():
+				if parameters["age"] is None:
+					age = pm.TruncatedNormal("age",
+											mu=hyper_age["loc"],
+											sigma=hyper_age["scl"],
+											lower=0.0,
+											upper=hyper_age["upper"])
+				else:
+					age = pm.Deterministic("age",pytensor.shared(parameters["age"]))
+
+				tau = GeneralizedGamma("tau",a=age,d=2.,p=1.,dims="positions")
+				kappa = pm.Deterministic("kappa",1.0227121683768/tau,dims="positions")
+			else:
+				kappa = pm.Normal("kappa",
+							mu=hyper_kappa["loc"],
+							sigma=hyper_kappa["scl"],
+							dims="positions")
 		else:
-			kappa = pm.Deterministic("kappa",pytensor.shared(parameters["kappa"]))
+			kappa = pm.Deterministic("kappa",
+							pytensor.shared(parameters["kappa"]),
+							dims="positions")
 		#-------------------------------------------------------------------------
 		
 		if velocity_model == "linear":
@@ -828,10 +849,10 @@ class Model6D_linear(Model):
 
 				offset_pos = source_pos - loc[:3]
 			else:
-				tau = pm.Normal("tau",mu=0,sigma=1,shape=(n_sources,6))
+				epsilon = pm.Normal("epsilon",mu=0,sigma=1,shape=(n_sources,6))
 
-				jitter_vel = loc[3:] + chol_vel.dot(tau[:,3:].T).T
-				offset_pos = chol_pos.dot(tau[:,:3].T).T
+				jitter_vel = loc[3:] + chol_vel.dot(epsilon[:,3:].T).T
+				offset_pos = chol_pos.dot(epsilon[:,:3].T).T
 				source_pos = loc[:3] + offset_pos
 				
 			source_vel = jitter_vel + lnv.dot(offset_pos.T).T
@@ -844,10 +865,10 @@ class Model6D_linear(Model):
 
 				offset_pos = source_pos - loc[:3]
 			else:
-				tau = pm.StudentT("tau_pos",nu=nu[0],mu=0,sigma=1,shape=(n_sources,6))
+				epsilon = pm.StudentT("epsilon",nu=nu[0],mu=0,sigma=1,shape=(n_sources,6))
 
-				jitter_vel = loc[3:] + chol_vel.dot(tau[:,3:].T).T
-				offset_pos = chol_pos.dot(tau[:,:3].T).T
+				jitter_vel = loc[3:] + chol_vel.dot(epsilon[:,3:].T).T
+				offset_pos = chol_pos.dot(epsilon[:,:3].T).T
 				source_pos = loc[:3] + offset_pos
 				
 			source_vel = jitter_vel + lnv.dot(offset_pos.T).T

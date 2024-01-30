@@ -746,21 +746,38 @@ class Inference:
 			self.hyper["gamma"] = None
 
 		if self.velocity_model in ["constant","linear"]:
-			if self.parameters["kappa"] is None :
-				print("The kappa prior has been set to:")
-				if self.hyper["kappa"] is None:
-					self.hyper["kappa"]={"loc":0.0,"scl":0.1}
-				print("Normal~(loc={0:2.3f},scl={1:2.3f}) [km.s-1.pc-1]".format(self.hyper["kappa"]["loc"],self.hyper["kappa"]["scl"]))
+			if "age" in self.parameters.keys():
+				if self.parameters["age"] is None:
+					test_hyper = ( "loc" in self.hyper["age"] and 
+								   "scl" in self.hyper["age"] and
+								   "upper" in self.hyper["age"])
+					assert test_hyper, "Error: The loc, scl, and upper hyper_parameter of age must be set!"
+					print("The age prior has been set to:")
+					print("age ~ TruncatedNormal(loc={0:2.1f},scale={1:2.1f},lower=0.0,upper={2:2.1f}) [Myr]".format(
+						self.hyper['age']['loc'],self.hyper['age']['scl'],self.hyper['age']['upper']))
+				elif isinstance(self.parameters["age"],float):
+					print("The age parameter has been set to:")
+					print(self.parameters["age"])
+				else:
+					sys.exit("Error: The age parameter must be float or None!")
 			else:
-				print("The kappa parameter has been fixed to:")
-				print(self.parameters["kappa"])
+				if self.parameters["kappa"] is None :
+					print("The kappa prior has been set to:")
+					if self.hyper["kappa"] is None:
+						self.hyper["kappa"]={"loc":0.0,"scl":0.1}
+						print("kappa ~ Normal(loc={0:2.3f},scl={1:2.3f}) [km.s-1.pc-1]".format(self.hyper["kappa"]["loc"],self.hyper["kappa"]["scl"]))
+				elif isinstance(self.parameters["kappa"],np.ndarray):
+					print("The kappa parameter has been fixed to:")
+					print(self.parameters["kappa"])
+				else:
+					sys.exit("Error: The kappa parameter must be None or ndarray.shape == (3)")
 
 			if self.velocity_model == "linear":
 				if self.parameters["omega"] is None :
 					print("The omega prior has been set to:")
 					if self.hyper["omega"] is None:
 						self.hyper["omega"] = 0.1
-					print("Normal~(loc=0.000,scl={0:2.3f}) [km.s-1.pc-1]".format(self.hyper["omega"]))
+					print("omega~Normal(loc=0.000,scl={0:2.3f}) [km.s-1.pc-1]".format(self.hyper["omega"]))
 				else:
 					print("The omega parameter has been fixed to:")
 					print(self.parameters["omega"])
@@ -824,6 +841,7 @@ class Inference:
 								hyper_kappa=self.hyper["kappa"],
 								hyper_omega=self.hyper["omega"],
 								hyper_nu=self.hyper["nu"],
+								hyper_age=self.hyper["age"],
 								transformation=self.forward,
 								parametrization=self.parametrization,
 								velocity_model=self.velocity_model,
@@ -1093,7 +1111,10 @@ class Inference:
 											or ("rt" in x)
 											or ("kappa" in x)
 											or ("omega" in x)
-											or ("nu" in x)),
+											or ("nu" in x)
+											or ("tau" in x)
+											or ("age" in x)
+											),
 											self.ds_posterior.data_vars))
 	
 		trace_variables = cluster_variables.copy()
@@ -1132,7 +1153,10 @@ class Inference:
 					or "nu" in var
 					or "corr" in var 
 					or "omega" in var
-					or "kappa" in var):
+					or "kappa" in var
+					or "tau" in var
+					or "age" in var
+					):
 					stats_variables.remove(var)
 
 		for var in tmp_loc:
@@ -1188,9 +1212,9 @@ class Inference:
 		for var in self.ds_posterior.data_vars:
 			print("{0} : {1:2.4f}".format(var,np.mean(ess[var].values)))
 
-		print("Step size:")
-		for i,val in enumerate(self.trace.sample_stats["step_size"].mean(dim="draw")):
-			print("Chain {0}: {1:3.8f}".format(i,val))
+		# print("Step size:")
+		# for i,val in enumerate(self.trace.sample_stats["step_size"].mean(dim="draw")):
+		# 	print("Chain {0}: {1:3.8f}".format(i,val))
 
 	def plot_chains(self,
 		file_plots=None,
