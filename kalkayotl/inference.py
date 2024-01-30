@@ -760,6 +760,24 @@ class Inference:
 					print(self.parameters["age"])
 				else:
 					sys.exit("Error: The age parameter must be float or None!")
+
+				assert "tau" in self.hyper.keys(), "Error: the tau hyper_parameter must be specified!"
+				assert "d" in self.hyper["tau"] and "p" in self.hyper["tau"],"Error: d and p must be in the tau hyper_parameter!"
+				assert self.hyper["tau"]["d"] is None or isinstance(self.hyper["tau"]["d"],float),"Error: the d hyper_parameter must be None or float!"
+				assert self.hyper["tau"]["p"] is None or isinstance(self.hyper["tau"]["p"],float),"Error: the p hyper_parameter must be None or float!"
+				if self.hyper["tau"]["d"] is None:
+					if "hyper_beta_for_d" not in self.hyper["tau"]:
+						self.hyper["tau"]["hyper_beta_for_d"] = 1./3.0
+					assert isinstance(self.hyper["tau"]["hyper_beta_for_d"],float),"Error: the hyper_beta_for_d must be float!"
+					print("The prior for d has been set to:")
+					print("d ~ Gamma(alpha=2,beta={0:2.2f})".format(self.hyper["tau"]["hyper_beta_for_d"]))
+
+				if self.hyper["tau"]["p"] is None:
+					if "hyper_beta_for_p" not in self.hyper["tau"]:
+						self.hyper["tau"]["hyper_beta_for_p"] = 1./2.0
+					assert isinstance(self.hyper["tau"]["hyper_beta_for_p"],float),"Error: the hyper_beta_for_p must be float!"
+					print("The prior for p has been set to:")
+					print("p ~ Gamma(alpha=2,beta={0:2.2f})".format(self.hyper["tau"]["hyper_beta_for_p"]))
 			else:
 				if self.parameters["kappa"] is None :
 					print("The kappa prior has been set to:")
@@ -841,6 +859,7 @@ class Inference:
 								hyper_kappa=self.hyper["kappa"],
 								hyper_omega=self.hyper["omega"],
 								hyper_nu=self.hyper["nu"],
+								hyper_tau=self.hyper["tau"],
 								hyper_age=self.hyper["age"],
 								transformation=self.forward,
 								parametrization=self.parametrization,
