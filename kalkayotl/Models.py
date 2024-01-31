@@ -812,16 +812,16 @@ class Model6D_linear(Model):
 					age = pm.Deterministic("age",pytensor.shared(parameters["age"]))
 
 				if hyper_tau["d"] is None:
-					hyper_d = pm.Gamma("hyper_d",alpha=2,beta=hyper["tau"]["hyper_beta_for_d"])
+					tau_d = pm.Gamma("tau_d",alpha=2,beta=hyper_tau["hyper_tau_d_beta"])
 				else:
-					hyper_d = pm.Deterministic("hyper_d",pytensor.shared(hyper_tau["d"]))
+					tau_d = pm.Deterministic("tau_d",pytensor.shared(hyper_tau["d"]))
 
 				if hyper_tau["p"] is None:
-					hyper_p = pm.Gamma("hyper_p",alpha=2,beta=hyper["tau"]["hyper_beta_for_p"])
+					tau_p = pm.Gamma("tau_p",alpha=2,beta=hyper_tau["hyper_tau_p_beta"])
 				else:
-					hyper_p = pm.Deterministic("hyper_p",pytensor.shared(hyper_tau["p"]))
+					tau_p = pm.Deterministic("tau_p",pytensor.shared(hyper_tau["p"]))
 
-				tau = GeneralizedGamma("tau",a=age,d=hyper_d,p=hyper_p,dims="positions")
+				tau = GeneralizedGamma("tau",a=age,d=tau_d,p=tau_p,dims="positions")
 				kappa = pm.Deterministic("kappa",1.0227121683768/tau,dims="positions")
 			else:
 				kappa = pm.Normal("kappa",
