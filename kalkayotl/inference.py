@@ -782,6 +782,7 @@ class Inference:
 					print("The tau_p prior has been set to:")
 					print("tau_p ~ Gamma(alpha=2,beta={0:2.2f})".format(self.hyper["tau"]["hyper_tau_p_beta"]))
 			else:
+				self.hyper["tau"] = None
 				if self.parameters["kappa"] is None :
 					print("The kappa prior has been set to:")
 					if self.hyper["kappa"] is None:
