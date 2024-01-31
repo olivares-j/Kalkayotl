@@ -734,8 +734,8 @@ class Inference:
 
 		if self.prior == "FGMM":
 			assert "field_scale" in self.parameters, "Model FGMM needs the 'field_scale' parameter"
-			assert self.parameters["field_scale"] is not None, "Must specify the typical size of the field"
-			assert len(self.parameters["field_scale"]) == self.D, "Size of field_scale must match model dimension"
+			assert isinstance(self.parameters["field_scale"],list), "Error. The field_scale must be a list of floats!"
+			assert len(self.parameters["field_scale"]) == self.D, "Error: the length of field_scale must match model dimension"
 
 		if self.prior in ["King","EFF"]:
 			if self.prior == "KING" and self.parameters["rt"] is None:
@@ -761,7 +761,10 @@ class Inference:
 				else:
 					sys.exit("Error: The age parameter must be float or None!")
 
-				assert "tau" in self.hyper.keys(), "Error: the tau hyper_parameter must be specified!"
+				if "tau" not in self.hyper.keys():
+					self.hyper["tau"]={"d":3.,"p":2.}
+					print("The tau hyper_parameter has been set to:")
+					print(self.hyper["tau"])
 				assert "d" in self.hyper["tau"] and "p" in self.hyper["tau"],"Error: d and p must be in the tau hyper_parameter!"
 				assert self.hyper["tau"]["d"] is None or isinstance(self.hyper["tau"]["d"],float),"Error: the d hyper_parameter must be None or float!"
 				assert self.hyper["tau"]["p"] is None or isinstance(self.hyper["tau"]["p"],float),"Error: the p hyper_parameter must be None or float!"

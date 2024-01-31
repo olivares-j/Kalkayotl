@@ -407,11 +407,11 @@ class Model3D6D(Model):
 					stds = tt.set_subtensor(stds[i],stds_i)
 
 				#------------ Field -----------------------------------
-				chol_i = np.diag(parameters["field_scale"])
+				stds_i = np.array(parameters["field_scale"])
+				chol_i = np.diag(stds_i)
 				cov = np.dot(chol_i, chol_i.T)
-				stds_i = np.sqrt(np.diag(cov))
-				inv_stds = 1. / stds_i
-				corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
+				inv_stds = np.diag(1. / stds_i)
+				corr_i = inv_stds @ cov @ inv_stds
 
 				chol = tt.set_subtensor(chol[-1],chol_i)
 				corr = tt.set_subtensor(corr[-1],corr_i)
@@ -424,8 +424,8 @@ class Model3D6D(Model):
 					chol_i = np.linalg.cholesky(parameters["scale"][i])
 					cov = np.dot(chol_i, chol_i.T)
 					stds_i = np.sqrt(np.diag(cov))
-					inv_stds = 1. / stds_i
-					corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
+					inv_stds = np.diag(1. / stds_i)
+					corr_i = inv_stds @ cov @ inv_stds
 					#---------------------------------------------------
 
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -469,8 +469,8 @@ class Model3D6D(Model):
 				chol_i = np.linalg.cholesky(parameters["scale"])
 				cov = np.dot(chol_i, chol_i.T)
 				stds_i = np.sqrt(np.diag(cov))
-				inv_stds = 1. / stds_i
-				corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
+				inv_stds = np.diag(1. / stds_i)
+				corr_i = inv_stds @ cov @ inv_stds
 				#---------------------------------------------------
 				
 				chol = pytensor.shared(chol_i)
@@ -696,11 +696,11 @@ class Model6D_linear(Model):
 					stds = tt.set_subtensor(stds[i],stds_i)
 
 				#------------ Field -----------------------------------
-				chol_i = np.diag(parameters["field_scale"])
+				stds_i = np.array(parameters["field_scale"])
+				chol_i = np.diag(stds_i)
 				cov = np.dot(chol_i, chol_i.T)
-				stds_i = np.sqrt(np.diag(cov))
-				inv_stds = 1. / stds_i
-				corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
+				inv_stds = np.diag(1. / stds_i)
+				corr_i = inv_stds @ cov @ inv_stds
 
 				chol = tt.set_subtensor(chol[-1],chol_i)
 				corr = tt.set_subtensor(corr[-1],corr_i)
@@ -713,8 +713,8 @@ class Model6D_linear(Model):
 					chol_i = np.linalg.cholesky(parameters["scale"][i])
 					cov = np.dot(chol_i, chol_i.T)
 					stds_i = np.sqrt(np.diag(cov))
-					inv_stds = 1. / stds_i
-					corr_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
+					inv_stds = np.diag(1. / stds_i)
+					corr_i = inv_stds @ cov @ inv_stds
 					#---------------------------------------------------
 
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -767,16 +767,16 @@ class Model6D_linear(Model):
 				chol_pos_i = np.linalg.cholesky(parameters["scale"][:3,:3])
 				cov = np.dot(chol_pos_i, chol_pos_i.T)
 				stds_pos_i = np.sqrt(np.diag(cov))
-				inv_stds = 1. / stds_pos_i
-				corr_pos_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
+				inv_stds = np.diag(1. / stds_pos_i)
+				corr_pos_i = inv_stds @ cov @ inv_stds
 				#----------------------------------------------------------
 
 				#------------- Extract scale of velocities -------------------
 				chol_vel_i = np.linalg.cholesky(parameters["scale"][3:,3:])
 				cov = np.dot(chol_vel_i, chol_vel_i.T)
 				stds_vel_i = np.sqrt(np.diag(cov))
-				inv_stds = 1. / stds_vel_i
-				corr_vel_i = inv_stds[None, :] @ cov @ inv_stds[:, None]
+				inv_stds = np.diag(1. / stds_vel_i)
+				corr_vel_i = inv_stds @ cov @ inv_stds
 				#----------------------------------------------------------
 				
 				chol_pos = pytensor.shared(chol_pos_i)
