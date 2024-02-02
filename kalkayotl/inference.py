@@ -1393,14 +1393,11 @@ class Inference:
 			#--------------------------------------
 		#--------------------------------------
 
-		#------- Sample --------------------
+		#------------------ Sample --------------------------------
 		if n_samples is not None:
-			idx = np.random.choice(
-				  np.arange(srcs.shape[1]),
-						replace=False,
-						size=n_samples)
+			idx = np.arange(srcs.shape[1]-n_samples,srcs.shape[1])
 			srcs = srcs[:,idx]
-		#------------------------------------
+		#-----------------------------------------------------------
 		#=====================================================================
 
 
@@ -1503,18 +1500,15 @@ class Inference:
 			#--------------------------------------------
 		#-------------------------------------------
 
-		#------- Take sample ---------------
+		#--------------- Take sample the last n_samplpes ------------
 		if n_samples is not None:
-			idx = np.random.choice(
-				  np.arange(locs.shape[1]),
-						replace=False,
-						size=n_samples)
+			idx = np.arange(locs.shape[1]-n_samples,locs.shape[1])
 
 			amps = amps[:,idx]
 			locs = locs[:,idx]
 			stds = stds[:,idx]
 			cors = cors[:,idx]
-		#------------------------------------
+		#------------------------------------------------------------
 
 		#------- Construct covariances ---------------
 		covs = np.zeros_like(cors)
@@ -2062,7 +2056,7 @@ class Inference:
 
 		return summary_df
 
-	def save_statistics(self,hdi_prob=0.95,chain_gmm=[0],stat_focus="mean"):
+	def save_statistics(self,hdi_prob=0.95,chain_gmm=[0],n_samples=500,stat_focus="mean"):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -2074,6 +2068,10 @@ class Inference:
 		def distance(x,y,z):
 			return np.sqrt(x**2 + y**2 + z**2)
 		#---------------------------------------------------------------------
+
+		msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
+
+		assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
 		
 		#--------- Coordinates -------------------------
 		# In MM use only one chain
@@ -2112,21 +2110,16 @@ class Inference:
 		#---------------------------------------------------------------
 
 		if self.D in [1,3,6] :
-			#---------- Classify sources -------------------
-			if not hasattr(self,"df_groups"):
-				if self.ds_posterior.sizes["draw"] > 100:
-					n_samples = 100
-				else:
-					n_samples = self.ds_posterior.sizes["draw"]
+			# This is done again with more samples than those from the plot_model
+			#------- Extract GMM parameters ----------------------------------
+			pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
+										n_samples=n_samples,
+										chain=chain_gmm)
+			#-----------------------------------------------------------------
 
-				#------- Extract GMM parameters ----------------------------------
-				pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
-											n_samples=n_samples,
-											chain=chain_gmm)
-				#-----------------------------------------------------------------
-
-				self._classify(pos_srcs,pos_amps,pos_locs,pos_covs,names_groups)
-			#------------------------------------------------
+			#---------- Classify sources ------------------------------------
+			self._classify(pos_srcs,pos_amps,pos_locs,pos_covs,names_groups)
+			#----------------------------------------------------------------
 
 		
 			# ------ Parameters into columns ------------------------
