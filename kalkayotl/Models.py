@@ -822,7 +822,7 @@ class Model6D_linear(Model):
 					tau_p = pm.Deterministic("tau_p",pytensor.shared(hyper_tau["p"]))
 
 				tau = GeneralizedGamma("tau",a=age,d=tau_d,p=tau_p,dims="positions")
-				kappa = pm.Deterministic("kappa",1.0227121683768/tau,dims="positions")
+				kappa = pm.Deterministic("kappa",1./(1.0227121683768*tau),dims="positions")
 			else:
 				kappa = pm.Normal("kappa",
 							mu=hyper_kappa["loc"],
