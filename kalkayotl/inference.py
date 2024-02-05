@@ -109,7 +109,6 @@ class Inference:
 		self.indep_measures   = indep_measures
 		
 		self.reference_system = reference_system
-		self.velocity_model   = velocity_model
 		self.sampling_space   = sampling_space
 
 		self.file_ids         = self.dir_out+"/Identifiers.csv"
@@ -744,57 +743,32 @@ class Inference:
 				assert self.hyper["gamma"] is not None, msg_gamma
 		else:
 			self.hyper["gamma"] = None
+			
+		if "kappa" in self.parameters.keys():
+			self.velocity_model = "constant"
+			if self.parameters["kappa"] is None :
+				assert "kappa" in self.hyper, "Error: The kappa hyper_parameter must be set!"
+				if self.hyper["kappa"] is None:
+					self.hyper["kappa"]={}
+					self.hyper["kappa"]["scl"] = 0.1
 
-		if self.velocity_model in ["constant","linear"]:
-			if "age" in self.parameters.keys():
-				if self.parameters["age"] is None:
-					test_hyper = ( "loc" in self.hyper["age"] and 
-								   "scl" in self.hyper["age"] and
-								   "upper" in self.hyper["age"])
-					assert test_hyper, "Error: The loc, scl, and upper hyper_parameter of age must be set!"
-					print("The age prior has been set to:")
-					print("age ~ TruncatedNormal(loc={0:2.1f},scale={1:2.1f},lower=0.0,upper={2:2.1f}) [Myr]".format(
-						self.hyper['age']['loc'],self.hyper['age']['scl'],self.hyper['age']['upper']))
-				elif isinstance(self.parameters["age"],float):
-					print("The age parameter has been set to:")
-					print(self.parameters["age"])
-				else:
-					sys.exit("Error: The age parameter must be float or None!")
-
-				if "tau" not in self.hyper.keys():
-					self.hyper["tau"]={"d":3.,"p":2.}
-					print("The tau hyper_parameter has been set to:")
-					print(self.hyper["tau"])
-				assert "d" in self.hyper["tau"] and "p" in self.hyper["tau"],"Error: d and p must be in the tau hyper_parameter!"
-				assert self.hyper["tau"]["d"] is None or isinstance(self.hyper["tau"]["d"],float),"Error: the d hyper_parameter must be None or float!"
-				assert self.hyper["tau"]["p"] is None or isinstance(self.hyper["tau"]["p"],float),"Error: the p hyper_parameter must be None or float!"
-				if self.hyper["tau"]["d"] is None:
-					if "hyper_tau_d_beta" not in self.hyper["tau"]:
-						self.hyper["tau"]["hyper_tau_d_beta"] = 1./3.0
-					assert isinstance(self.hyper["tau"]["hyper_tau_d_beta"],float),"Error: the hyper_tau_d_beta must be float!"
-					print("The tau_d prior has been set to:")
-					print("tau_d ~ Gamma(alpha=2,beta={0:2.2f})".format(self.hyper["tau"]["hyper_tau_d_beta"]))
-
-				if self.hyper["tau"]["p"] is None:
-					if "hyper_tau_p_beta" not in self.hyper["tau"]:
-						self.hyper["tau"]["hyper_tau_p_beta"] = 1./2.0
-					assert isinstance(self.hyper["tau"]["hyper_tau_p_beta"],float),"Error: the hyper_tau_p_beta must be float!"
-					print("The tau_p prior has been set to:")
-					print("tau_p ~ Gamma(alpha=2,beta={0:2.2f})".format(self.hyper["tau"]["hyper_tau_p_beta"]))
-			else:
-				self.hyper["tau"] = None
-				if self.parameters["kappa"] is None :
 					print("The kappa prior has been set to:")
-					if self.hyper["kappa"] is None:
-						self.hyper["kappa"]={"loc":0.0,"scl":0.1}
-						print("kappa ~ Normal(loc={0:2.3f},scl={1:2.3f}) [km.s-1.pc-1]".format(self.hyper["kappa"]["loc"],self.hyper["kappa"]["scl"]))
-				elif isinstance(self.parameters["kappa"],np.ndarray):
-					print("The kappa parameter has been fixed to:")
-					print(self.parameters["kappa"])
-				else:
-					sys.exit("Error: The kappa parameter must be None or ndarray.shape == (3)")
+					if "age" in self.parameters.keys():
+						kappa_loc = "{0}".format("1/1.022*age")
+						kappa_scl = "~Gamma(alpha=2.0,beta={0})".format(1./self.hyper["kappa"]['scl'])
+					else:
+						self.hyper["kappa"]["loc"] = 0.0
+						kappa_loc = self.hyper["kappa"]["loc"]
+						kappa_scl = self.hyper["kappa"]["scl"]
+				print("kappa ~ Normal(loc={0},scl={1}) [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
+			elif isinstance(self.parameters["kappa"],np.ndarray):
+				print("The kappa parameter has been fixed to:")
+				print(self.parameters["kappa"])
+			else:
+				sys.exit("Error: The kappa parameter must be None or ndarray.shape == (3)")
 
-			if self.velocity_model == "linear":
+			if "omega" in self.parameters.keys():
+				self.velocity_model = "linear"
 				if self.parameters["omega"] is None :
 					print("The omega prior has been set to:")
 					if self.hyper["omega"] is None:
@@ -803,6 +777,36 @@ class Inference:
 				else:
 					print("The omega parameter has been fixed to:")
 					print(self.parameters["omega"])
+
+			if "age" in self.parameters.keys():
+				if self.parameters["age"] is None:
+					assert isinstance(self.hyper["age"],float), "Error: The age hyper_parameter must be float!"
+
+					if "d" in self.parameters.keys():
+						if self.parameters["d"] is None:
+							assert isinstance(self.hyper["d"],float), "Error: The d hyper_parameter must be float!"
+							d = "~Gamma(alpha=2,beta={0:2.1f})".format(self.hyper["d"])
+					else:
+						self.parameters["d"] = 3.0
+						d = self.parameters["d"]
+
+					if "p" in self.parameters.keys():
+						if self.parameters["p"] is None:
+							assert isinstance(self.hyper["p"],float), "Error: The p hyper_parameter must be float!"
+							p = "~Gamma(alpha=2,beta={0:2.1f})".format(self.hyper["p"])
+					else:
+						self.parameters["p"] = 1.0
+						p = self.parameters["p"]
+
+					print("The age prior has been set to:")
+					print("age ~ GeneralizedGamma(a={0:2.1f},d={1},p={2}) [Myr]".format(
+						self.hyper['age'],d,p))
+				elif isinstance(self.parameters["age"],float):
+					print("The age parameter has been set to:")
+					print(self.parameters["age"])
+				else:
+					sys.exit("Error: The age parameter must be float or None!")
+
 		#===========================================================================================================
 
 		if self.D == 1:
@@ -814,11 +818,7 @@ class Inference:
 								dimension=self.D,
 								prior=self.prior,
 								parameters=self.parameters,
-								hyper_alpha=self.hyper["alpha"],
-								hyper_beta=self.hyper["beta"],
-								hyper_gamma=self.hyper["gamma"],
-								hyper_delta=self.hyper["delta"],
-								hyper_nu=self.hyper["nu"],
+								hyper=self.hyper,
 								transformation=self.forward,
 								parametrization=self.parametrization,
 								identifiers=self.ID,
@@ -835,12 +835,7 @@ class Inference:
 								dimension=self.D,
 								prior=self.prior,
 								parameters=self.parameters,
-								hyper_alpha=self.hyper["alpha"],
-								hyper_beta=self.hyper["beta"],
-								hyper_gamma=self.hyper["gamma"],
-								hyper_delta=self.hyper["delta"],
-								hyper_eta=self.hyper["eta"],
-								hyper_nu=self.hyper["nu"],
+								hyper=self.hyper,
 								transformation=self.forward,
 								parametrization=self.parametrization,
 								identifiers=self.ID,
@@ -855,16 +850,7 @@ class Inference:
 								indep_measures=self.indep_measures,
 								prior=self.prior,
 								parameters=self.parameters,
-								hyper_alpha=self.hyper["alpha"],
-								hyper_beta=self.hyper["beta"],
-								hyper_gamma=self.hyper["gamma"],
-								hyper_delta=self.hyper["delta"],
-								hyper_eta=self.hyper["eta"],
-								hyper_kappa=self.hyper["kappa"],
-								hyper_omega=self.hyper["omega"],
-								hyper_nu=self.hyper["nu"],
-								hyper_tau=self.hyper["tau"],
-								hyper_age=self.hyper["age"],
+								hyper=self.hyper,
 								transformation=self.forward,
 								parametrization=self.parametrization,
 								velocity_model=self.velocity_model,
@@ -875,6 +861,12 @@ class Inference:
 			sys.exit("Non valid dimension or velocity model!")
 
 		print((30+13)*"+")
+
+	def plot_pgm(self,file=None):
+
+		file = file if file is not None else self.dir_out+"model_graph.png"
+		graph = pm.model_to_graphviz(self.Model)
+		graph.render(outfile=file,format="png")
 
 	def run(self,
 		tuning_iters=2000,
