@@ -406,6 +406,7 @@ class Inference:
 		self.parameters       = parameters.copy()
 		self.hyper            = hyper_parameters.copy()
 		self.parametrization  = parametrization
+		self.velocity_model   = "joint"
 		
 
 		print(15*"+", " Prior setup ", 15*"+")
@@ -782,25 +783,29 @@ class Inference:
 				if self.parameters["age"] is None:
 					assert isinstance(self.hyper["age"],float), "Error: The age hyper_parameter must be float!"
 
-					if "d" in self.parameters.keys():
-						if self.parameters["d"] is None:
-							assert isinstance(self.hyper["d"],float), "Error: The d hyper_parameter must be float!"
-							d = "~Gamma(alpha=2,beta={0:2.1f})".format(self.hyper["d"])
+					if "age_d" in self.parameters.keys():
+						if self.parameters["age_d"] is None:
+							assert isinstance(self.hyper["d"],float), "Error: The age_d hyper_parameter must be float!"
+							age_d = "~Gamma(alpha=2,beta={0:2.1f})".format(self.hyper["age_d"])
+						else:
+							age_d = self.parameters["age_d"]
 					else:
-						self.parameters["d"] = 3.0
-						d = self.parameters["d"]
+						self.parameters["age_d"] = 3.0
+						age_d = self.parameters["d"]
 
-					if "p" in self.parameters.keys():
-						if self.parameters["p"] is None:
-							assert isinstance(self.hyper["p"],float), "Error: The p hyper_parameter must be float!"
-							p = "~Gamma(alpha=2,beta={0:2.1f})".format(self.hyper["p"])
+					if "age_p" in self.parameters.keys():
+						if self.parameters["age_p"] is None:
+							assert isinstance(self.hyper["age_p"],float), "Error: The age_p hyper_parameter must be float!"
+							age_p = "~Gamma(alpha=2,beta={0:2.1f})".format(self.hyper["age_p"])
+						else:
+							age_p = self.parameters["age_p"]
 					else:
-						self.parameters["p"] = 1.0
-						p = self.parameters["p"]
+						self.parameters["age_p"] = 1.0
+						age_p = self.parameters["age_p"]
 
 					print("The age prior has been set to:")
 					print("age ~ GeneralizedGamma(a={0:2.1f},d={1},p={2}) [Myr]".format(
-						self.hyper['age'],d,p))
+						self.hyper['age'],age_d,age_p))
 				elif isinstance(self.parameters["age"],float):
 					print("The age parameter has been set to:")
 					print(self.parameters["age"])
@@ -1127,7 +1132,6 @@ class Inference:
 											or ("kappa" in x)
 											or ("omega" in x)
 											or ("nu" in x)
-											or ("tau" in x)
 											or ("age" in x)
 											),
 											self.ds_posterior.data_vars))
