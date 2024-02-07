@@ -22,8 +22,8 @@ class GeneralizedGammaRV(RandomVariable):
 	ndim_supp: int = 0
 
 	# Provide the number of (input) dimensions for each parameter of the RV
-	# a [0], d [0], p [0]
-	ndims_params: List[int] = [0, 0, 0]
+	# location [0], scale [0], d [0], p [0]
+	ndims_params: List[int] = [0, 0, 0, 0]
 
 	# The NumPy/PyTensor dtype for this RV (e.g. `"int32"`, `"int64"`).
 	# The standard in the library is `"int64"` for discrete variables
@@ -35,8 +35,8 @@ class GeneralizedGammaRV(RandomVariable):
 
 	# If you want to add a custom signature and default values for the
 	# parameters, do it like this. Otherwise this can be left out.
-	def __call__(self, a=1.0, d=1.0, p=1.0, **kwargs) -> TensorVariable:
-		return super().__call__(a, d, p, **kwargs)
+	def __call__(self, loc=0.0, scale=1.0, d=4.0, p=3.0, **kwargs) -> TensorVariable:
+		return super().__call__(loc,scale, d, p, **kwargs)
 
 	# This is the Python code that produces samples.  Its signature will always
 	# start with a NumPy `RandomState` object, then the distribution
@@ -46,12 +46,13 @@ class GeneralizedGammaRV(RandomVariable):
 	def rng_fn(
 		cls,
 		rng: np.random.RandomState,
-		a: np.ndarray,
+		loc: np.ndarray,
+		scale:np.ndarray,
 		d: np.ndarray,
 		p: np.ndarray,
 		size: Tuple[int, ...],
 	) -> np.ndarray:
-		return st.gengamma.rvs(scale=a, a=d/p, c=p, random_state=rng, size=size)
+		return st.gengamma.rvs(loc=loc,scale=scale, a=d/p, c=p, random_state=rng, size=size)
 
 # Create the actual `RandomVariable` `Op`...
 gengamma = GeneralizedGammaRV()
@@ -97,42 +98,47 @@ class GeneralizedGamma(PositiveContinuous):
 	# dist() is responsible for returning an instance of the rv_op.
 	# We pass the standard parametrizations to super().dist
 	@classmethod
-	def dist(cls, a=None, d=None, p=None, **kwargs):
-		a = pt.as_tensor_variable(a)
+	def dist(cls, loc=None, scale=None, d=None, p=None, a=None, c=None, **kwargs):
+		loc   = pt.as_tensor_variable(loc)
+		scale = pt.as_tensor_variable(scale)
+		if c is not None and p is not None:
+		    raise ValueError("Only one of c or p is allowed.")
+		if a is not None and d is not None:
+		    raise ValueError("Only one of a or d is allowed.")
+		if c is not None:
+		    p = c
+		if a is not None:
+		    d = a / p
 		d = pt.as_tensor_variable(d)
 		p = pt.as_tensor_variable(p)
-		# if param2 is not None and alt_param2 is not None:
-		#     raise ValueError("Only one of param2 and alt_param2 is allowed.")
-		# if alt_param2 is not None:
-		#     param2 = 1 / alt_param2
-		# param2 = pt.as_tensor_variable(param2)
 
 		# The first value-only argument should be a list of the parameters that
 		# the rv_op needs in order to be instantiated
-		return super().dist([a,d,p], **kwargs)
+		return super().dist([loc,scale,d,p], **kwargs)
 
 	# moment returns a symbolic expression for the stable moment from which to start sampling
 	# the variable, given the implicit `rv`, `size` and `param1` ... `paramN`.
 	# This is typically a "representative" point such as the the mean or mode.
-	def moment(rv, size, a, d, p):
-		moment, _ = pt.broadcast_arrays(a,d)
+	def moment(rv, size, loc, scale, d, p):
+		moment,_ = pt.broadcast_arrays(loc+scale*((d-1)/p)**(1/p),d)
 		if not rv_size_is_none(size):
 			moment = pt.full(size, moment)
 		return moment
 
 	# Logp returns a symbolic expression for the elementwise log-pdf or log-pmf evaluation
 	# of the variable given the `value` of the variable and the parameters `param1` ... `paramN`.
-	def logp(value, a, d, p):
+	def logp(value, loc, scale, d, p):
+		y    = (value-loc)
 		fac1 = -pt.log(pt.gamma(d/p))
 		fac2 = pt.log(p)
-		fac3 = -d * pt.log(a)
-		fac4 = pt.log(value)*(d-1.)
-		fac5 = -pt.power(value/a, p)
+		fac3 = -d * pt.log(scale)
+		fac4 = pt.log(y)*(d-1.)
+		fac5 = -pt.power(y/scale, p)
 		logp_expression =  fac1 + fac2 + fac3 + fac4 + fac5
 
 		# A switch is often used to enforce the distribution support domain
 		bounded_logp_expression = pt.switch(
-			pt.gt(value,0),
+			pt.gt(y,0),
 			logp_expression,
 			-np.inf,
 		)
@@ -143,19 +149,20 @@ class GeneralizedGamma(PositiveContinuous):
 		# with the message defined in the optional `msg` keyword argument.
 		return check_parameters(
 			bounded_logp_expression,
-			a > 0, d > 0, p > 0, msg="a>0, d>0, p > 0",
+			loc >= 0, scale > 0, d > 0, p > 0, msg="loc >= 0, scale > 0, d>0, p > 0",
 			)
 
 	# logcdf works the same way as logp. For bounded variables, it is expected to return
 	# `-inf` for values below the domain start and `0` for values above the domain end.
-	def logcdf(value, a, d, p):
+	def logcdf(value, loc, scale, d, p):
+		y = (value-loc)
 		fac1 = -pt.log(pt.gamma(d/p))
-		fac2 = pt.log(pt.gammal(d/p,pt.power(value/a, p)))
+		fac2 = pt.log(pt.gammal(d/p,pt.power(y/scale, p)))
 		logp_expression =  fac1 + fac2
 
 		# A switch is often used to enforce the distribution support domain
 		bounded_logp_expression = pt.switch(
-			pt.gt(value, 0),
+			pt.gt(y, 0),
 			logp_expression,
 			-np.inf,
 		)
@@ -166,70 +173,104 @@ class GeneralizedGamma(PositiveContinuous):
 		# with the message defined in the optional `msg` keyword argument.
 		return check_parameters(
 			bounded_logp_expression,
-			a > 0, d > 0, p > 0, msg="a > 0, d > 0, p > 0",
+			loc >= 0,scale > 0, d > 0, p > 0, msg="loc >= 0, scale > 0, d > 0, p > 0",
 			)
 
 
 
 if __name__ == "__main__":
-	import pymc as pm
-	from pymc.distributions.distribution import moment
-
-	# print(pm.draw(gengamma(1.,1.,1., size=(10, 2)), random_seed=1))
-	
-
-	# pm.blah = pm.Normal in this example
-	# print(GeneralizedGamma.dist(a=1,d=1,p=1))
-
-	# Test that the returned blah_op is still working fine
-	# print(pm.draw(gengamma(), random_seed=1))
-	# array(-1.01397228)
-
-	# Test the moment method
-	# print(moment(gengamma()).eval())
-	# array(0.)
-
-	# Test the logp method
-	print(pm.logp(gengamma(), [-0.5, 1.0,1.0]).eval())
-	# array([-1.04393853, -2.04393853])
-
-	# Test the logcdf method
-	print(pm.logcdf(gengamma(), [-0.5, 1.0,1.0]).eval())
-	# array([-1.17591177, -0.06914345])
 	import numpy as np
 	import arviz as az
 	import matplotlib.pyplot as plt
+	import pymc as pm
+	from pymc.distributions.distribution import moment
 
-	a = 2.0
-	d = 1.0 
-	p = 1.0
+	# print(pm.draw(gengamma(0.0,1.,4.,3., size=(10, 2)), random_seed=1))
+	
+	# print(GeneralizedGamma.dist(loc=0.0,scale=1,d=1,p=1))
+	# print(pm.draw(gengamma(), random_seed=1))
 
-	# alpha = p
-	# beta  = d -1
+	# mode = moment(gengamma(loc=loc,scale=scale,d=d,p=p)).eval()
+	# print(mode)
+	# print(pm.logp(gengamma(), mode).eval())
+	# sys.exit()
 
-	data = st.gengamma.rvs(scale=a, a=d/p, c=p, size=10000)
-	with pm.Model():
-		scale = pm.Uniform("scale",lower=0.,upper=10.)
-		alpha = pm.Uniform("alpha",lower=0.,upper=5.)
-		beta = pm.Uniform("beta", lower=-1.,upper=10.)
-		# tau = pm.CustomDist("tau",scale, alpha, beta, logp=logp, random=random,observed=data)
-		tau = GeneralizedGamma("tau",a=scale, d=beta+1, p=alpha,observed=data)
+	# # Test the logp method
+	# print(pm.logp(gengamma(), [-0.5, 0.0,1.0,4.0,3.0]).eval())
+
+	# # Test the logcdf method
+	# print(pm.logcdf(gengamma(), [-0.5,0.0, 1.0,4.0,3.0]).eval())
+
+	# loc, scale, d, p = 0.0, 1.0, 4.0, 3.0
+
+
+	# rv = st.gengamma(loc=loc,scale=scale, a=d/p, c=p)
+	# pers = [0.001, 0.5, 0.999]
+
+	# vals = rv.ppf(pers)
+
+	# np.allclose(pers, rv.cdf(vals))
+	# np.allclose(rv.logpdf(vals),pm.logp(gengamma(loc=loc,scale=scale,d=d,p=p),vals).eval())
+	# np.allclose(rv.logcdf(vals),pm.logcdf(gengamma(loc=loc,scale=scale,d=d,p=p),vals).eval())
+
+	def kpf(age):
+		return  1/(1.0227121683768*age)
+
+
+	mu = 40
+	sd = 10
+	d = 4.
+	p = 3.
+	
+	# data = st.norm(loc=1./(1.0227121683768*mu),scale=0.05).rvs(size=100)
+	kappa_mu_true = np.array([0.059,0.031, -0.022])
+	kappa_sd_true = np.array([0.005,0.005, 0.02])
+
+	kappa_mu_true = np.array([kpf(mu+2),kpf(mu-2),kpf(mu)])
+	kappa_sd_true = np.array([0.005,0.005, 0.02])
+
+	data = st.norm(loc=kappa_mu_true,scale=kappa_sd_true).rvs(size=(100,3))
+	# 100 age       25.112  4.827
+	# 200           25.116  4.872
+	#--------- non-central -------
+	# 100 age       24.812  4.844
+	# 200 age       25.130  4.647
+
+	parameterization = "central"
+
+	model = pm.Model()
+	with model:
+		# d = pm.HalfNormal("d",sigma=5)
+		# p = pm.HalfNormal("p",sigma=5)
+		age = GeneralizedGamma("age",loc=mu-sd,scale=sd, d=d, p=p)
+		# age = pm.StudentT("age",mu=mu,sigma=sd,nu=1)
+		kappa_sd = pm.Exponential("kappa_sd",scale=0.1)
+		kappa_mu = pm.Deterministic("kappa_mu",1./(1.0227121683768*age))
+		if parameterization == "central":
+			kappa = pm.Normal("kappa",mu=kappa_mu,sigma=kappa_sd,shape=3)
+		else:
+			offset_kappa = pm.Normal("offset_kappa",mu=0.0,sigma=1.0,shape=3)
+			kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sd)
+		observed = pm.Normal("observed",mu=kappa,sigma=kappa_sd_true, observed=data)
 
 		
+	posterior = pm.sample(2000,chains=2,model=model)
+	# posterior.extend(pm.sample_prior_predictive(
+	# 						samples=1000,
+	# 						model=model))
 
-		approx = pm.fit(
-					n=int(1e5),
-					method="advi",
-					progressbar=True,
-					)
+	
 
-		posterior = pm.sample(1000,chains=2)
+	print(az.summary(posterior,#var_names="age",
+						stat_focus = "mean",
+						hdi_prob=0.975,
+						extend=True))
 
-	# #------------- Plot Loss ----------------------------------
-	plt.figure()
-	plt.plot(approx.hist[-1000:])
-	plt.ylabel("Average Loss")
-	plt.show()
-	plt.figure()
-	az.plot_trace(posterior) 
-	plt.show()
+	# az.plot_trace(posterior,figsize=(10,10)) 
+	# plt.show()
+
+	# az.plot_dist_comparison(posterior,var_names="age",figsize=(10,30))
+	# plt.show()
+
+	# az.plot_dist_comparison(posterior,var_names="kappa_sd",figsize=(10,30))
+	# plt.show()

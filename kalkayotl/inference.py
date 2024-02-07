@@ -749,19 +749,32 @@ class Inference:
 			self.velocity_model = "constant"
 			if self.parameters["kappa"] is None :
 				assert "kappa" in self.hyper, "Error: The kappa hyper_parameter must be set!"
-				if self.hyper["kappa"] is None:
-					self.hyper["kappa"]={}
-					self.hyper["kappa"]["scl"] = 0.1
+				self.hyper["kappa"] = self.hyper["kappa"] if isinstance(self.hyper["kappa"],dict) else {}
+				assert isinstance(self.hyper["kappa"],dict),"Error: The kappa hyper_parameter must be a dictionary!"
 
-					print("The kappa prior has been set to:")
-					if "age" in self.parameters.keys():
-						kappa_loc = "{0}".format("1/1.022*age")
-						kappa_scl = "~Gamma(alpha=2.0,beta={0})".format(1./self.hyper["kappa"]['scl'])
-					else:
-						self.hyper["kappa"]["loc"] = 0.0
-						kappa_loc = self.hyper["kappa"]["loc"]
-						kappa_scl = self.hyper["kappa"]["scl"]
-				print("kappa ~ Normal(loc={0},scl={1}) [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
+				self.hyper["kappa"]["loc"] = self.hyper["kappa"]["loc"] if "loc" in self.hyper["kappa"] else 0.0
+				self.hyper["kappa"]["scl"] = self.hyper["kappa"]["scl"] if "scl" in self.hyper["kappa"] else 0.1
+				self.hyper["kappa"]["parameterization"] = self.hyper["kappa"]["parameterization"] \
+											if "parameterization" in self.hyper["kappa"] else "central"
+				assert isinstance(self.hyper["kappa"]["loc"],float), "Error the loc of the kappa hyper_parameter must be a float"
+				assert isinstance(self.hyper["kappa"]["scl"],float), "Error the scl of the kappa hyper_parameter must be a float"
+				assert self.hyper["kappa"]["parameterization"] in ["central","non-central"],\
+						   "Error: The kappa parameterization must be central or non-central!"
+
+				if "age" in self.parameters.keys():
+					kappa_loc = "{0}".format("1/1.022*age")
+					kappa_scl = "~Exponential(scale={0})".format(self.hyper["kappa"]['scl'])
+				else:
+					kappa_loc = "{0:1.2f}".format(self.hyper["kappa"]["loc"])
+					kappa_scl = "{0:1.2f}".format(self.hyper["kappa"]["scl"])
+
+				print("The kappa prior has been set to:")
+				if self.hyper["kappa"]["parameterization"] == "central":
+					print("kappa ~ Normal(loc={0},scl={1}) [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
+				else:
+					print("offset_kappa ~ Normal(loc=0.0,scl=1.0) [km.s-1.pc-1]")
+					print("kappa = {0} + offset_kappa * {1} [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
+
 			elif isinstance(self.parameters["kappa"],np.ndarray):
 				print("The kappa parameter has been fixed to:")
 				print(self.parameters["kappa"])
@@ -781,31 +794,35 @@ class Inference:
 
 			if "age" in self.parameters.keys():
 				if self.parameters["age"] is None:
-					assert isinstance(self.hyper["age"],float), "Error: The age hyper_parameter must be float!"
+					assert isinstance(self.hyper["age"]["loc"],float), "Error: The loc hyper_parameter of the age must be set as a float!"
+					assert isinstance(self.hyper["age"]["scl"],float), "Error: The scl hyper_parameter of the age must be set as a float!"
+					assert self.hyper["age"]["loc"]>self.hyper["age"]["scl"], "Error: The scl hyper_parameter must be smaller than loc!"
 
 					if "age_d" in self.parameters.keys():
 						if self.parameters["age_d"] is None:
-							assert isinstance(self.hyper["d"],float), "Error: The age_d hyper_parameter must be float!"
-							age_d = "~Gamma(alpha=2,beta={0:2.1f})".format(self.hyper["age_d"])
+							if "beta_d" not in self.hyper["age"]:
+								self.hyper["age"]["beta_d"] = 0.25 #Mode at 4.0
+							age_d = "~Gamma(alpha=2,beta={0:2.2f})".format(self.hyper["age"]["beta_d"])
 						else:
 							age_d = self.parameters["age_d"]
 					else:
-						self.parameters["age_d"] = 3.0
-						age_d = self.parameters["d"]
+						self.parameters["age_d"] = 4.0
+						age_d = self.parameters["age_d"]
 
 					if "age_p" in self.parameters.keys():
 						if self.parameters["age_p"] is None:
-							assert isinstance(self.hyper["age_p"],float), "Error: The age_p hyper_parameter must be float!"
-							age_p = "~Gamma(alpha=2,beta={0:2.1f})".format(self.hyper["age_p"])
+							if "beta_p" not in self.hyper["age"]:
+								self.hyper["age"]["beta_p"] = 0.33 #Mode at 3.0
+							age_p = "~Gamma(alpha=2,beta={0:2.2f})".format(self.hyper["age"]["beta_p"])
 						else:
 							age_p = self.parameters["age_p"]
 					else:
-						self.parameters["age_p"] = 1.0
+						self.parameters["age_p"] = 3.0
 						age_p = self.parameters["age_p"]
 
 					print("The age prior has been set to:")
-					print("age ~ GeneralizedGamma(a={0:2.1f},d={1},p={2}) [Myr]".format(
-						self.hyper['age'],age_d,age_p))
+					print("age ~ GeneralizedGamma(loc={0:2.1f},scale={1:2.1f},d={2},p={3}) [Myr]".format(
+						self.hyper["age"]["loc"]-self.hyper["age"]["scl"],self.hyper["age"]["scl"],age_d,age_p))
 				elif isinstance(self.parameters["age"],float):
 					print("The age parameter has been set to:")
 					print(self.parameters["age"])

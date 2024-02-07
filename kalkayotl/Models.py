@@ -786,27 +786,35 @@ class Model6D_linear(Model):
 			if "age" in parameters.keys():
 				if parameters["age"] is None:
 					if parameters["age_d"] is None:
-						age_d = pm.Gamma("age_d",alpha=2,beta=hyper["d"])
+						age_d = pm.Gamma("age_d",alpha=2,beta=hyper["age"]["beta_d"])
 					else:
 						age_d = pm.Deterministic("age_d",pytensor.shared(parameters["age_d"]))
 
 					if parameters["age_p"] is None:
-						age_p = pm.Gamma("age_p",alpha=2,beta=hyper["p"])
+						age_p = pm.Gamma("age_p",alpha=2,beta=hyper["age"]["beta_p"])
 					else:
 						age_p = pm.Deterministic("age_p",pytensor.shared(parameters["age_p"]))
 
-					age = GeneralizedGamma("age",a=hyper["age"],d=age_d,p=age_p)
+					age = GeneralizedGamma("age",
+											loc=hyper["age"]["loc"]-hyper["age"]["scl"],
+											scale=hyper["age"]["scl"],
+											d=age_d,p=age_p,
+											initval=hyper["age"]["loc"])
 				else:
 					age = pm.Deterministic("age",pytensor.shared(parameters["age"]))
 
 				kappa_mu    = pm.Deterministic("kappa_mu",1./(1.0227121683768*age))
-				kappa_sigma = pm.Gamma("kappa_sigma",alpha=2,beta=1./hyper["kappa"]["scl"])
+				kappa_sigma = pm.Exponential("kappa_sigma",scale=hyper["kappa"]["scl"])
 			else:
 				kappa_mu    = pm.Deterministic("kappa_mu",pytensor.shared(hyper["kappa"]["loc"]))
 				kappa_sigma = pm.Deterministic("kappa_sigma",pytensor.shared(hyper["kappa"]["scl"]))
 
-			kappa = pm.Normal("kappa",mu=kappa_mu,sigma=kappa_sigma,
-							dims="positions")
+			if hyper["kappa"]["parameterization"] == "central":
+				kappa = pm.Normal("kappa",mu=kappa_mu,sigma=kappa_sigma,
+								dims="positions")
+			else:
+				offset_kappa = pm.Normal("offset_kappa",mu=0.0,sigma=1.0,dims="positions")
+				kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sigma,dims="positions")
 		else:
 			kappa = pm.Deterministic("kappa",pytensor.shared(parameters["kappa"]),
 							dims="positions")
