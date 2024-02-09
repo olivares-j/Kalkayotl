@@ -80,12 +80,7 @@ class Inference:
 				**kwargs):
 		"""
 		Arguments:
-		dimension (integer):  Dimension of the inference
-		prior (string):       Prior family
-		parameters (dict):    Prior parameters( location and scale)
-		hyper_alpha (matrix)  Hyper-parameters of location
-		hyper_beta (list)     Hyper-parameters of scale
-		hyper_gamma (vector)  Hyper-parameters of weights (only for GMM prior)    
+		dimension (integer):  Dimension of the inference 
 		"""
 		np.set_printoptions(precision=precision,suppress=True)
 		gaia_observables = ["ra","dec","parallax","pmra","pmdec","radial_velocity",
@@ -100,7 +95,6 @@ class Inference:
 		assert dimension in [1,3,6], "Dimension must be 1, 3 or 6"
 		assert isinstance(zero_points,dict), "zero_points must be a dictionary"
 		assert reference_system in ["ICRS","Galactic"], "Unrecognized reference system!"
-		assert velocity_model in ["joint","constant","linear"],"Unrecognized velocity model!"
 		assert sampling_space in ["observed","physical"],"Unrecognized sampling space"
 
 		self.D                = dimension 
@@ -396,7 +390,7 @@ class Inference:
 	def setup(self,prior,
 				parameters,
 				hyper_parameters,
-				parametrization,
+				parameterization,
 				):
 		'''
 		Set-up the model with the corresponding dimensions and data
@@ -405,7 +399,7 @@ class Inference:
 		self.prior            = prior
 		self.parameters       = parameters.copy()
 		self.hyper            = hyper_parameters.copy()
-		self.parametrization  = parametrization
+		self.parameterization  = parameterization
 		self.velocity_model   = "joint"
 		
 
@@ -413,25 +407,46 @@ class Inference:
 		print("Type of prior: ",self.prior)
 		print("Working in the {} reference system".format(self.reference_system))
 
-		msg_alpha = "hyper_alpha must be specified."
-		msg_beta  = "hyper_beta must be specified."
-		msg_gamma = "hyper_gamma must be specified."
-		msg_delta = "hyper_delta must be specified."
-		msg_nu    = "hyper_nu must be specified."
-		msg_central = "Only the central parametrization is valid for this configuration."
-		msg_non_central = "Only the non-central parametrization is valid for this configuration."
+		msg_location = "The location hyper_parameter must be specified."
+		msg_scale  = "The scale hyper_parameter must be specified."
+		msg_gamma = "The gamma hyper_parameter must be specified."
+		msg_weights = "The weights hyper_parameter must be specified as a dictionary!"
+		msg_nu    = "The nu hyper_parameter must be specified."
+		msg_central = "Error: Only the central parameterization is valid for the GMM prior."
+		msg_non_central = "Only the non-central parameterization is valid for this configuration."
 		msg_weights = "weights must be greater than 5%."
 
-		assert self.parametrization in ["central","non-central"], "Error in parametrization"
+		assert self.parameterization in ["central","non-central"], "Error in parameterization"
 
 		#============== Mixtures =====================================================
 		if "GMM" in self.prior:
-			n_components = self.hyper["n_components"]
-			names_components = list(string.ascii_uppercase)[:n_components]
+			assert self.parameterization == "central", msg_central
+			assert isinstance(self.hyper["weights"],dict), msg_weights
 
-			if self.parameters["weights"] is None:
-				assert self.hyper["delta"] is not None, msg_delta
+			test_a = "a" in self.hyper["weights"].keys()
+			test_n_components = "n_components" in self.hyper["weights"].keys()
+
+			if test_a:
+				assert isinstance(self.hyper["weights"]["a"],list) or \
+				       isinstance(self.hyper["weights"]["a"],np.ndarray),\
+				       "Error: In the weights hyper_parameter, a must be a list or an array!"
+			if test_n_components:
+				assert isinstance(self.hyper["weights"]["n_components"],int),"Error n_components must be integer!"
+			if test_a and test_n_components:
+				assert len(self.hyper["weights"]["a"]) == self.hyper["weights"]["n_components"],\
+				"Error: Inconsistent a.shape and n_components in weights hyper_parameter!"
+
+			elif test_a and not test_n_components:
+				self.hyper["weights"]["n_components"] = int(len(self.hyper["weights"]["a"]))
+
+			elif test_n_components and not test_a:
+				self.hyper["weights"]["a"] = np.ones(self.hyper["weights"]["n_components"])
 			else:
+				sys.exit("Error: Either n_components or a mut be specified in weights hyper_parameter")
+
+			names_components = list(string.ascii_uppercase)[:self.hyper["n_components"]]
+
+			if self.parameters["weights"] is not None:
 				#-------------- Read from input file ----------------------
 				if isinstance(self.parameters["weights"],str):
 					#---- Extract scale parameters ------------
@@ -448,19 +463,17 @@ class Inference:
 				#--------- Verify weights ---------------------------------
 				print("The weights parameter is fixed to:")
 				print(self.parameters["weights"])
-				assert len(self.parameters["weights"]) == n_components, \
-					"The size of the weights parameter is incorrect!"
-				#assert np.min(self.parameters["weights"])> 0.05, msg_weights
 				#-----------------------------------------------------------
-
-			assert self.parametrization == "central", msg_central
+			else:
+				print("The weights prior has been set to:")
+				print("weights ~ Dirichlet(a=[{0}])".format(self.hyper["weights"]["a"]))
 		#============================================================================
 
 		#====================== Location ==========================================================
 		if self.parameters["location"] is None:
-			#---------------- Alpha ---------------------------------------------------------
-			print("The alpha hyper-parameter has been set to:")
-			if self.hyper["alpha"] is None:
+			assert "location" in self.hyper,msg_location
+			print("The location prior  has been set to:")
+			if self.hyper["location"] is None:
 				#-- Cluster dispersion ----
 				uvw_sd = 5.
 				xyz_fc = 0.2
@@ -475,7 +488,7 @@ class Inference:
 					d_sd = xyz_fc*d
 					#---------------------------------------
 
-					self.hyper["alpha"] = {
+					self.hyper["location"] = {
 						"loc":[d],
 						"scl":[d_sd]}
 				
@@ -488,7 +501,7 @@ class Inference:
 					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
 					#---------------------------------------
 
-					self.hyper["alpha"] = {
+					self.hyper["location"] = {
 						"loc":[x,y,z],
 						"scl":[xyz_sd,xyz_sd,xyz_sd]}
 
@@ -501,16 +514,16 @@ class Inference:
 					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
 					#---------------------------------------
 
-					self.hyper["alpha"] = {
+					self.hyper["location"] = {
 					"loc":[x,y,z,u,v,w],
 					"scl":[xyz_sd,xyz_sd,xyz_sd,uvw_sd,uvw_sd,uvw_sd]}
 
 			for name,loc,scl,unit in zip(
 				self.names_coords,
-				self.hyper["alpha"]["loc"],
-				self.hyper["alpha"]["scl"],
-				np.array(["pc","pc","pc","km/s","km/s","km/s"])[:self.D]):
-				print("{0}: {1:2.1f} +/- {2:2.1f} {3}".format(name,loc,scl,unit))	
+				self.hyper["location"]["loc"],
+				self.hyper["location"]["scl"],
+				np.array(["pc","pc","pc","km.s-1","km.s-1","km.s-1"])[:self.D]):
+				print("loc {0} ~ Normal(loc={1:2.1f},scale={2:2.1f}) [{3}]".format(name,loc,scl,unit))	
 			#---------------------------------------------------------------------------------
 
 		else:
@@ -575,30 +588,34 @@ class Inference:
 		
 		#============================= Scale ===========================================================
 		if self.parameters["scale"] is None:
-			if self.hyper["beta"] is None:
-				self.hyper["beta"] = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
+			assert "scale" in self.hyper,msg_scale
+			if self.hyper["scale"] is None:
+				self.hyper["scale"] = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
 			else:
-				if isinstance(self.hyper["beta"],float):
+				if isinstance(self.hyper["scale"],float):
 					assert self.D == 1,\
-						"ERROR: float type in beta hyper-parameter is only valid in 1D"
-					self.hyper["beta"] = np.array([self.hyper["beta"]])
-				elif isinstance(self.hyper["beta"],list):
-					assert len(self.hyper["beta"]) == self.D,\
-						"ERROR: incorrect length of hyperparameter beta!"
-					self.hyper["beta"] = np.array(self.hyper["beta"])
-				elif isinstance(self.hyper["beta"],np.ndarray):
-					assert self.hyper["beta"].ndim == 1 and self.hyper["beta"].shape[0] == self.D,\
-						"ERROR: incorrect shape of hyperparameter beta!"
+						"ERROR: float type in scale hyper-parameter is only valid in 1D"
+					self.hyper["scale"] = np.array([self.hyper["scale"]])
+				elif isinstance(self.hyper["scale"],list):
+					assert len(self.hyper["scale"]) == self.D,\
+						"ERROR: incorrect length of the scale hyperparameter!"
+					self.hyper["scale"] = np.array(self.hyper["scale"])
+				elif isinstance(self.hyper["scale"],np.ndarray):
+					assert self.hyper["scale"].ndim == 1 and self.hyper["scale"].shape[0] == self.D,\
+						"ERROR: incorrect shape of the scale hyperparameter!"
 				else:
-					sys.exit("ERROR:Unrecognized type of hyper_beta")
+					sys.exit("ERROR:Unrecognized type of scale hyper_parameter")
 
-			print("The beta hyper-parameter has been set to:")
+			print("The components of the scale prior has been set to:")
 			for name,scl,unit in zip(
 				self.names_coords,
-				self.hyper["beta"],
-				np.array(["pc","pc","pc","km/s","km/s","km/s"])[:self.D]
+				self.hyper["scale"],
+				np.array(["pc","pc","pc","km.s-1","km.s-1","km.s-1"])[:self.D]
 				):
-				print("{0}: {1:2.1f} {2}".format(name,scl,unit))	
+				if "kappa" in self.parameters.keys() and name in ["U","V","W"]:
+					print("sd [{0}] ~ Exponential(scale={1:2.1f}) [{2}]".format(name,scl,unit))	
+				else:
+					print("sd [{0}] ~ Gamma(alpha=2, beta={1:2.1f}) [{2}] (mode at {3:2.1f} {4})".format(name,1./scl,unit,scl,unit))	
 
 		else:
 
@@ -710,10 +727,11 @@ class Inference:
 		#==================================================================================
 
 		#==================== Miscelaneous ============================================================
-		if self.parameters["scale"] is None and self.hyper["eta"] is None:
-			self.hyper["eta"] = 1.0
-			print("The eta hyper-parameter has been set to:")
-			print(self.hyper["eta"])
+		if self.parameters["scale"] is None:
+			if self.hyper["eta"] is None:
+				self.hyper["eta"] = 1.0
+			print("The joint scale prior has been set to:")
+			print("scale ~ LKJ(eta={0:1.1f})".format(self.hyper["eta"]))
 
 		if self.prior in ["EDSD","GGD","Uniform","EFF","King"]:
 			assert self.D == 1, "{0} prior is only valid for 1D version.".format(self.prior)
@@ -723,14 +741,12 @@ class Inference:
 			if self.hyper["nu"] is None:
 				self.hyper["nu"] = {"alpha":1.0,"beta":10}
 			else:
-				assert "alpha" in self.hyper["nu"], "Error in hyper_nu"
-				assert "beta" in self.hyper["nu"], "Error in hyper_nu"
+				assert "alpha" in self.hyper["nu"],"Error: The alpha hyperparameter of nu must be set!"
+				assert "beta" in self.hyper["nu"], "Error: The beta hyperparameter of nu must be set!"
 
-			print("The nu hyper parameter has been set to:")
-			print("alpha: {0:2.1f}, beta: {1:2.1f}".format(
+			print("The nu prior has been set to:")
+			print("nu ~ Gamma(alpha={0:2.1f}, beta={1:2.1f})".format(
 					self.hyper["nu"]["alpha"],self.hyper["nu"]["beta"]))
-		else:
-			self.hyper["nu"] = None
 
 		if self.prior == "FGMM":
 			assert "field_scale" in self.parameters, "Model FGMM needs the 'field_scale' parameter"
@@ -742,8 +758,6 @@ class Inference:
 				assert self.hyper["gamma"] is not None, msg_gamma
 			if self.prior == "EFF" and self.parameters["gamma"] is None:
 				assert self.hyper["gamma"] is not None, msg_gamma
-		else:
-			self.hyper["gamma"] = None
 			
 		if "kappa" in self.parameters.keys():
 			self.velocity_model = "constant"
@@ -842,7 +856,7 @@ class Inference:
 								parameters=self.parameters,
 								hyper=self.hyper,
 								transformation=self.forward,
-								parametrization=self.parametrization,
+								parameterization=self.parameterization,
 								identifiers=self.ID,
 								coordinates=self.names_coords,
 								observables=self.names_mu)
@@ -859,7 +873,7 @@ class Inference:
 								parameters=self.parameters,
 								hyper=self.hyper,
 								transformation=self.forward,
-								parametrization=self.parametrization,
+								parameterization=self.parameterization,
 								identifiers=self.ID,
 								coordinates=self.names_coords,
 								observables=self.names_mu)
@@ -874,7 +888,7 @@ class Inference:
 								parameters=self.parameters,
 								hyper=self.hyper,
 								transformation=self.forward,
-								parametrization=self.parametrization,
+								parameterization=self.parameterization,
 								velocity_model=self.velocity_model,
 								identifiers=self.ID,
 								coordinates=self.names_coords,
@@ -2323,10 +2337,7 @@ class Inference:
 		dyn = Evidence1D(self.mu_data,self.sg_data,
 				prior=self.prior,
 				parameters=self.parameters,
-				hyper_alpha=self.hyper["alpha"],
-				hyper_beta=self.hyper["beta"],
-				hyper_gamma=self.hyper["gamma"],
-				hyper_delta=self.hyper["delta"],
+				hyper=None,
 				N_samples=N_samples,
 				M_samples=M_samples,
 				transformation=self.transformation,

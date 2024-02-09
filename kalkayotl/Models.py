@@ -39,7 +39,7 @@ class Model1D(Model):
 		parameters={"location":None,"scale": None},
 		hyper=None,
 		transformation=None,
-		parametrization="central",
+		parameterization="central",
 		identifiers=None,
 		coordinates=["distance"],
 		observables=["parallax"]
@@ -49,14 +49,14 @@ class Model1D(Model):
 		self.add_coord("coordinate",values=coordinates)
 		self.add_coord("observable",values=observables)
 
-		print("Using {0} parametrization".format(parametrization))
+		print("Using {0} parameterization".format(parameterization))
 		assert dimension == 1, "This class is only for 1D models!"
 
 		#================ Hyper-parameters =====================================
 		#----------------- Mixture prior families ----------------------------
 		if "GMM" in prior:
 			#------------- Names ---------------------------------------------------
-			n_components = len(hyper["delta"])
+			n_components = hyper["weights"]["n_components"]
 			if prior == "FGMM":
 				names_components = list(string.ascii_uppercase)[:(n_components-1)]
 				names_components.append("Field")
@@ -68,7 +68,7 @@ class Model1D(Model):
 			#------------- Weights ---------------------------
 			if parameters["weights"] is None:
 				weights = pm.Dirichlet("weights",
-							a=hyper["delta"],dims="component")
+							a=hyper["weights"],dims="component")
 			else:
 				weights = pm.Deterministic("weights",pytensor.shared(parameters["weights"]),
 							dims="component")
@@ -78,8 +78,8 @@ class Model1D(Model):
 			if parameters["location"] is None:
 				if prior == "GMM":
 					loc = pm.Normal("loc",
-								mu=hyper["alpha"]["loc"],
-								sigma=hyper["alpha"]["scl"],
+								mu=hyper["location"]["loc"],
+								sigma=hyper["location"]["scl"],
 								shape=(n_components,dimension),
 								dims=("component","coordinate"))
 				elif prior == "GGD":
@@ -88,8 +88,8 @@ class Model1D(Model):
 				else:
 					#-------------- Repeat same location --------------
 					loc_i = pm.Normal("centre",
-								mu=hyper["alpha"]["loc"],
-								sigma=hyper["alpha"]["scl"],
+								mu=hyper["location"]["loc"],
+								sigma=hyper["location"]["scl"],
 								shape=dimension)
 
 					loc  = pytensor.shared(np.zeros((n_components,dimension)))
@@ -115,7 +115,7 @@ class Model1D(Model):
 			if parameters["scale"] is None and prior in ["GMM","CGMM"]:
 				std = pm.Gamma("std",
 							alpha=2.0,
-							beta=1./hyper["beta"],
+							beta=1./hyper["scale"],
 							shape=(n_components,dimension),
 							dims=("component","coordinate"))
 
@@ -124,7 +124,7 @@ class Model1D(Model):
 
 				stds_i = pm.Gamma("sds_cls",
 							alpha=2.0,
-							beta=1./hyper["beta"],
+							beta=1./hyper["scale"],
 							shape=(n_components-1,dimension))
 
 				stds = tt.set_subtensor(stds[:(n_components-1)],stds_i)
@@ -150,8 +150,8 @@ class Model1D(Model):
 			#--------- Location ----------------------------------
 			if parameters["location"] is None:
 				loc = pm.Normal("loc",
-						mu=hyper["alpha"]["loc"],
-						sigma=hyper["alpha"]["scl"],
+						mu=hyper["location"]["loc"],
+						sigma=hyper["location"]["scl"],
 						shape=dimension,
 						dims="coordinate")
 			else:
@@ -164,7 +164,7 @@ class Model1D(Model):
 			if parameters["scale"] is None:
 				std = pm.Gamma("std",
 							alpha=2.0,
-							beta=1./hyper["beta"],
+							beta=1./hyper["scale"],
 							shape=dimension,
 							dims="coordinate",
 							initval=[200.])
@@ -179,7 +179,7 @@ class Model1D(Model):
 		#================= True values ========================================================
 		#--------- Cluster oriented prior-----------------------------------------------
 		if prior == "Uniform":
-			if parametrization == "central":
+			if parameterization == "central":
 				source = pm.Uniform("source",lower=loc-std,upper=loc+std,
 									shape=(n_sources,dimension),
 									dims=("source_id","coordinate"))
@@ -189,7 +189,7 @@ class Model1D(Model):
 									dims=("source_id","coordinate"))
 
 		elif prior == "Gaussian":
-			if parametrization == "central":
+			if parameterization == "central":
 				source = pm.Normal("source",mu=loc,sigma=std,shape=(n_sources,dimension),
 									dims=("source_id","coordinate"))
 			else:
@@ -200,7 +200,7 @@ class Model1D(Model):
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper["nu"]["alpha"],beta=hyper["nu"]["beta"])
 
-			if parametrization == "central":
+			if parameterization == "central":
 				source = pm.StudentT("source",nu=nu,mu=loc,sigma=std,shape=(n_sources,dimension),
 									dims=("source_id","coordinate"))
 			else:
@@ -215,7 +215,7 @@ class Model1D(Model):
 		# 	else:
 		# 		gamma = pytensor.shared(np.array(parameters["gamma"]))
 
-		# 	if parametrization == "central":
+		# 	if parameterization == "central":
 		# 		source = EFF("source",location=loc,scale=std,gamma=gamma,
 		# 							shape=(n_sources,dimension),
 		# 							dims=("source_id","coordinate"))
@@ -232,7 +232,7 @@ class Model1D(Model):
 		# 	else:
 		# 		rt = pytensor.shared(np.array(parameters["rt"]))
 
-		# 	if parametrization == "central":
+		# 	if parameterization == "central":
 		# 		source = King("source",location=loc,scale=scl,rt=rt,
 		# 							shape=(n_sources,dimension),
 		# 							dims=("source_id","coordinate"))
@@ -289,7 +289,7 @@ class Model3D6D(Model):
 		parameters={"location":None,"scale":None},
 		hyper=None,
 		transformation=None,
-		parametrization="non-central",
+		parameterization="non-central",
 		identifiers=None,
 		coordinates=["X","Y","Z"],
 		observables=["ra","dec","parallax"]):
@@ -303,13 +303,13 @@ class Model3D6D(Model):
 			sys.exit("Data has length zero! You must provide at least one data point.")
 		#-------------------------------------------------------------------------------
 
-		print("Using {0} parametrization".format(parametrization))
+		print("Using {0} parameterization".format(parameterization))
 
 		#================ Hyper-parameters =====================================
 		#----------------- Mixture prior families ----------------------------
 		if "GMM" in prior:
 			#------------- Names ---------------------------------------------------
-			n_components = len(hyper["delta"])
+			n_components = hyper["weights"]["n_components"]
 			if prior == "FGMM":
 				names_components = list(string.ascii_uppercase)[:(n_components-1)]
 				names_components.append("Field")
@@ -321,7 +321,7 @@ class Model3D6D(Model):
 			#------------- Weights ---------------------------
 			if parameters["weights"] is None:
 				weights = pm.Dirichlet("weights",
-							a=hyper["delta"],dims="component")
+							a=hyper["weights"],dims="component")
 			else:
 				weights = pm.Deterministic("weights",
 							pytensor.shared(parameters["weights"]),
@@ -332,15 +332,15 @@ class Model3D6D(Model):
 			if parameters["location"] is None:
 				if prior == "GMM":
 					loc = pm.Normal("loc",
-								mu=hyper["alpha"]["loc"],
-								sigma=hyper["alpha"]["scl"],
+								mu=hyper["location"]["loc"],
+								sigma=hyper["location"]["scl"],
 								shape=(n_components,dimension),
 								dims=("component","coordinate"))
 				else:
 					#-------------- Repeat same location --------------
 					loc_i = pm.Normal("centre",
-								mu=hyper["alpha"]["loc"],
-								sigma=hyper["alpha"]["scl"],
+								mu=hyper["location"]["loc"],
+								sigma=hyper["location"]["scl"],
 								shape=dimension)
 
 					loc  = pytensor.shared(np.zeros((n_components,dimension)))
@@ -375,7 +375,7 @@ class Model3D6D(Model):
 											eta=hyper["eta"], 
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
-												beta=1./hyper["beta"]),
+												beta=1./hyper["scale"]),
 											compute_corr=True,
 											store_in_trace=False)
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -390,7 +390,7 @@ class Model3D6D(Model):
 											eta=hyper["eta"], 
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
-												beta=1./hyper["beta"]),
+												beta=1./hyper["scale"]),
 											compute_corr=True,
 											store_in_trace=False)
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -433,8 +433,8 @@ class Model3D6D(Model):
 			#--------- Location ----------------------------------
 			if parameters["location"] is None:
 				loc = pm.Normal("loc",
-						mu=hyper["alpha"]["loc"],
-						sigma=hyper["alpha"]["scl"],
+						mu=hyper["location"]["loc"],
+						sigma=hyper["location"]["scl"],
 						shape=dimension,
 						dims="coordinate")
 			else:
@@ -449,7 +449,7 @@ class Model3D6D(Model):
 								eta=hyper["eta"], 
 								sd_dist=pm.Gamma.dist(
 									alpha=2.0,
-									beta=1./hyper["beta"]),
+									beta=1./hyper["scale"]),
 								compute_corr=True,
 								store_in_trace=False)
 				corr = pm.Deterministic("corr", corr)
@@ -474,7 +474,7 @@ class Model3D6D(Model):
 
 		#===================== True values ============================================		
 		if prior == "Gaussian":
-			if parametrization == "central":
+			if parameterization == "central":
 				pm.MvNormal("source",mu=loc,chol=chol,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
@@ -486,7 +486,7 @@ class Model3D6D(Model):
 
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper["nu"]["alpha"],beta=hyper["nu"]["beta"])
-			if parametrization == "central":
+			if parameterization == "central":
 				pm.MvStudentT("source",nu=nu,mu=loc,chol=chol,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
@@ -503,7 +503,7 @@ class Model3D6D(Model):
 		# 	else:
 		# 		self.rt = parameters["rt"]
 
-		# 	if parametrization == "central":
+		# 	if parameterization == "central":
 		# 		MvKing("source",location=loc,chol=chol,rt=self.rt,
 		# 			shape=(n_sources,dimension),
 		# 			dims=("source_id","coordinate"))
@@ -521,7 +521,7 @@ class Model3D6D(Model):
 		# 	else:
 		# 		self.gamma = parameters["gamma"]
 
-		# 	if parametrization == "central":
+		# 	if parameterization == "central":
 		# 		MvEFF("source",location=loc,chol=chol,gamma=self.gamma,
 		# 			shape=(n_sources,dimension),
 		# 			dims=("source_id","coordinate"))
@@ -567,7 +567,7 @@ class Model6D_linear(Model):
 		parameters={"location":None,"scale":None,"kappa":None,"omega":None},
 		hyper=None,
 		transformation=None,
-		parametrization="central",
+		parameterization="central",
 		velocity_model="linear",
 		identifiers=None,
 		coordinates=["X","Y","Z","U","V","W"],
@@ -583,14 +583,14 @@ class Model6D_linear(Model):
 			sys.exit("Data has length zero! You must provide at least one data point.")
 		#-------------------------------------------------------------------------------
 
-		print("Using {0} parametrization".format(parametrization))
+		print("Using {0} parameterization".format(parameterization))
 
 		#================ Hyper-parameters =====================================
 		#----------------- Mixture prior families ----------------------------
 		if "GMM" in prior:
 			sys.exit("Not yet implemented")
 			#------------- Names ---------------------------------------------------
-			n_components = len(hyper["delta"])
+			n_components = hyper["weights"]["n_components"]
 			if prior == "FGMM":
 				names_components = list(string.ascii_uppercase)[:(n_components-1)]
 				names_components.append("Field")
@@ -602,7 +602,7 @@ class Model6D_linear(Model):
 			#------------- Weights ---------------------------
 			if parameters["weights"] is None:
 				weights = pm.Dirichlet("weights",
-							a=hyper["delta"],dims="component")
+							a=hyper["weights"],dims="component")
 			else:
 				weights = pm.Deterministic("weights",pytensor.shared(parameters["weights"]),
 							dims="component")
@@ -612,15 +612,15 @@ class Model6D_linear(Model):
 			if parameters["location"] is None:
 				if prior == "GMM":
 					loc = pm.Normal("loc",
-								mu=hyper["alpha"]["loc"],
-								sigma=hyper["alpha"]["scl"],
+								mu=hyper["location"]["loc"],
+								sigma=hyper["location"]["scl"],
 								shape=(n_components,6),
 								dims=("component","coordinate"))
 				else:
 					#-------------- Repeat same location --------------
 					loc_i = pm.Normal("centre",
-								mu=hyper["alpha"]["loc"],
-								sigma=hyper["alpha"]["scl"],
+								mu=hyper["location"]["loc"],
+								sigma=hyper["location"]["scl"],
 								shape=6)
 
 					loc  = pytensor.shared(np.zeros((n_components,6)))
@@ -655,7 +655,7 @@ class Model6D_linear(Model):
 											eta=hyper["eta"], 
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
-												beta=1./hyper["beta"]),
+												beta=1./hyper["scale"]),
 											compute_corr=True,
 											store_in_trace=False)
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -670,7 +670,7 @@ class Model6D_linear(Model):
 											eta=hyper["eta"], 
 											sd_dist=pm.Gamma.dist(
 												alpha=2.0,
-												beta=1./hyper["beta"]),
+												beta=1./hyper["scale"]),
 											compute_corr=True,
 											store_in_trace=False)
 					chol = tt.set_subtensor(chol[i],chol_i)
@@ -713,8 +713,8 @@ class Model6D_linear(Model):
 			#--------- Location ----------------------------------
 			if parameters["location"] is None:
 				loc = pm.Normal("loc",
-						mu=hyper["alpha"]["loc"],
-						sigma=hyper["alpha"]["scl"],
+						mu=hyper["location"]["loc"],
+						sigma=hyper["location"]["scl"],
 						shape=6,
 						dims="coordinate")
 			else:
@@ -729,15 +729,14 @@ class Model6D_linear(Model):
 								eta=hyper["eta"], 
 								sd_dist=pm.Gamma.dist(
 									alpha=2.0,
-									beta=1./hyper["beta"][:3]),
+									beta=1./hyper["scale"][:3]),
 								compute_corr=True,
 								store_in_trace=False)
 				chol_vel,corr_vel,stds_vel = pm.LKJCholeskyCov("chol_vel", 
 								n=3, 
 								eta=hyper["eta"], 
-								sd_dist=pm.Gamma.dist(
-									alpha=2.0,
-									beta=1./hyper["beta"][3:]),
+								sd_dist=pm.Exponential.dist(
+									scale=hyper["scale"][3:]),
 								compute_corr=True,
 								store_in_trace=False)
 
@@ -840,7 +839,7 @@ class Model6D_linear(Model):
 
 		#===================== True values =========================================================================	
 		if prior == "Gaussian":
-			if parametrization == "central":
+			if parameterization == "central":
 				source_pos = pm.MvNormal("source_pos",mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
 				jitter_vel = pm.MvNormal("jitter_vel",mu=loc[3:],chol=chol_vel,shape=(n_sources,3))
 
@@ -856,7 +855,7 @@ class Model6D_linear(Model):
 
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper["nu"]["alpha"],beta=hyper["nu"]["beta"],shape=2)
-			if parametrization == "central":
+			if parameterization == "central":
 				source_pos = pm.MvStudentT("source_pos",nu=nu[0],mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
 				jitter_vel = pm.MvStudentT("jitter_vel",nu=nu[1],mu=loc[3:],chol=chol_vel,shape=(n_sources,3))
 
