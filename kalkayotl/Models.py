@@ -23,7 +23,7 @@ import string
 from pymc import Model
 import pytensor
 from pytensor import tensor as tt, function,printing,pp
-from kalkayotl.Rotations import cluster_to_galactic, cluster_to_galactic_XY
+from kalkayotl.Rotations import cluster_to_galactic, cluster_to_galactic_XY, cluster_to_galactic_XZ, cluster_to_galactic_YZ, cluster_to_galactic_3ang, XY_angle_rotation
 from kalkayotl.cust_dist import cluster_logp, cluster_random
 ################################## Model 1D ####################################
 class Model1D(Model):
@@ -1088,6 +1088,7 @@ class Model3D_tails(Model):
 		hyper_tau=None,
 		hyper_eta=None,
 		hyper_nu=None,
+		hyper_iota=None,
 		transformation=None,
 		parametrization="non-central",
 		identifiers=None,
@@ -1119,10 +1120,20 @@ class Model3D_tails(Model):
 		# 	perezsala = pm.Uniform("perezsala",lower=0, upper=1,shape=3)#np.zeros(3)
 		# else:
 		# 	perezsala = pm.Deterministic("perezsala",pytensor.shared(parameters["perezsala"]))
-		if parameters["rot_angle"] is None:
-			rot_angle = pm.Uniform("rot_angle",lower=0, upper=2*np.pi)#np.zeros(3)
+		# if parameters["rot_angle"] is None:
+		# 	rot_angle = pm.Uniform("rot_angle",lower=0, upper=2*np.pi)#np.zeros(3)
+		# else:
+		# 	rot_angle = pm.Deterministic("rot_angle", pytensor.shared(parameters["rot_angle"]))
+		# if parameters["rot_XY"] is None:
+		# 	rot_XY = pm.Uniform("rot_XY",lower=0, upper=2*np.pi)#np.zeros(3)
+		# else:
+		# 	rot_XY = pm.Deterministic("rot_XY", pytensor.shared(parameters["rot_XY"]))
+		# np.pi/12 = 15º
+		if parameters["rot_angles"] is None:
+			rot_angles = pm.Normal("rot_angles", mu=hyper_iota, sigma=np.pi/12, shape=(dimension))
+			#rot_angles = pm.Uniform("rot_angles",lower=0, upper=2*np.pi, shape=(dimension))
 		else:
-			rot_angle = pm.Deterministic("rot_angle", pytensor.shared(parameters["rot_angle"]))
+			rot_angles = pm.Deterministic("rot_angles", pytensor.shared(parameters["rot_angles"]))
 		#-------------------------------------------------------------
 
 		#----------- Location ------------------------------------------
@@ -1223,13 +1234,18 @@ class Model3D_tails(Model):
 
 		#----------------------- Transformations---------------------------------------
 		# Transformation from cluster reference frame to Galactic or ICRS ones
-		true = pm.Deterministic("true",cluster_to_galactic_XY(source, rot_angle, loc[0]),
-									dims=("source_id","coordinate"))
-		#true = pm.Deterministic("true",cluster_to_galactic(source, perezsala, loc[0]),
-		#							dims=("source_id","coordinate"))
-		# true = pm.Deterministic("true",transformation(source),
-		#  								dims=("source_id","observable"))
-		#-----------------------------------------------------------------------------
+		# src_galactic = pm.Deterministic("src_galactic",cluster_to_galactic_XZ(XY_angle_rotation(source, rot_XY), rot_angle, loc[0]),
+		# 									dims=("source_id","coordinate"))
+		# src_galactic = pm.Deterministic("src_galactic",cluster_to_galactic_XY(source, rot_angle, loc[0]),
+		# 									dims=("source_id","coordinate"))											
+		src_galactic = pm.Deterministic("src_galactic",cluster_to_galactic_3ang(source, rot_angles, loc[0]),
+											dims=("source_id","coordinate"))
+		# src_galactic = pm.Deterministic("src_galactic",cluster_to_galactic(source, perezsala, loc[0]),
+		#                                                       dims=("source_id","coordinate"))
+
+		true = pm.Deterministic("true",transformation(src_galactic),
+									dims=("source_id","observable"))
+	#-----------------------------------------------------------------------------
 
 		#----------------------- Likelihood ----------------------------------------
 		pm.MvNormal('obs',	mu=pm.math.flatten(true)[idx_observed],

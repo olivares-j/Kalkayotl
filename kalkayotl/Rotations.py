@@ -21,24 +21,49 @@ def np_quaternions_rotation_matrix(a,b,c,d):
 
 	return r
 
-def np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters, is_dot=True):
+def np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters):
 	theta1 = 2*np.pi*perezsala_parameters[1]
 	theta2 = 2*np.pi*perezsala_parameters[2]
 	r1 = np.sqrt(1 - perezsala_parameters[0])
 	r2 = np.sqrt(perezsala_parameters[0])
-	q = np_quaternions_rotation_matrix(np.cos(theta2)*r2, np.sin(theta1)*r1, np.cos(theta1)*r1, np.sin(theta2)*r2)
+	q = np_quaternions_rotation_matrix(np.cos(theta2)*r2, np.sin(theta1)*r1, np.cos(theta1)*r1, np.sin(theta2)*r2)	
+	return q
 
-	res = q
-	if is_dot:
-		res = np.dot(xyz, q)
-	
-	return res
+def np_YZ_angle_rotation(xyz, angle):
+	rot_matrix =  np.array([[1, 0, 0],
+							[0, np.cos(angle), -np.sin(angle)],
+							[0, np.sin(angle), np.cos(angle)]])
+	print(rot_matrix)
+	print(xyz[0])
+	rotated = np.dot(rot_matrix, xyz.T)
+	print(rotated.T[0])
+	return rotated.T
+
+def np_XZ_angle_rotation(xyz, angle):
+	rot_matrix =  np.array([[np.cos(angle), 0, np.sin(angle)],
+							[0, 1, 0],
+							[-np.sin(angle), 0, np.cos(angle)]])
+	print(rot_matrix)
+	print(xyz[0])
+	rotated = np.dot(rot_matrix, xyz.T)
+	print(rotated.T[0])
+	return rotated.T
 
 def np_XY_angle_rotation(xyz, angle):
 	rot_matrix =  np.array([[np.cos(angle), -np.sin(angle), 0],
 							[np.sin(angle), np.cos(angle), 0],
 							[0, 0, 1]])
-	return np.dot(xyz, rot_matrix)
+	print(rot_matrix)
+	print(xyz[0])
+	rotated = np.dot(rot_matrix, xyz.T)
+	print(rotated.T[0])
+	return rotated.T
+
+def np_angles3_rotation(xyz, angles):
+	rotated_XY = np_XY_angle_rotation(xyz, angles[0])
+	rotated_XZ = np_XZ_angle_rotation(rotated_XY, angles[1])
+	rotated = np_YZ_angle_rotation(rotated_XZ, angles[2])
+	return rotated
 
 def np_translation_cluster_to_galactic_by_matrix(loc_galactic, tam=4):
     eye = np.eye(tam)
@@ -50,18 +75,30 @@ def np_translation_cluster_to_galactic(perezsala_parameters, loc_galactic):
 	return perezsala_parameters + loc_galactic
 
 def np_cluster_to_galactic_by_matrix(xyz, perezsala_parameters, loc_galactic):
-    q = np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters, is_dot=False)
+    q = np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters)
     t = np_translation_cluster_to_galactic(loc_galactic)
-    rotated = np.dot(q, xyz)
+    rotated = np.dot(q, xyz.T).T
     return np.dot(t, np.append(rotated, 1))[:-1]
 
 def np_cluster_to_galactic(xyz, perezsala_parameters, loc_galactic):
-    q = np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters, is_dot=False)
-    rotated = np.dot(xyz, q)
+    q = np_random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters)
+    rotated = np.dot(q, xyz.T).T
     return np_translation_cluster_to_galactic(rotated, loc_galactic)
+
+def np_cluster_to_galactic_YZ(xyz, rot_angle, loc_galactic):
+	rotated = np_YZ_angle_rotation(xyz, rot_angle)
+	return np_translation_cluster_to_galactic(rotated, loc_galactic)
+
+def np_cluster_to_galactic_XZ(xyz, rot_angle, loc_galactic):
+	rotated = np_XZ_angle_rotation(xyz, rot_angle)
+	return np_translation_cluster_to_galactic(rotated, loc_galactic)
 
 def np_cluster_to_galactic_XY(xyz, rot_angle, loc_galactic):
 	rotated = np_XY_angle_rotation(xyz, rot_angle)
+	return np_translation_cluster_to_galactic(rotated, loc_galactic)
+
+def np_cluster_to_galactic_3ang(xyz, rot_angles, loc_galactic):
+	rotated = np_angles3_rotation(xyz, rot_angles)
 	return np_translation_cluster_to_galactic(rotated, loc_galactic)
 
 def quaternions_rotation_matrix(a,b,c,d):
@@ -85,8 +122,49 @@ def random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters):
 	r2 = tt.sqrt(perezsala_parameters[0])
 	q = quaternions_rotation_matrix(tt.cos(theta2)*r2, tt.sin(theta1)*r1, tt.cos(theta1)*r1, tt.sin(theta2)*r2)
 	
-	return tt.dot(xyz, q)
+	return tt.dot(q, xyz.T).T
 
+def YZ_angle_rotation(xyz, angle):
+	r = tt.zeros(shape=(3,3))
+	r_0 = tt.zeros((3,))
+	r_1 = tt.zeros((3,))
+	r_2 = tt.zeros((3,))
+	r_0 = tt.set_subtensor(r_0[0], 1)
+	r_0 = tt.set_subtensor(r_0[1], 0)
+	r_0 = tt.set_subtensor(r_0[2], 0)
+	r_1 = tt.set_subtensor(r_1[0], 0)
+	r_1 = tt.set_subtensor(r_1[1], tt.cos(angle))
+	r_1 = tt.set_subtensor(r_1[2], -tt.sin(angle))
+	r_2 = tt.set_subtensor(r_2[0], 0)
+	r_2 = tt.set_subtensor(r_2[1], tt.sin(angle))
+	r_2 = tt.set_subtensor(r_2[2], tt.cos(angle))
+	
+	r = tt.set_subtensor(r[0], r_0)
+	r = tt.set_subtensor(r[1],r_1)
+	r = tt.set_subtensor(r[2],r_2)
+
+	return tt.dot(r, xyz.T).T
+
+def XZ_angle_rotation(xyz, angle):
+	r = tt.zeros(shape=(3,3))
+	r_0 = tt.zeros((3,))
+	r_1 = tt.zeros((3,))
+	r_2 = tt.zeros((3,))
+	r_0 = tt.set_subtensor(r_0[0], tt.cos(angle))
+	r_0 = tt.set_subtensor(r_0[1], 0)
+	r_0 = tt.set_subtensor(r_0[2], tt.sin(angle))
+	r_1 = tt.set_subtensor(r_1[0], 0)
+	r_1 = tt.set_subtensor(r_1[1], 1)
+	r_1 = tt.set_subtensor(r_1[2], 0)
+	r_2 = tt.set_subtensor(r_2[0], -tt.sin(angle))
+	r_2 = tt.set_subtensor(r_2[1], 0)
+	r_2 = tt.set_subtensor(r_2[2], tt.cos(angle))
+	
+	r = tt.set_subtensor(r[0], r_0)
+	r = tt.set_subtensor(r[1],r_1)
+	r = tt.set_subtensor(r[2],r_2)
+
+	return tt.dot(r, xyz.T).T
 
 def XY_angle_rotation(xyz, angle):
 	r = tt.zeros(shape=(3,3))
@@ -107,7 +185,13 @@ def XY_angle_rotation(xyz, angle):
 	r = tt.set_subtensor(r[1],r_1)
 	r = tt.set_subtensor(r[2],r_2)
 
-	return tt.dot(xyz, r)
+	return tt.dot(r, xyz.T).T
+
+def angles3_rotation(xyz, angles):
+	rotated_XY = XY_angle_rotation(xyz, angles[0])
+	rotated_XZ = XZ_angle_rotation(rotated_XY, angles[1])
+	rotated = YZ_angle_rotation(rotated_XZ, angles[2])
+	return rotated
 
 def translation_cluster_to_galactic(xyz, loc_galactic):
 	return xyz + loc_galactic
@@ -116,8 +200,20 @@ def cluster_to_galactic(xyz, perezsala_parameters, loc_galactic):
     rotated = random_uniform_rotation_cluster_to_galactic(xyz, perezsala_parameters)
     return translation_cluster_to_galactic(rotated, loc_galactic)
 
+def cluster_to_galactic_YZ(xyz, rot_angle, loc_galactic):
+	rotated = YZ_angle_rotation(xyz, rot_angle)
+	return translation_cluster_to_galactic(rotated, loc_galactic)
+
+def cluster_to_galactic_XZ(xyz, rot_angle, loc_galactic):
+	rotated = XZ_angle_rotation(xyz, rot_angle)
+	return translation_cluster_to_galactic(rotated, loc_galactic)
+
 def cluster_to_galactic_XY(xyz, rot_angle, loc_galactic):
 	rotated = XY_angle_rotation(xyz, rot_angle)
+	return translation_cluster_to_galactic(rotated, loc_galactic)
+
+def cluster_to_galactic_3ang(xyz, rot_angles, loc_galactic):
+	rotated = angles3_rotation(xyz, rot_angles)
 	return translation_cluster_to_galactic(rotated, loc_galactic)
 
 #-------------------------- PerezSala Parameters to Euler Angles ---------------------------
@@ -168,9 +264,9 @@ def np_eulerangles_to_perezsala(eulerangles):
 	qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
 	qx = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
 	
-	x2 = (np.arctan2(qx, qy) / (2*np.pi))
-	x3 = (np.arctan2(qz, qw) / (2*np.pi))
-	x1 = (qw/np.cos(2*np.pi*x3))**2
+	x2 = (np.arctan2(qx, qy) / (2*np.pi)) % 1
+	x3 = (np.arctan2(qz, qw) / (2*np.pi)) % 1
+	x1 = (qw/np.cos(2*np.pi*x3))**2 % 1
 	
 	return np.array([x1, x2, x3])
 
@@ -255,7 +351,7 @@ def search_besty_rotation():
 	deg_ang_ps = [math.degrees(ang_ps[0]), math.degrees(ang_ps[1]), math.degrees(ang_ps[2])]
 	print(f'Euler angles from Euler angles [deg]: {deg_ang_ps}')
 
-	res_rotated = np_random_uniform_rotation_cluster_to_galactic(res, perezsala_parameters, is_dot=True)
+	res_rotated =  np_cluster_to_galactic(res, perezsala_parameters, loc_galactic, np.zeros(3))
 	print(np.shape(res_rotated))
 
 	ax1 = plt.subplot(2, 4, 1)
@@ -293,54 +389,109 @@ def search_besty_rotation():
 	ax6.set_ylabel('Z')
 	plt.show()
 
-def apply_compare_rotation():
+def apply_compare_rotation(wich_plane:str='XY', centered:bool=True, is_np:bool=False):
 	import Transformations as tr
 	import matplotlib.pyplot as plt
 	import pandas as pd
 	import math
-	members = pd.read_csv('article/v2.0/ComaBer/Core/members+rvs_tails.csv')
+	members = pd.read_csv('article/v2.0/ComaBer/Core/members+rvs.csv')#pd.read_csv('article/v2.0/ComaBer/Core/members+rvs_tails.csv')
 	res = tr.np_radecplx_to_galactic_xyz(np.array([[members.get('ra'), members.get('dec'), members.get('parallax')]]))[0]
 
-	rot_angle = math.radians(360-40)
+	center_pos = np.mean(res, axis=0)
+	if centered:
+		res = res - center_pos
+
+	rot_angle = math.radians(40)
+	if wich_plane=='all':
+		rot_angle = [math.radians(40), math.radians(10), math.radians(25)]
+
+	if wich_plane=='YZ':
+		if is_np:
+			res_rotated = np_YZ_angle_rotation(res, rot_angle)
+		else:
+			f = pytensor.function([], YZ_angle_rotation(res, rot_angle))
+			res_rotated = f()
+	elif wich_plane=='XZ':
+		if is_np:
+			res_rotated = np_XZ_angle_rotation(res, rot_angle)
+		else:
+			f = pytensor.function([], XZ_angle_rotation(res, rot_angle))
+			res_rotated = f()
+	elif wich_plane=='XY':
+		if is_np:
+			res_rotated = np_XY_angle_rotation(res, rot_angle)
+		else:
+			f = pytensor.function([], XY_angle_rotation(res, rot_angle))
+			res_rotated = f()
+	elif wich_plane=='all':
+		if is_np:
+			res_rotated = np_angles3_rotation(res, rot_angle)
+		else:
+			f = pytensor.function([], angles3_rotation(res, rot_angle))
+			res_rotated = f()
+	else:
+		raise Exception(f'Not recognized plane {wich_plane}')
 
 	#res_rotated = np_XY_angle_rotation(res, rot_angle)
-	f = pytensor.function([], XY_angle_rotation(res, rot_angle))
-	res_rotated = f()
+	#f = pytensor.function([], XY_angle_rotation(res, rot_angle))
+	#res_rotated = f()
 	print(np.shape(res_rotated))
 
 	ax1 = plt.subplot(2, 4, 1)
 	plt.scatter(res[:,0], res[:,1], s=5)
 	ax1.set_xlabel('X')
 	ax1.set_ylabel('Y')
-	ax1.set_xlim([-90,90])
-	ax1.set_ylim([-90,90])
+	if wich_plane in ['XY', 'all']:
+		ax1.set_xlim([-90,90])
+		ax1.set_ylim([-90,90])
 
 	ax2 = plt.subplot(2, 4, 2)
 	plt.scatter(res[:,2], res[:,1], s=5)
 	ax2.set_xlabel('Z')
 	ax2.set_ylabel('Y')
+	if wich_plane in ['YZ', 'all']:
+		ax2.set_xlim([10, 130])
+		if centered:
+			ax2.set_xlim([-30, 30])
+		ax2.set_ylim([-120,120])
 
 	ax3 = plt.subplot(2, 4, 5)
 	plt.scatter(res[:,0], res[:,2], s=5)
 	ax3.set_xlabel('X')
 	ax3.set_ylabel('Z')
+	if wich_plane in ['XZ', 'all']:
+		ax3.set_xlim([-90, 90])
+		ax3.set_ylim([30,130])
+		if centered:
+			ax3.set_ylim([-30,30])
 
 	ax4 = plt.subplot(2, 4, 3)
 	plt.scatter(res_rotated[:,0], res_rotated[:,1], s=5)
 	ax4.set_xlabel('X')
 	ax4.set_ylabel('Y')
-	ax4.set_xlim([-90,90])
-	ax4.set_ylim([-90,90])
+	if wich_plane in ['XY', 'all']:
+		ax4.set_xlim([-90,90])
+		ax4.set_ylim([-90,90])
 
 	ax5 = plt.subplot(2, 4, 4)
 	plt.scatter(res_rotated[:,2], res_rotated[:,1], s=5)
 	ax5.set_xlabel('Z')
 	ax5.set_ylabel('Y')
+	if wich_plane in ['YZ', 'all']:
+		ax5.set_xlim([10, 130])
+		if centered:
+			ax5.set_xlim([-30, 30])
+		ax5.set_ylim([-120,120])
 
 	ax6 = plt.subplot(2, 4, 7)
 	plt.scatter(res_rotated[:,0], res_rotated[:,2], s=5)
 	ax6.set_xlabel('X')
 	ax6.set_ylabel('Z')
+	if wich_plane in ['XZ', 'all']:
+		ax6.set_xlim([-90, 90])
+		ax6.set_ylim([30,130])
+		if centered:
+			ax6.set_ylim([-30,30])
 	plt.show()
 
 
@@ -521,6 +672,15 @@ def test_conversion_to_euler_tt(verbose=False):
 
 	print("========================================================")
 
+def prueba_rotacion_3():
+	xyz = np.array([1,1,0])
+	loc = np.array([10,0,0])#np.zeros(3)
+	rot_angles = np.array([-np.pi/2, 0, 0])
+
+	f = pytensor.function([],cluster_to_galactic_3ang(xyz, rot_angles, loc))
+	xyz_rotated = f()
+	print(xyz_rotated)
+
 
 if __name__ == "__main__":
 	stars = np.array([
@@ -546,5 +706,6 @@ if __name__ == "__main__":
 	#found_angley()
 	#search_besty_rotation()
 	#compare_conversions()
-	apply_compare_rotation()
+	apply_compare_rotation('all')
+	#prueba_rotacion_3()
 

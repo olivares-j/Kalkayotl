@@ -66,19 +66,19 @@ cores  = 2
 # burining_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
 # If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 1000
+tuning_iters = 4000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 1000
+sample_iters = 4000
 
 
 #----- Target_accept-------
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
 # Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
 # of the sampler but increases the computing time.
-target_accept = 0.65
+target_accept = 0.8
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------
@@ -189,7 +189,7 @@ list_of_prior = [
 	# 						"n_components":2
 	# 						},
 	# 	"parametrization":"central"},
-	# {"type":"FGMM",      
+	# # {"type":"FGMM",      
 	# 	"parameters":{"location":None,
 	# 				  "scale":None,
 	# 				  "weights":None,
@@ -241,11 +241,11 @@ list_of_prior = [
 	# 	"parametrization":"central"},
 	{"type":"TGMM",      
 		"parameters":{"location":np.array([[-6.704457, -6.23209, 84.41157],[-6.704457, -6.23209, 84.41157],[-6.704457, -6.23209, 84.41157]]),#None,
-					  "scale":[np.diag([103.7, 3.4, 2.5])**2, np.diag([15.0,0.1,3.2])**2, np.diag([18.9,0.1,3.1])**2],
+					  "scale":[np.diag([4.6, 3.2, 2.4])**2, np.diag([15.0,0.1,3.2])**2, np.diag([18.9,0.1,3.1])**2],
 					  "weights":np.array([0.4359270217638399, 0.2935087252031403, 0.2705642530330198]),
 					  "alpha":2.0,
 					  #"perezsala":np.array([1, 0, -0.02891667])
-					  "rot_angle":math.radians(360-40)
+					  "rot_angle":math.radians(40)
 					  },
 		"hyper_parameters":{
 							"alpha":None,
@@ -272,7 +272,7 @@ for prior in list_of_prior:
 		reference_system,
 		prior["parametrization"],
 		#prior["velocity_model"],
-		#'2023-12-19-12-22-46'
+		#'test'
 		f"{current.year}-{current.month}-{current.day}-{current.hour}-{current.minute}-{current.second}"
 		#"actual_test3"
 		)
