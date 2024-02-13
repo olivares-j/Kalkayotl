@@ -585,9 +585,9 @@ class Inference:
 			print("The beta hyper-parameter has been set to:")
 			for name,scl in zip(self.names_coords,self.hyper["beta"]):
 				if self.hyper["beta"].ndim == 2:
-					print("{0}: {1} pc".format(name,scl))   
+					print("{0}: {1} pc".format(name,scl))	
 				else:
-					print("{0}: {1:2.1f} pc".format(name,scl))
+					print("{0}: {1:2.1f} pc".format(name,scl))	
 
 		else:
 
@@ -736,6 +736,8 @@ class Inference:
 
 		if self.prior == "TGMM":
 			assert self.D == 3, "Tails GMM is only valid for 3D models"
+			if not "iota" in self.hyper:
+				self.hyper["iota"] = None
 		#===========================================================================================================
 
 		if self.D == 1:
@@ -772,6 +774,7 @@ class Inference:
 								hyper_delta=self.hyper["delta"],
 								hyper_eta=self.hyper["eta"],
 								hyper_nu=self.hyper["nu"],
+								hyper_iota=self.hyper["iota"],
 								transformation=self.forward,
 								parametrization=self.parametrization,
 								identifiers=self.ID,
@@ -1515,21 +1518,16 @@ class Inference:
 								if k == 0:
 									log_lk[i,j,k]  = st.multivariate_normal(mean=loc,cov=cov,
 														allow_singular=True).logpdf(dt)
-								# else:
-								# 	log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
-								# 						cov=cov[::2,::2],
-								# 						allow_singular=True).logpdf(dt[::2])
-								# 	log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(dt[1])
 								elif k == 1:
 									log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
 														cov=cov[::2,::2],
 														allow_singular=True).logpdf(dt[::2])
-									log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(dt[1])
+									log_lk[i,j,k] += st.gamma(a=2.0,scale=cov[1,1]).logpdf(dt[1])
 								else:
 									log_lk[i,j,k]  = st.multivariate_normal(mean=loc[::2],
 														cov=cov[::2,::2],
 														allow_singular=True).logpdf(dt[::2])
-									log_lk[i,j,k] += st.gamma(a=2.0,scale=1./cov[1,1]).logpdf(-dt[1])
+									log_lk[i,j,k] += st.gamma(a=2.0,scale=cov[1,1]).logpdf(-dt[1])
 
 								log_lk[i,j,k] += np.log(amp)
 				else:
@@ -1812,9 +1810,6 @@ class Inference:
 						marker=source_kwargs["marker"],
 						s=source_kwargs["size"],
 						zorder=2)
-			if idx == [0,1]:
-				ax.set_xlim([-90,90])
-				ax.set_ylim([-90,90])
 			#-------- Posterior ----------------------------------------------------------
 			for mus,covs in zip(pos_locs,pos_covs):
 				for mu,cov in zip(mus,covs):

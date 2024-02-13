@@ -394,7 +394,7 @@ def apply_compare_rotation(wich_plane:str='XY', centered:bool=True, is_np:bool=F
 	import matplotlib.pyplot as plt
 	import pandas as pd
 	import math
-	members = pd.read_csv('article/v2.0/ComaBer/Core/members+rvs_tails.csv')
+	members = pd.read_csv('article/v2.0/ComaBer/Core/members+rvs.csv')#pd.read_csv('article/v2.0/ComaBer/Core/members+rvs_tails.csv')
 	res = tr.np_radecplx_to_galactic_xyz(np.array([[members.get('ra'), members.get('dec'), members.get('parallax')]]))[0]
 
 	center_pos = np.mean(res, axis=0)
@@ -672,6 +672,15 @@ def test_conversion_to_euler_tt(verbose=False):
 
 	print("========================================================")
 
+def prueba_rotacion_3():
+	xyz = np.array([1,1,0])
+	loc = np.array([10,0,0])#np.zeros(3)
+	rot_angles = np.array([-np.pi/2, 0, 0])
+
+	f = pytensor.function([],cluster_to_galactic_3ang(xyz, rot_angles, loc))
+	xyz_rotated = f()
+	print(xyz_rotated)
+
 
 if __name__ == "__main__":
 	stars = np.array([
@@ -698,4 +707,5 @@ if __name__ == "__main__":
 	#search_besty_rotation()
 	#compare_conversions()
 	apply_compare_rotation('all')
+	#prueba_rotacion_3()
 
