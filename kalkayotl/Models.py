@@ -784,21 +784,20 @@ class Model6D_linear(Model):
 		if parameters["kappa"] is None:
 			if "age" in parameters.keys():
 				if parameters["age"] is None:
-					if parameters["age_d"] is None:
-						age_d = pm.Gamma("age_d",alpha=2,beta=hyper["age"]["beta_d"])
-					else:
-						age_d = pm.Deterministic("age_d",pytensor.shared(parameters["age_d"]))
+					if hyper["age"]["distribution"] == "GeneralizedGamma":
+						age = GeneralizedGamma("age",
+												loc=hyper["age"]["loc"]-hyper["age"]["scl"],
+												scale=hyper["age"]["scl"],
+												d=hyper["age"]["d"],
+												p=hyper["age"]["p"],
+												initval=hyper["age"]["loc"])
 
-					if parameters["age_p"] is None:
-						age_p = pm.Gamma("age_p",alpha=2,beta=hyper["age"]["beta_p"])
 					else:
-						age_p = pm.Deterministic("age_p",pytensor.shared(parameters["age_p"]))
+						age = pm.TruncatedNormal("age",
+											lower=0.0,
+											mu=hyper["age"]["loc"],
+											sigma=hyper["age"]["scl"])
 
-					age = GeneralizedGamma("age",
-											loc=hyper["age"]["loc"]-hyper["age"]["scl"],
-											scale=hyper["age"]["scl"],
-											d=age_d,p=age_p,
-											initval=hyper["age"]["loc"])
 				else:
 					age = pm.Deterministic("age",pytensor.shared(parameters["age"]))
 

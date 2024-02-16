@@ -810,33 +810,32 @@ class Inference:
 				if self.parameters["age"] is None:
 					assert isinstance(self.hyper["age"]["loc"],float), "Error: The loc hyper_parameter of the age must be set as a float!"
 					assert isinstance(self.hyper["age"]["scl"],float), "Error: The scl hyper_parameter of the age must be set as a float!"
+					assert isinstance(self.hyper["age"]["distribution"],str), "Error: The age distribution must be set as a string!"
 					assert self.hyper["age"]["loc"]>self.hyper["age"]["scl"], "Error: The scl hyper_parameter must be smaller than loc!"
-
-					if "age_d" in self.parameters.keys():
-						if self.parameters["age_d"] is None:
-							if "beta_d" not in self.hyper["age"]:
-								self.hyper["age"]["beta_d"] = 0.25 #Mode at 4.0
-							age_d = "~Gamma(alpha=2,beta={0:2.2f})".format(self.hyper["age"]["beta_d"])
-						else:
-							age_d = self.parameters["age_d"]
-					else:
-						self.parameters["age_d"] = 4.0
-						age_d = self.parameters["age_d"]
-
-					if "age_p" in self.parameters.keys():
-						if self.parameters["age_p"] is None:
-							if "beta_p" not in self.hyper["age"]:
-								self.hyper["age"]["beta_p"] = 0.33 #Mode at 3.0
-							age_p = "~Gamma(alpha=2,beta={0:2.2f})".format(self.hyper["age"]["beta_p"])
-						else:
-							age_p = self.parameters["age_p"]
-					else:
-						self.parameters["age_p"] = 3.0
-						age_p = self.parameters["age_p"]
+					assert self.hyper["age"]["distribution"] in ["GeneralizedGamma","TruncatedNormal","SkewNormal"],\
+					"Error: Incorrect type of age distribution!"
 
 					print("The age prior has been set to:")
-					print("age ~ GeneralizedGamma(loc={0:2.1f},scale={1:2.1f},d={2},p={3}) [Myr]".format(
-						self.hyper["age"]["loc"]-self.hyper["age"]["scl"],self.hyper["age"]["scl"],age_d,age_p))
+					if self.hyper["age"]["distribution"] == "GeneralizedGamma":
+						if "p" in self.hyper["age"]:
+							assert isinstance(self.hyper["age"]["p"],float), "Error: The p hyper_parameter of the age must be set as a float!"
+							assert self.hyper["age"]["p"]> 0.0, "Error: The p hyper_parameter of the age must be positive!"
+						else:
+							self.hyper["age"]["p"] = 1.19143711
+						if "d" in self.hyper["age"]:
+							assert isinstance(self.hyper["age"]["d"],float), "Error: The d hyper_parameter of the age must be set as a float!"
+							assert self.hyper["age"]["d"]> 0.0, "Error: The d hyper_parameter of the age must be positive!"
+						else:
+							self.hyper["age"]["d"] = self.hyper["age"]["p"] + 1
+						
+						print("age ~ GeneralizedGamma(loc={0:2.1f},scale={1:2.1f},d={2:2.2f},p={3:2.2f}) [Myr]".format(
+						self.hyper["age"]["loc"]-self.hyper["age"]["scl"],self.hyper["age"]["scl"],self.hyper["age"]["d"],self.hyper["age"]["p"]))
+
+					elif self.hyper["age"]["distribution"] == "TruncatedNormal":
+						print("age ~ TruncatedNormal(low=0.0, loc={0:2.1f},scale={1:2.1f}) [Myr]".format(
+						self.hyper["age"]["loc"],self.hyper["age"]["scl"]))
+					else:
+						sys.exit("Incorrect age distribution!")
 				elif isinstance(self.parameters["age"],float):
 					print("The age parameter has been set to:")
 					print(self.parameters["age"])
