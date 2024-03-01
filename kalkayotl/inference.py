@@ -444,7 +444,7 @@ class Inference:
 			else:
 				sys.exit("Error: Either n_components or a mut be specified in weights hyper_parameter")
 
-			names_components = list(string.ascii_uppercase)[:self.hyper["n_components"]]
+			names_components = list(string.ascii_uppercase)[:self.hyper["weights"]["n_components"]]
 
 			if self.parameters["weights"] is not None:
 				#-------------- Read from input file ----------------------
@@ -466,7 +466,7 @@ class Inference:
 				#-----------------------------------------------------------
 			else:
 				print("The weights prior has been set to:")
-				print("weights ~ Dirichlet(a=[{0}])".format(self.hyper["weights"]["a"]))
+				print("weights ~ Dirichlet(a={0})".format(self.hyper["weights"]["a"]))
 		#============================================================================
 
 		#====================== Location ==========================================================
@@ -2082,7 +2082,7 @@ class Inference:
 
 		return summary_df
 
-	def save_statistics(self,hdi_prob=0.95,chain_gmm=[0],n_samples=500,stat_focus="mean"):
+	def save_statistics(self,hdi_prob=0.95,chain=None,n_samples=None,stat_focus="mean"):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -2095,17 +2095,18 @@ class Inference:
 			return np.sqrt(x**2 + y**2 + z**2)
 		#---------------------------------------------------------------------
 
-		msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
+		# msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
 
-		assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
+		# assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
 		
 		#--------- Coordinates -------------------------
 		# In MM use only one chain
 		if "GMM" in self.prior:
+			chain = [0] if chain is None else chain
 			print("WARNING: In mixture models only one "\
 				+"chain is used to compute statistics.\n"\
-				+"Set chain_gmm=[0,1,..,n_chains] to override.")
-			data = az.utils.get_coords(self.ds_posterior,{"chain":chain_gmm})
+				+"Set chain=[0,1,..,n_chains] to override.")
+			data = az.utils.get_coords(self.ds_posterior,{"chain":chain})
 			names_groups = self.ds_posterior.coords["component"].values
 		else:
 			data = self.ds_posterior
@@ -2140,7 +2141,7 @@ class Inference:
 			#------- Extract GMM parameters ----------------------------------
 			pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
 										n_samples=n_samples,
-										chain=chain_gmm)
+										chain=chain)
 			#-----------------------------------------------------------------
 
 			#---------- Classify sources ------------------------------------
