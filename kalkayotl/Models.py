@@ -68,7 +68,7 @@ class Model1D(Model):
 			#------------- Weights ---------------------------
 			if parameters["weights"] is None:
 				weights = pm.Dirichlet("weights",
-							a=hyper["weights"],dims="component")
+							a=hyper["weights"]["a"],dims="component")
 			else:
 				weights = pm.Deterministic("weights",pytensor.shared(parameters["weights"]),
 							dims="component")
@@ -321,7 +321,7 @@ class Model3D6D(Model):
 			#------------- Weights ---------------------------
 			if parameters["weights"] is None:
 				weights = pm.Dirichlet("weights",
-							a=hyper["weights"],dims="component")
+							a=hyper["weights"]["a"],dims="component")
 			else:
 				weights = pm.Deterministic("weights",
 							pytensor.shared(parameters["weights"]),
@@ -602,7 +602,7 @@ class Model6D_linear(Model):
 			#------------- Weights ---------------------------
 			if parameters["weights"] is None:
 				weights = pm.Dirichlet("weights",
-							a=hyper["weights"],dims="component")
+							a=hyper["weights"]["a"],dims="component")
 			else:
 				weights = pm.Deterministic("weights",pytensor.shared(parameters["weights"]),
 							dims="component")
