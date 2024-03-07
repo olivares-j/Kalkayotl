@@ -590,7 +590,7 @@ class Inference:
 		
 		#============================= Scale ===========================================================
 		scale_loc = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
-		scale_scl = np.array([1.0,1.0,1.0,0.5,0.5,0.5])[:self.D]
+		scale_scl = np.array([5.0,5.0,5.0,1.0,1.0,1.0])[:self.D]
 		if self.parameters["scale"] is None:
 			assert "scale" in self.hyper,msg_scale
 			assert isinstance(self.hyper["scale"],(type(None),dict)),"Error: The scale hyperparameter must be None or a dictionary with loc and scl keys"
