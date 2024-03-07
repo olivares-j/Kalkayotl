@@ -50,7 +50,7 @@ import matplotlib.ticker as ticker
 #------------------------------------------------------------------
 
 #------------ Local libraries ------------------------------------------
-from kalkayotl.Models import Model1D,Model3D6D,Model6D_linear
+from kalkayotl.Models import Model1D,Model3D6D,Model6D_linear,Model6D_age
 from kalkayotl.Functions import AngularSeparation,CovarianceParallax,CovariancePM,get_principal,my_mode
 # from kalkayotl.Evidence import Evidence1D
 from kalkayotl.Transformations import astrometry_and_rv_to_phase_space
@@ -77,6 +77,7 @@ class Inference:
 				velocity_model="joint",
 				id_name='source_id',
 				precision=2,
+				input_statistic="mean",
 				**kwargs):
 		"""
 		Arguments:
@@ -104,6 +105,7 @@ class Inference:
 		
 		self.reference_system = reference_system
 		self.sampling_space   = sampling_space
+		self.input_statistic  = input_statistic
 
 		self.file_ids         = self.dir_out+"/Identifiers.csv"
 		self.file_obs         = self.dir_out+"/Observations.nc"
@@ -449,14 +451,14 @@ class Inference:
 			if self.parameters["weights"] is not None:
 				#-------------- Read from input file ----------------------
 				if isinstance(self.parameters["weights"],str):
-					#---- Extract scale parameters ------------
+					#---- Extract weights parameters ------------
 					wgh = pn.read_csv(self.parameters["weights"],
-								usecols=["Parameter","MAP"])
+								usecols=["Parameter",self.input_statistic])
 					wgh = wgh[wgh["Parameter"].str.contains("weights")]
 					#------------------------------------------
 
 					#---- Set weights ----------------------------
-					self.parameters["weights"] = wgh["MAP"].values
+					self.parameters["weights"] = wgh[self.input_statistic].values
 					#-----------------------------------------------
 				#-----------------------------------------------------------
 
@@ -535,7 +537,7 @@ class Inference:
 			if isinstance(self.parameters["location"],str):
 				#---- Extract parameters ------------------------
 				pars = pn.read_csv(self.parameters["location"],
-							usecols=["Parameter","MAP"])
+							usecols=["Parameter",self.input_statistic])
 				#------------------------------------------------
 
 				
@@ -545,7 +547,7 @@ class Inference:
 					for name in names_components:
 						selection = pars["Parameter"].str.contains(
 									"loc[{0}".format(name),regex=False)
-						loc = pars.loc[selection,"MAP"].values
+						loc = pars.loc[selection,self.input_statistic].values
 						assert loc.shape[0] == self.D, msg_loc
 						locs.append(loc)
 
@@ -553,7 +555,7 @@ class Inference:
 
 				else:
 					mask_loc = pars["Parameter"].str.contains("loc")
-					loc = pars.loc[mask_loc,"MAP"]
+					loc = pars.loc[mask_loc,self.input_statistic]
 
 					self.parameters["location"] = np.array(loc.values)
 				#----------------------------------------------------------
@@ -587,36 +589,82 @@ class Inference:
 		#==============================================================================================
 		
 		#============================= Scale ===========================================================
+		scale_loc = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
+		scale_scl = np.array([1.0,1.0,1.0,0.5,0.5,0.5])[:self.D]
 		if self.parameters["scale"] is None:
 			assert "scale" in self.hyper,msg_scale
+			assert isinstance(self.hyper["scale"],(type(None),dict)),"Error: The scale hyperparameter must be None or a dictionary with loc and scl keys"
 			if self.hyper["scale"] is None:
-				self.hyper["scale"] = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
+				self.hyper["scale"] = {}
+				self.hyper["scale"]["loc"] = scale_loc
+				self.hyper["scale"]["scl"] = scale_scl
 			else:
-				if isinstance(self.hyper["scale"],float):
+				assert "loc" in self.hyper["scale"],"Error: scale['loc'] hyperparameter must be set!"
+				assert "scl" in self.hyper["scale"],"Error: scale['scl'] hyperparameter must be set!"
+
+				#----------------------- loc scale hyperparameter -------------------
+				if self.hyper["scale"]["loc"] is None:
+					self.hyper["scale"]["loc"] = scale_loc
+
+				elif isinstance(self.hyper["scale"]["loc"],float):
 					assert self.D == 1,\
 						"ERROR: float type in scale hyper-parameter is only valid in 1D"
-					self.hyper["scale"] = np.array([self.hyper["scale"]])
-				elif isinstance(self.hyper["scale"],list):
-					assert len(self.hyper["scale"]) == self.D,\
-						"ERROR: incorrect length of the scale hyperparameter!"
-					self.hyper["scale"] = np.array(self.hyper["scale"])
-				elif isinstance(self.hyper["scale"],np.ndarray):
-					assert self.hyper["scale"].ndim == 1 and self.hyper["scale"].shape[0] == self.D,\
+					self.hyper["scale"]["loc"] = np.array([self.hyper["scale"]["loc"]])
+
+				elif isinstance(self.hyper["scale"]["loc"],list):
+					assert len(self.hyper["scale"]["loc"]) == self.D,\
+						"ERROR: incorrect length of the loc scale hyperparameter!"
+					self.hyper["scale"]["loc"] = np.array(self.hyper["scale"]["loc"])
+
+				elif isinstance(self.hyper["scale"]["loc"],np.ndarray):
+					assert self.hyper["scale"]["loc"].ndim == 1 and self.hyper["scale"]["loc"].shape[0] == self.D,\
 						"ERROR: incorrect shape of the scale hyperparameter!"
+
+				elif isinstance(self.hyper["scale"]["loc"],str):
+					#---- Extract scale parameters ------------
+					scl = pn.read_csv(self.hyper["scale"]["loc"],
+								usecols=["Parameter",self.input_statistic])
+					scl = scl[scl["Parameter"].str.contains("std")]
+					#------------------------------------------------------
+
+					#---- Set scale hyper parameters ------------------------------
+					self.hyper["scale"]["loc"] = scl[self.input_statistic].values
+					#--------------------------------------------------------------
+
 				else:
-					sys.exit("ERROR:Unrecognized type of scale hyper_parameter")
+					sys.exit("ERROR:Unrecognized type of scale['loc'] hyper_parameter")
+
+				#-------------- Set scl scale hyper-parameter -----------------------
+				if self.hyper["scale"]["scl"] is None:
+					self.hyper["scale"]["scl"] = scale_scl
+
+				elif isinstance(self.hyper["scale"]["scl"],float):
+					assert self.D == 1,\
+						"ERROR: float type in scale['scl'] hyper-parameter is only valid in 1D"
+					self.hyper["scale"]["scl"] = np.array([self.hyper["scale"]["scl"]])
+
+				elif isinstance(self.hyper["scale"]["scl"],list):
+					assert len(self.hyper["scale"]["scl"]) == self.D,\
+						"ERROR: incorrect length of the scale['scl'] hyperparameter!"
+					self.hyper["scale"]["scl"] = np.array(self.hyper["scale"]["scl"])
+
+				elif isinstance(self.hyper["scale"]["scl"],np.ndarray):
+					assert self.hyper["scale"]["scl"].ndim == 1 and self.hyper["scale"]["scl"].shape[0] == self.D,\
+						"ERROR: incorrect shape of the scale['scl'] hyperparameter!"
+				else:
+					sys.exit("ERROR:Unrecognized type of scale['scl'] hyper_parameter")
 
 			print("The components of the scale prior has been set to:")
-			for name,scl,unit in zip(
+			for name,loc,scl,unit in zip(
 				self.names_coords,
-				self.hyper["scale"],
+				self.hyper["scale"]["loc"],
+				self.hyper["scale"]["scl"],
 				np.array(["pc","pc","pc","km.s-1","km.s-1","km.s-1"])[:self.D]
 				):
-				if "kappa" in self.parameters.keys() and name in ["U","V","W"]:
-					print("sd [{0}] ~ Exponential(scale={1:2.1f}) [{2}]".format(name,scl,unit))	
+				if "age" in self.parameters.keys():
+					print("sd [{0}] ~ TruncatedNormal(loc={1:2.1f},scale={2:2.1f}) [{3}]".format(name,loc,scl,unit))	
 				else:
-					print("sd [{0}] ~ Gamma(alpha=2, beta={1:2.1f}) [{2}] (mode at {3:2.1f} {4})".format(name,1./scl,unit,scl,unit))	
-
+					print("sd [{0}] ~ Gamma(alpha=2, beta={1:2.1f}) [{2}] (mode at {3:2.1f} {4})".format(name,1./loc,unit,loc,unit))
 		else:
 
 			#-------------------------- Fixed value -----------------------------------------------------------
@@ -626,7 +674,7 @@ class Inference:
 			if isinstance(self.parameters["scale"],str):
 				#---- Extract parameters ------------
 				pars = pn.read_csv(self.parameters["scale"],
-							usecols=["Parameter","MAP"])
+							usecols=["Parameter",self.input_statistic])
 				pars.fillna(value=1.0,inplace=True)
 				#------------------------------------------
 
@@ -639,7 +687,7 @@ class Inference:
 						#------------- Stds ---------------------------
 						mask_std = pars["Parameter"].str.contains(
 									"std[{0}".format(name),regex=False)
-						std = pars.loc[mask_std,"MAP"].values
+						std = pars.loc[mask_std,self.input_statistic].values
 						#------------------------------------------------
 
 						stds.append(std)
@@ -648,7 +696,7 @@ class Inference:
 							#----------- Correlations ------------------------
 							mask_cor = pars["Parameter"].str.contains(
 										"corr[{0}".format(name),regex=False)
-							cor = pars.loc[mask_cor,"MAP"].values
+							cor = pars.loc[mask_cor,self.input_statistic].values
 							#--------------------------------------------------
 
 							#---- Construct covariance --------------
@@ -670,7 +718,7 @@ class Inference:
 				else:
 					#--------- Standard deviations --------------------
 					mask_stds = pars["Parameter"].str.contains("std")
-					stds = pars.loc[mask_stds,"MAP"].values
+					stds = pars.loc[mask_stds,self.input_statistic].values
 					#--------------------------------------------------
 
 					if self.D == 1:
@@ -678,7 +726,7 @@ class Inference:
 					else:
 						#----------- Correlations -----------------------
 						mask_corr = pars["Parameter"].str.contains('corr')
-						corr = pars.loc[mask_corr,"MAP"].values
+						corr = pars.loc[mask_corr,self.input_statistic].values
 						#------------------------------------------------
 
 						#---- Construct covariance --------------
@@ -878,20 +926,36 @@ class Inference:
 								observables=self.names_mu)
 
 		elif self.D == 6 and self.velocity_model != "joint":
-			self.Model = Model6D_linear(n_sources=self.n_sources,
-								mu_data=self.mu_data,
-								tau_data=self.tau_data,
-								idx_data=self.idx_data,
-								indep_measures=self.indep_measures,
-								prior=self.prior,
-								parameters=self.parameters,
-								hyper=self.hyper,
-								transformation=self.forward,
-								parameterization=self.parameterization,
-								velocity_model=self.velocity_model,
-								identifiers=self.ID,
-								coordinates=self.names_coords,
-								observables=self.names_mu)
+			if "age" in self.parameters:
+				self.Model = Model6D_age(n_sources=self.n_sources,
+									mu_data=self.mu_data,
+									tau_data=self.tau_data,
+									idx_data=self.idx_data,
+									indep_measures=self.indep_measures,
+									prior=self.prior,
+									parameters=self.parameters,
+									hyper=self.hyper,
+									transformation=self.forward,
+									parameterization=self.parameterization,
+									velocity_model=self.velocity_model,
+									identifiers=self.ID,
+									coordinates=self.names_coords,
+									observables=self.names_mu)
+			else:
+				self.Model = Model6D_linear(n_sources=self.n_sources,
+									mu_data=self.mu_data,
+									tau_data=self.tau_data,
+									idx_data=self.idx_data,
+									indep_measures=self.indep_measures,
+									prior=self.prior,
+									parameters=self.parameters,
+									hyper=self.hyper,
+									transformation=self.forward,
+									parameterization=self.parameterization,
+									velocity_model=self.velocity_model,
+									identifiers=self.ID,
+									coordinates=self.names_coords,
+									observables=self.names_mu)
 		else:
 			sys.exit("Non valid dimension or velocity model!")
 
