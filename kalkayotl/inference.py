@@ -589,8 +589,9 @@ class Inference:
 		#==============================================================================================
 		
 		#============================= Scale ===========================================================
-		scale_loc = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
+		scale_loc = np.array([20.0,20.0,20.0,0.5,0.5,0.5])[:self.D]
 		scale_scl = np.array([5.0,5.0,5.0,1.0,1.0,1.0])[:self.D]
+		scale_dst = "Gamma" if "kappa" not in self.parameters else "Gamma+Exponential"
 		if self.parameters["scale"] is None:
 			assert "scale" in self.hyper,msg_scale
 			assert isinstance(self.hyper["scale"],(type(None),dict)),"Error: The scale hyperparameter must be None or a dictionary with loc and scl keys"
@@ -598,11 +599,16 @@ class Inference:
 				self.hyper["scale"] = {}
 				self.hyper["scale"]["loc"] = scale_loc
 				self.hyper["scale"]["scl"] = scale_scl
+				self.hyper["scale"]["distribution"] = scale_dst
 			else:
-				assert "loc" in self.hyper["scale"],"Error: scale['loc'] hyperparameter must be set!"
-				assert "scl" in self.hyper["scale"],"Error: scale['scl'] hyperparameter must be set!"
+				if "distribution" in self.hyper["scale"]:
+					assert self.hyper["scale"]["distribution"] in ["Gamma","Exponential","TruncatedNormal","Gamma+Exponential"],\
+					"Error: Unrecognized type of hyper['scale']['distribution']"
+				else:
+					self.hyper["scale"]["distribution"] = scale_dst
 
-				#----------------------- loc scale hyperparameter -------------------
+				#----------------------- loc scale hyperparameter ------------------------------------------------------
+				assert "loc" in self.hyper["scale"],"Error: scale['loc'] hyperparameter must be set!"
 				if self.hyper["scale"]["loc"] is None:
 					self.hyper["scale"]["loc"] = scale_loc
 
@@ -633,8 +639,12 @@ class Inference:
 
 				else:
 					sys.exit("ERROR:Unrecognized type of scale['loc'] hyper_parameter")
+				#--------------------------------------------------------------------------------------------------
 
-				#-------------- Set scl scale hyper-parameter -----------------------
+				#-------------------------- Set scl scale hyper-parameter -------------------------------------------
+				if "scl" not in self.hyper["scale"]:
+					self.hyper["scale"]["scl"] = None
+
 				if self.hyper["scale"]["scl"] is None:
 					self.hyper["scale"]["scl"] = scale_scl
 
@@ -653,6 +663,11 @@ class Inference:
 						"ERROR: incorrect shape of the scale['scl'] hyperparameter!"
 				else:
 					sys.exit("ERROR:Unrecognized type of scale['scl'] hyper_parameter")
+				#------------------------------------------------------------------------------------------------------
+
+			if "kappa" not in self.parameters:
+				assert self.hyper["scale"]["distribution"] == "Gamma",\
+			"Error: For the joint model only the Gamma distribution is available"
 
 			print("The components of the scale prior has been set to:")
 			for name,loc,scl,unit in zip(
@@ -661,10 +676,22 @@ class Inference:
 				self.hyper["scale"]["scl"],
 				np.array(["pc","pc","pc","km.s-1","km.s-1","km.s-1"])[:self.D]
 				):
-				if "age" in self.parameters.keys():
-					print("sd [{0}] ~ TruncatedNormal(loc={1:2.1f},scale={2:2.1f}) [{3}]".format(name,loc,scl,unit))	
+				if self.hyper["scale"]["distribution"] == "TruncatedNormal":
+					print("sd [{0}] ~ TruncatedNormal(loc={1:2.2f},scale={2:2.2f}) [{3}]".format(name,loc,scl,unit))
+
+				elif self.hyper["scale"]["distribution"] == "Exponential":
+					print("sd [{0}] ~ Exponential(scale={1:2.2f}) [{2}]".format(name,loc,unit))
+
+				elif self.hyper["scale"]["distribution"] == "Gamma":
+					print("sd [{0}] ~ Gamma(alpha=2, beta={1:2.2f}) [{2}] (mode at {3:2.2f} {4})".format(name,1./loc,unit,loc,unit))
+
+				elif self.hyper["scale"]["distribution"] == "Gamma+Exponential":
+					if name in self.names_coords[:3]:
+						print("sd [{0}] ~ Gamma(alpha=2, beta={1:2.2f}) [{2}] (mode at {3:2.2f} {4})".format(name,1./loc,unit,loc,unit))
+					else:
+						print("sd [{0}] ~ Exponential(scale={1:2.2f}) [{2}]".format(name,loc,unit))
 				else:
-					print("sd [{0}] ~ Gamma(alpha=2, beta={1:2.1f}) [{2}] (mode at {3:2.1f} {4})".format(name,1./loc,unit,loc,unit))
+					sys.exit("Error in hyper['scale']['distribution']")
 		else:
 
 			#-------------------------- Fixed value -----------------------------------------------------------

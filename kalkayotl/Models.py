@@ -914,24 +914,76 @@ class Model6D_age(Model):
 
 		#---------- Covariance matrix ------------------------------------
 		if parameters["scale"] is None:
-			chol_pos,corr_pos,stds_pos = pm.LKJCholeskyCov("chol_pos", 
-							n=3, 
-							eta=hyper["eta"], 
-							sd_dist=pm.TruncatedNormal.dist(
-								lower=0.0,
-								mu=hyper["scale"]["loc"][:3],
-								sigma=hyper["scale"]["scl"][:3]),
-							compute_corr=True,
-							store_in_trace=False)
-			chol_vel,corr_vel,stds_vel = pm.LKJCholeskyCov("chol_vel", 
-							n=3, 
-							eta=hyper["eta"], 
-							sd_dist=pm.TruncatedNormal.dist(
-								lower=0.0,
-								mu=hyper["scale"]["loc"][3:],
-								sigma=hyper["scale"]["scl"][3:]),
-							compute_corr=True,
-							store_in_trace=False)
+			if hyper["scale"]["distribution"] == "TruncatedNormal":
+				chol_pos,corr_pos,stds_pos = pm.LKJCholeskyCov("chol_pos", 
+								n=3, 
+								eta=hyper["eta"], 
+								sd_dist=pm.TruncatedNormal.dist(
+									lower=0.0,
+									mu=hyper["scale"]["loc"][:3],
+									sigma=hyper["scale"]["scl"][:3]),
+								compute_corr=True,
+								store_in_trace=False)
+				chol_vel,corr_vel,stds_vel = pm.LKJCholeskyCov("chol_vel", 
+								n=3, 
+								eta=hyper["eta"], 
+								sd_dist=pm.TruncatedNormal.dist(
+									lower=0.0,
+									mu=hyper["scale"]["loc"][3:],
+									sigma=hyper["scale"]["scl"][3:]),
+								compute_corr=True,
+								store_in_trace=False)
+
+			elif hyper["scale"]["distribution"] == "Exponential":
+				chol_pos,corr_pos,stds_pos = pm.LKJCholeskyCov("chol_pos", 
+								n=3, 
+								eta=hyper["eta"], 
+								sd_dist=pm.Exponential.dist(
+									scale=hyper["scale"]["loc"][:3]),
+								compute_corr=True,
+								store_in_trace=False)
+				chol_vel,corr_vel,stds_vel = pm.LKJCholeskyCov("chol_vel", 
+								n=3, 
+								eta=hyper["eta"], 
+								sd_dist=pm.Exponential.dist(
+									scale=hyper["scale"]["loc"][3:]),
+								compute_corr=True,
+								store_in_trace=False)
+
+			elif hyper["scale"]["distribution"] == "Gamma":
+				chol_pos,corr_pos,stds_pos = pm.LKJCholeskyCov("chol_pos", 
+								n=3, 
+								eta=hyper["eta"], 
+								sd_dist=pm.Gamma.dist(
+									alpha=2.0,
+									beta=1./hyper["scale"]["loc"][:3]),
+								compute_corr=True,
+								store_in_trace=False)
+				chol_vel,corr_vel,stds_vel = pm.LKJCholeskyCov("chol_vel", 
+								n=3, 
+								eta=hyper["eta"], 
+								sd_dist=pm.Gamma.dist(
+									alpha=2.0,
+									beta=1./hyper["scale"]["loc"][3:]),
+								compute_corr=True,
+								store_in_trace=False)
+			else: #"Gamma+Exponential"
+				chol_pos,corr_pos,stds_pos = pm.LKJCholeskyCov("chol_pos", 
+								n=3, 
+								eta=hyper["eta"], 
+								sd_dist=pm.Gamma.dist(
+									alpha=2.0,
+									beta=1./hyper["scale"]["loc"][:3]),
+								compute_corr=True,
+								store_in_trace=False)
+				chol_vel,corr_vel,stds_vel = pm.LKJCholeskyCov("chol_vel", 
+								n=3, 
+								eta=hyper["eta"], 
+								sd_dist=pm.Exponential.dist(
+									scale=hyper["scale"]["loc"][3:]),
+								compute_corr=True,
+								store_in_trace=False)
+
 
 			corr_pos = pm.Deterministic("corr_pos", corr_pos)
 			corr_vel = pm.Deterministic("corr_vel", corr_vel)
