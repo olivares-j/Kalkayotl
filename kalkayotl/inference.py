@@ -1818,7 +1818,9 @@ class Inference:
 								"B":"tab:orange",
 								"C":"tab:green",
 								"D":"tab:brown",
-								"Field":"tab:gray"}},
+								"Field":"tab:gray"},
+						"mapper":{"A":"A","B":"B","C":"C","D":"D","Field":"Field"}
+						},
 		ticks={"minor":16,"major":8},
 		legend_bbox_to_anchor=(0.25, 0., 0.5, 0.5)
 		):
@@ -1832,6 +1834,9 @@ class Inference:
 		msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
 
 		assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
+
+		def label_mapper(label):
+			return groups_kwargs["mapper"][label]
 
 		print("Plotting model ...")
 
@@ -1995,7 +2000,7 @@ class Inference:
 								marker=source_kwargs["marker"], color="w", 
 								markerfacecolor=cmap_pos(norm_pos(row["group"])), 
 								markersize=5,
-								label=row["label"]) 
+								label=label_mapper(row["label"])) 
 								for i,row in self.df_groups.drop_duplicates().iterrows()] 
 		else:
 			source_mrkr =  [mlines.Line2D([], [], marker=source_kwargs["marker"], color="w", 
@@ -2106,7 +2111,7 @@ class Inference:
 								color="w", 
 								markerfacecolor=cmap_vel(norm_vel(row["group"])), 
 								markersize=5,
-								label=row["label"]) 
+								label=label_mapper(row["label"])) 
 								for i,row in self.df_groups.drop_duplicates().iterrows()]
 			else:
 				source_mrkr = [mlines.Line2D([], [], marker=source_kwargs["marker"], 
