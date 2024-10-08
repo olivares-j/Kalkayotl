@@ -4,7 +4,7 @@ import numpy as np
 
 #---------- Directory of user -------
 dir_local = "/home/jolivares/"
-dir_host = "/raid/jromero/"
+dir_host = "/home/jromero/"
 
 if dir_local in os.getcwd():
 	dir_usr = dir_local

@@ -423,7 +423,7 @@ class Model3D6D(Model):
 					corr = tt.set_subtensor(corr[i],corr_i)
 					stds = tt.set_subtensor(stds[i],stds_i)
 
-			corr = pm.Deterministic("corr", corr,dims=("component","coordinate",))
+			corr = pm.Deterministic("corr", corr,dims=("component","coordinate","coordinate"))
 			stds = pm.Deterministic("std", stds,dims=("component","coordinate"))
 			#--------------------------------------------------------------------
 		#---------------------------------------------------------------------------------

@@ -6,7 +6,11 @@ os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
 
-from groups import *
+# from groups import *
+
+
+dir_kal  = "/home/jromero/Repos/Kalkayotl"
+dir_main = dir_kal + "/article/v2.0/"
 
 authors = ["Jadhav+2024"]#,"GG+2023_wtr","Hao+2022_wtr""GG+2023_core","GG+Lodieu"]
 
