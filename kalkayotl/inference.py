@@ -36,6 +36,8 @@ import pymc.sampling_jax
 import pytensor.tensor as at
 from typing import cast
 import string
+from scipy.special import gamma
+from copy import deepcopy
 
 #---------------- Matplotlib -------------------------------------
 import matplotlib
@@ -74,7 +76,6 @@ class Inference:
 				indep_measures=False,
 				reference_system="Galactic",
 				sampling_space="physical",
-				velocity_model="joint",
 				id_name='source_id',
 				precision=2,
 				input_statistic="mean",
@@ -267,6 +268,7 @@ class Inference:
 				inplace=True)
 		observed["parallax"] = observed["parallax"].clip(1e-3,np.inf)
 		self.observed = observed.to_numpy()
+		assert np.all(np.isfinite(self.observed)),"Error: non finite starting point!"
 		#-------------------------------------------------------
 
 		#----- Track ID -------------
@@ -399,9 +401,9 @@ class Inference:
 		'''
 
 		self.prior            = prior
-		self.parameters       = parameters.copy()
-		self.hyper            = hyper_parameters.copy()
-		self.parameterization  = parameterization
+		self.parameters       = deepcopy(parameters)
+		self.hyper            = deepcopy(hyper_parameters)
+		self.parameterization = parameterization
 		self.velocity_model   = "joint"
 		
 
@@ -447,6 +449,8 @@ class Inference:
 				sys.exit("Error: Either n_components or a mut be specified in weights hyper_parameter")
 
 			names_components = list(string.ascii_uppercase)[:self.hyper["weights"]["n_components"]]
+			if self.prior == "FGMM":
+				names_components[-1] = "Field"
 
 			if self.parameters["weights"] is not None:
 				#-------------- Read from input file ----------------------
@@ -539,7 +543,6 @@ class Inference:
 				pars = pn.read_csv(self.parameters["location"],
 							usecols=["Parameter",self.input_statistic])
 				#------------------------------------------------
-
 				
 				#------------------- Extraction --------------------------
 				if "GMM" in self.prior:
@@ -589,9 +592,9 @@ class Inference:
 		#==============================================================================================
 		
 		#============================= Scale ===========================================================
-		scale_loc = np.array([20.0,20.0,20.0,0.5,0.5,0.5])[:self.D]
+		scale_loc = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
 		scale_scl = np.array([5.0,5.0,5.0,1.0,1.0,1.0])[:self.D]
-		scale_dst = "Gamma" if "kappa" not in self.parameters else "Gamma+Exponential"
+		scale_dst = "Gamma"
 		if self.parameters["scale"] is None:
 			assert "scale" in self.hyper,msg_scale
 			assert isinstance(self.hyper["scale"],(type(None),dict)),"Error: The scale hyperparameter must be None or a dictionary with loc and scl keys"
@@ -814,7 +817,7 @@ class Inference:
 		if self.prior == "StudentT":
 			assert "nu" in self.hyper, msg_nu
 			if self.hyper["nu"] is None:
-				self.hyper["nu"] = {"alpha":1.0,"beta":10}
+				self.hyper["nu"] = {"alpha":1.0,"beta":0.1}
 			else:
 				assert "alpha" in self.hyper["nu"],"Error: The alpha hyperparameter of nu must be set!"
 				assert "beta" in self.hyper["nu"], "Error: The beta hyperparameter of nu must be set!"
@@ -886,26 +889,41 @@ class Inference:
 					assert isinstance(self.hyper["age"]["loc"],float), "Error: The loc hyper_parameter of the age must be set as a float!"
 					assert isinstance(self.hyper["age"]["scl"],float), "Error: The scl hyper_parameter of the age must be set as a float!"
 					assert isinstance(self.hyper["age"]["distribution"],str), "Error: The age distribution must be set as a string!"
-					assert self.hyper["age"]["loc"]>self.hyper["age"]["scl"], "Error: The scl hyper_parameter must be smaller than loc!"
+					# assert self.hyper["age"]["loc"]>self.hyper["age"]["scl"], "Error: The scl hyper_parameter must be smaller than loc!"
 					assert self.hyper["age"]["distribution"] in ["GeneralizedGamma","TruncatedNormal","SkewNormal"],\
 					"Error: Incorrect type of age distribution!"
 
 					print("The age prior has been set to:")
 					if self.hyper["age"]["distribution"] == "GeneralizedGamma":
-						if "p" in self.hyper["age"]:
-							assert isinstance(self.hyper["age"]["p"],float), "Error: The p hyper_parameter of the age must be set as a float!"
-							assert self.hyper["age"]["p"]> 0.0, "Error: The p hyper_parameter of the age must be positive!"
+						if "case" in self.hyper["age"]:
+							assert self.hyper["age"]["case"] in ["GGL","GGR"], "Error: The case for Generalized gama is either GGLeft or GGRight"
 						else:
+							self.hyper["age"]["case"] = "GGL"
+
+						if self.hyper["age"]["case"] == "GGR":
 							self.hyper["age"]["p"] = 1.19143711
+						else:
+							self.hyper["age"]["p"] = 10.0
+						
 						if "d" in self.hyper["age"]:
 							assert isinstance(self.hyper["age"]["d"],float), "Error: The d hyper_parameter of the age must be set as a float!"
 							assert self.hyper["age"]["d"]> 0.0, "Error: The d hyper_parameter of the age must be positive!"
 						else:
 							self.hyper["age"]["d"] = self.hyper["age"]["p"] + 1
+
+						if self.hyper["age"]["case"] == "GGL":
+							def std_GG(d,p):
+								a = gamma((d+2)/p)/gamma(d/p)
+								b = gamma((d+1)/p)/gamma(d/p)
+								return np.sqrt(a - b**2)
+
+							self.hyper["age"]["scl"] /= std_GG(self.hyper["age"]["d"],self.hyper["age"]["p"])
 						
 						print("age ~ GeneralizedGamma(loc={0:2.1f},scale={1:2.1f},d={2:2.2f},p={3:2.2f}) [Myr]".format(
 						self.hyper["age"]["loc"]-self.hyper["age"]["scl"],self.hyper["age"]["scl"],self.hyper["age"]["d"],self.hyper["age"]["p"]))
-
+					elif self.hyper["age"]["distribution"] == "SkewNormal":
+						print("age ~ SkewNormal(loc={0:2.1f},scale={1:2.1f},alpha={2:2.1f}) [Myr]".format(
+						self.hyper["age"]["loc"],self.hyper["age"]["scl"],self.hyper["age"]["alpha"]))
 					elif self.hyper["age"]["distribution"] == "TruncatedNormal":
 						print("age ~ TruncatedNormal(low=0.0, loc={0:2.1f},scale={1:2.1f}) [Myr]".format(
 						self.hyper["age"]["loc"],self.hyper["age"]["scl"]))
@@ -1009,7 +1027,7 @@ class Inference:
 		init_plot_iters=int(1e4),
 		init_refine=False,
 		prior_predictive=False,
-		prior_iters=500,
+		prior_iters=2000,
 		progressbar=True,
 		nuts_sampler="numpyro",
 		random_seed=None):
@@ -1186,14 +1204,14 @@ class Inference:
 
 		
 		if prior_predictive and not os.path.exists(self.file_prior):
-				#-------- Prior predictive -------------------
-				print("Sampling prior predictive ...")
-				prior_pred = pm.sample_prior_predictive(
-							samples=prior_iters,
-							model=self.Model)
-				print("Saving prior predictive ...")
-				az.to_netcdf(prior_pred,self.file_prior)
-				#---------------------------------------------
+			#-------- Prior predictive -------------------
+			print("Sampling prior predictive ...")
+			prior_pred = pm.sample_prior_predictive(
+						samples=prior_iters,
+						model=self.Model)
+			print("Saving prior predictive ...")
+			az.to_netcdf(prior_pred,self.file_prior)
+			#---------------------------------------------
 
 		print("Sampling done!")
 		
@@ -1909,7 +1927,7 @@ class Inference:
 			if nvr.min() < 0 and nvr.max() > 0:
 				vcenter = 0.0
 			else:
-				vcenter = np.sign(nvr.min())*0.5*np.abs((nvr.max()-nvr.min()))
+				vcenter = nvr.min() + np.sign(nvr.min())*np.abs(0.5*(nvr.max()-nvr.min()))
 
 			norm_pos = TwoSlopeNorm(vcenter=vcenter,
 								vmin=nvr.min(),vmax=nvr.max())
@@ -2196,7 +2214,7 @@ class Inference:
 		# assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
 		
 		#--------- Coordinates -------------------------
-		# In MM use only one chain
+		# In GMM use only one chain
 		if "GMM" in self.prior:
 			chain = [0] if chain is None else chain
 			print("WARNING: In mixture models only one "\
@@ -2204,6 +2222,7 @@ class Inference:
 				+"Set chain=[0,1,..,n_chains] to override.")
 			data = az.utils.get_coords(self.ds_posterior,{"chain":chain})
 			names_groups = self.ds_posterior.coords["component"].values
+			print("Computing statistics with chain =",chain)
 		else:
 			data = self.ds_posterior
 			names_groups = ["A"]
@@ -2282,7 +2301,7 @@ class Inference:
 			df_grp = az.summary(data,var_names=self.stats_variables,
 							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
-							round_to=3,
+							round_to=5,
 							extend=True)
 			df_grp = df_map_grp.join(df_grp)
 
@@ -2291,50 +2310,52 @@ class Inference:
 
 		#--------------- Velocity field ----------------------------------
 		if "6D::kappa" in self.cluster_variables:
-			field_csv = self.dir_out +"/Linear_velocity_statistics.csv"
+			
 			_,_,exp,rot,T = self._kinematic_indices(group="posterior")
 
-			df_field = az.summary(data={
-				"Exp [m.s-1.pc-1]":exp,
-				"Rot [m.s-1.pc-1]":rot,
-				"Txx [m.s-1.pc-1]":T[:,0,0],
-				"Txy [m.s-1.pc-1]":T[:,0,1],
-				"Txz [m.s-1.pc-1]":T[:,0,2],
-				"Tyx [m.s-1.pc-1]":T[:,1,0],
-				"Tyy [m.s-1.pc-1]":T[:,1,1],
-				"Tyz [m.s-1.pc-1]":T[:,1,2],
-				"Tzx [m.s-1.pc-1]":T[:,2,0],
-				"Tzy [m.s-1.pc-1]":T[:,2,1],
-				"Tzz [m.s-1.pc-1]":T[:,2,2]
-				},
-							stat_focus=stat_focus,
-							hdi_prob=hdi_prob,
-							kind="stats",
-							extend=True)
-
-			df_field.to_csv(path_or_buf=field_csv,index_label="Parameter")
+			# df_field = az.summary(data={
+			# 	"Exp [m.s-1.pc-1]":exp,
+			# 	"Rot [m.s-1.pc-1]":rot,
+			# 	"Txx [m.s-1.pc-1]":T[:,0,0],
+			# 	"Txy [m.s-1.pc-1]":T[:,0,1],
+			# 	"Txz [m.s-1.pc-1]":T[:,0,2],
+			# 	"Tyx [m.s-1.pc-1]":T[:,1,0],
+			# 	"Tyy [m.s-1.pc-1]":T[:,1,1],
+			# 	"Tyz [m.s-1.pc-1]":T[:,1,2],
+			# 	"Tzx [m.s-1.pc-1]":T[:,2,0],
+			# 	"Tzy [m.s-1.pc-1]":T[:,2,1],
+			# 	"Tzz [m.s-1.pc-1]":T[:,2,2]
+			# 	},
+			# 				stat_focus=stat_focus,
+			# 				hdi_prob=hdi_prob,
+			# 				kind="stats",
+			# 				extend=True)
+			# field_csv = self.dir_out +"/Linear_velocity_statistics.csv"
+			# df_field.to_csv(path_or_buf=field_csv,index_label="Parameter")
 
 			#----------- Notation as in Lindegren et al. 2000 --------------
-			lenn_csv = self.dir_out +"/Lindegren_velocity_statistics.csv"
+			
 			df_Lenn = az.summary(data={
-				"kappa [m.s-1.pc-1]":exp,
-				"kappa_x [m.s-1.pc-1]":T[:,0,0],
-				"kappa_y [m.s-1.pc-1]":T[:,1,1],
-				"kappa_z [m.s-1.pc-1]":T[:,2,2],
-				"omega_x [m.s-1.pc-1]":0.5*(T[:,2,1]-T[:,1,2]),
-				"omega_y [m.s-1.pc-1]":0.5*(T[:,0,2]-T[:,2,0]),
-				"omega_z [m.s-1.pc-1]":0.5*(T[:,1,0]-T[:,0,1]),
-				"w_1 [m.s-1.pc-1]":0.5*(T[:,2,1]+T[:,1,2]),
-				"w_2 [m.s-1.pc-1]":0.5*(T[:,0,2]+T[:,2,0]),
-				"w_3 [m.s-1.pc-1]":0.5*(T[:,1,0]+T[:,0,1]),
-				"w_4 [m.s-1.pc-1]":T[:,0,0],
-				"w_5 [m.s-1.pc-1]":T[:,1,1]
+				"kappa [m.s-1.pc-1]": exp,
+				"kappa_x [m.s-1.pc-1]": T[:,0,0],
+				"kappa_y [m.s-1.pc-1]": T[:,1,1],
+				"kappa_z [m.s-1.pc-1]": T[:,2,2],
+				"omega [m.s-1.pc-1]": rot,
+				"omega_x [m.s-1.pc-1]": 0.5*(T[:,2,1]-T[:,1,2]),
+				"omega_y [m.s-1.pc-1]": 0.5*(T[:,0,2]-T[:,2,0]),
+				"omega_z [m.s-1.pc-1]": 0.5*(T[:,1,0]-T[:,0,1]),
+				"w_1 [m.s-1.pc-1]": 0.5*(T[:,2,1]+T[:,1,2]),
+				"w_2 [m.s-1.pc-1]": 0.5*(T[:,0,2]+T[:,2,0]),
+				"w_3 [m.s-1.pc-1]": 0.5*(T[:,1,0]+T[:,0,1]),
+				"w_4 [m.s-1.pc-1]": T[:,0,0],
+				"w_5 [m.s-1.pc-1]": T[:,1,1]
 				},
-							stat_focus=stat_focus,
-							hdi_prob=hdi_prob,
-							kind="stats",
-							extend=True)
+				stat_focus=stat_focus,
+				hdi_prob=hdi_prob,
+				kind="stats",
+				extend=True)
 
+			lenn_csv = self.dir_out +"/Lindegren_velocity_statistics.csv"
 			df_Lenn.to_csv(path_or_buf=lenn_csv,index_label="Parameter")
 
 		#-------------------------------------------------------------------

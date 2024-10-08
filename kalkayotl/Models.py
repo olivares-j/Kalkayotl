@@ -1028,13 +1028,13 @@ class Model6D_age(Model):
 		#-------------------------- Age ----------------------------------------
 		if parameters["age"] is None:
 			if hyper["age"]["distribution"] == "GeneralizedGamma":
-				age = GeneralizedGamma("age",
+				age = pm.Truncated("age",GeneralizedGamma.dist(
 										loc=hyper["age"]["loc"]-hyper["age"]["scl"],
 										scale=hyper["age"]["scl"],
 										d=hyper["age"]["d"],
-										p=hyper["age"]["p"],
-										initval=hyper["age"]["loc"])
-
+										p=hyper["age"]["p"]),
+									lower=0.0,
+									initval=hyper["age"]["loc"])
 			else:
 				age = pm.TruncatedNormal("age",
 									lower=0.0,

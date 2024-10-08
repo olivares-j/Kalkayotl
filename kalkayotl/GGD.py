@@ -52,7 +52,10 @@ class GeneralizedGammaRV(RandomVariable):
 		p: np.ndarray,
 		size: Tuple[int, ...],
 	) -> np.ndarray:
-		return st.gengamma.rvs(loc=loc,scale=scale, a=d/p, c=p, random_state=rng, size=size)
+		sample = st.gengamma.rvs(loc=loc,scale=scale, a=d/p, c=p, random_state=rng, size=size)
+		# sample = sample[np.where(sample>0.0)[0]][:size]
+		# assert sample.shape[0] == size,"Error in sample size!"
+		return sample
 
 # Create the actual `RandomVariable` `Op`...
 gengamma = GeneralizedGammaRV()
@@ -149,7 +152,8 @@ class GeneralizedGamma(PositiveContinuous):
 		# with the message defined in the optional `msg` keyword argument.
 		return check_parameters(
 			bounded_logp_expression,
-			loc >= 0, scale > 0, d > 0, p > 0, msg="loc >= 0, scale > 0, d>0, p > 0",
+			# loc >= 0, scale > 0, d > 0, p > 0, msg="loc >= 0, scale > 0, d>0, p > 0",
+			scale > 0, d > 0, p > 0, msg="scale > 0, d>0, p > 0",
 			)
 
 	# logcdf works the same way as logp. For bounded variables, it is expected to return
@@ -173,7 +177,8 @@ class GeneralizedGamma(PositiveContinuous):
 		# with the message defined in the optional `msg` keyword argument.
 		return check_parameters(
 			bounded_logp_expression,
-			loc >= 0,scale > 0, d > 0, p > 0, msg="loc >= 0, scale > 0, d > 0, p > 0",
+			# loc >= 0,scale > 0, d > 0, p > 0, msg="loc >= 0, scale > 0, d > 0, p > 0",
+			scale > 0, d > 0, p > 0, msg="scale > 0, d > 0, p > 0",
 			)
 
 

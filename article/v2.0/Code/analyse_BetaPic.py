@@ -17,8 +17,9 @@ family = "Gaussian"
 dimension = "6D"
 
 #---------------------- Directories and data -------------------------------
-dir_main  = "/home/jolivares/Repos/Kalkayotl/article/v2.0/BetaPic/"
-dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/BetaPic/"
+dir_main  = "/home/jolivares/Projects/Kalkayotl/BetaPic/"
+dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/"
+dir_tabs  = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Tables/"
 dir_run   = "/6D_Gaussian_Galactic_joint_1E+06/"
 authors   = ["Miret-Roig+2020","Couture+2023","Crundall+2019"]
 files_src = ["Table3.csv","core_sources.csv",None]
@@ -28,12 +29,15 @@ file_plot_src = dir_plots + "BetaPic_source-level.png"
 file_plot_grp = dir_plots + "BetaPic_group-level.png"
 file_plot_cnv = dir_plots + "BetaPic_convergence.png"
 file_plot_age = dir_plots + "BetaPic_age.png"
+file_tab_grp  = dir_tabs  + "BetaPic_group-level.tex"
 
-do_all_dta = False
+do_all_dta = True
 do_plt_cnv = False
 do_plt_grp = False
+do_tab_grp = True
 do_plt_src = False
-do_plt_age = True
+do_plt_age = False
+
 #---------------------------------------------------------------------------
 
 coordinates = ["X","Y","Z","U","V","W"]
@@ -72,6 +76,30 @@ parameters = sum([
 	["6D::loc[{0}]".format(x) for x in coordinates],
 	["6D::std[{0}]".format(x) for x in coordinates]
 	], [])
+
+def remove_6D(x):
+	return x.replace("6D::","")
+
+def format_mu_sd(mu,sd):
+	if np.isnan(sd):
+		return "${0:2.2f}$".format(mu)
+	else:
+		return "${0:2.2f}\\pm{1:2.2f}$".format(mu,sd)
+
+
+columns_fmt = [
+			("loc[X]","[pc]"),
+			("loc[Y]","[pc]"),
+			("loc[Z]","[pc]"),
+			("loc[U]","[km/s]"),
+			("loc[V]","[km/s]"),
+			("loc[W]","[km/s]"),
+			("std[X]","[pc]"),
+			("std[Y]","[pc]"),
+			("std[Z]","[pc]"),
+			("std[U]","[km/s]"),
+			("std[V]","[km/s]"),
+			("std[W]","[km/s]")]
 #-----------------------------------------------------------------------
 
 #------------ Literature values --------------------
@@ -151,7 +179,7 @@ if do_all_dta:
 					tmp.set_index(pn.MultiIndex.from_product(
 							[[author],[coord],tmp.index.values]),
 							inplace=True)
-					tmp.index.set_names(["Author","Coordinate","source_id"],
+					tmp.index.set_names(["Authors","Coordinate","source_id"],
 						inplace=True)
 					tmp_crd.append(tmp)
 				tmp_crd = pn.concat(tmp_crd,ignore_index=False)
@@ -185,9 +213,11 @@ if do_all_dta:
 									columns=["low","mean","up"])
 		if author == "Crundall+2019":
 			tmp.loc[parameters[:6],"mean"] -= LSR
+
+		tmp["sd"] = tmp.apply(lambda x: 0.5*(x["low"]+x["up"]),axis=1)
 		tmp.set_index(pn.MultiIndex.from_product(
 					[[author],tmp.index.values]),
-					# names=["Author","Parameter"],
+					# names=["Authors","Parameter"],
 					inplace=True)
 		dfs_lit.append(tmp.reset_index())
 		#--------------------------------------------------------
@@ -197,13 +227,21 @@ if do_all_dta:
 		df_grp.set_index("Parameter",inplace=True)
 		df_grp.set_index(pn.MultiIndex.from_product(
 			[[author],df_grp.index.values]),
-			# names=["Author","Parameter"],
+			# names=["Authors","Parameter"],
 			inplace=True)
 		#-------------------------------------------------------------
 
+		#------------ Relative error ----------------
+		df_grp["true"] = tmp.loc[:,"mean"]
+		df_grp["agreement"] = df_grp.apply(lambda x:(x["true"] > x["hdi_2.5%"]) and
+								 (x["true"]<x["hdi_97.5%"]),axis=1)
+		#----------------------------------------------------------------------------------
+
 		#------------ Lower and upper limits --------------------------------
-		df_grp["low"] = df_grp.apply(lambda x:x["mean"]-x["hdi_2.5%"],axis=1)
-		df_grp["up"]  = df_grp.apply(lambda x:x["hdi_97.5%"]-x["mean"],axis=1)
+		df_grp["lower"] = df_grp.apply(lambda x:x["mean"]-x["hdi_2.5%"],axis=1)
+		df_grp["upper"] = df_grp.apply(lambda x:x["hdi_97.5%"]-x["mean"],axis=1)
+		df_grp["low"]   = df_grp["sd"]
+		df_grp["up"]    = df_grp["sd"]
 		#--------------------------------------------------------------------
 
 		#----------- Append ----------------
@@ -219,8 +257,8 @@ if do_all_dta:
 	#----------- Set indices -----------------------------
 	df_grp.set_index(["level_0","level_1"],inplace=True)
 	df_lit.set_index(["level_0","level_1"],inplace=True)
-	df_grp.index.set_names(["Author","Parameter"],inplace=True)
-	df_lit.index.set_names(["Author","Parameter"],inplace=True)
+	df_grp.index.set_names(["Authors","Parameter"],inplace=True)
+	df_lit.index.set_names(["Authors","Parameter"],inplace=True)
 	#----------------------------------------------------------
 
 	#------------ Save data --------------------------
@@ -236,6 +274,52 @@ else:
 	#-------------------------------------------------------
 
 #=========================== Plots =======================================
+
+if do_tab_grp:
+	df_grp = df_grp.loc[:,["mean","sd","agreement"]]
+	df_lit = df_lit.loc[:,["mean","sd"]]
+
+	df_lit.replace(0.0,value=np.nan,inplace=True)
+	df_grp["Origin"] = "This work"
+	df_lit["Origin"] = "Reported"
+
+	tab = pn.concat([df_lit,df_grp],ignore_index=False)
+	tab.reset_index(inplace=True)
+	tab["string"] = tab.apply(lambda x: format_mu_sd(x["mean"],x["sd"]),axis=1)
+
+	# tab.drop(columns=["mean","sd"],inplace=True)
+	tab.set_index(["Parameter"],inplace=True)
+	tab = tab.pivot(columns=["Authors","Origin"],values=["string","agreement"])
+	tab.sort_index(axis=1,level=0,inplace=True)
+	tab.rename(axis=0,mapper=remove_6D,inplace=True)
+	tab = tab.loc[[col[0] for col in columns_fmt]]
+
+	print(tab.loc[:,("agreement",slice(None),"This work")])
+
+	tab = tab.loc[:,"string"]
+	tab.index = pn.MultiIndex.from_tuples(columns_fmt)
+	tab.index.names = ["Parameter","Units"]
+	tab.columns.names = [None,None]
+
+	#---------- Table to latex ---------------
+	s = tab.style
+	s.format(precision=1,na_rep="-",
+		escape="latex-math")
+	print(s.to_latex(
+		column_format="llrrrrrr",
+		multicol_align="c",
+		hrules=True,
+		clines=None))
+	# sys.exit()
+	#--------------- Save -----------------------------------------------
+	s.to_latex(file_tab_grp,
+		column_format="llrrrrrr",
+		multicol_align="c",
+		hrules=True,
+		clines=None)
+	#---------------------------------------------------------------------
+	
+
 if do_plt_cnv:
 	#-------------- Convergence ----------------------------------------------
 	pdf = PdfPages(filename=file_plot_cnv)
@@ -245,9 +329,9 @@ if do_plt_cnv:
 						sharey=False,
 						margin_titles=True,
 						col_wrap=3,)
-		fg.map(sns.scatterplot,"Author",st["key"])
+		fg.map(sns.scatterplot,"Authors",st["key"])
 		fg.add_legend()
-		fg.set_axis_labels("Author",st["name"])
+		fg.set_axis_labels("Authors",st["name"])
 		# fg.set(xscale="log")
 		pdf.savefig(bbox_inches='tight')
 		plt.close()
@@ -268,7 +352,7 @@ if do_plt_grp:
 					height=2,
 					aspect=1.5,
 					)
-	fg.map(sns.scatterplot,"mean","Author",
+	fg.map(sns.scatterplot,"mean","Authors",
 			zorder=2,color="tab:red")
 	fg.set_axis_labels("Value","")
 	axs = fg.axes_dict
@@ -279,7 +363,7 @@ if do_plt_grp:
 
 		#----------- Literature values -----------------------
 		dfl = dfg_lit.get_group(parameter)
-		ax.errorbar(x=dfl["mean"],y=dfl["Author"],
+		ax.errorbar(x=dfl["mean"],y=dfl["Authors"],
 					xerr=dfl.loc[:,["low","up"]].to_numpy().T,
 					capsize=5,elinewidth=1,capthick=1,
 					fmt="none",color="tab:red",zorder=0)
@@ -287,7 +371,7 @@ if do_plt_grp:
 
 		#------ Inferred HDI values -------------------------------
 		dfg = dfg_grp.get_group(parameter)
-		ax.errorbar(x=dfg["mean"],y=dfg["Author"],
+		ax.errorbar(x=dfg["mean"],y=dfg["Authors"],
 					xerr=dfg.loc[:,["low","up"]].to_numpy().T,
 					capsize=0,elinewidth=1,
 					fmt="none",
@@ -297,7 +381,7 @@ if do_plt_grp:
 
 		#------ Inferred sd values -------------------------------
 		dfg = dfg_grp.get_group(parameter)
-		ax.errorbar(x=dfg["mean"],y=dfg["Author"],
+		ax.errorbar(x=dfg["mean"],y=dfg["Authors"],
 					xerr=dfg["sd"],
 					capsize=5,elinewidth=1,capthick=1,
 					fmt=".",
@@ -312,6 +396,7 @@ if do_plt_grp:
 	plt.close()
 	#-------------------------------------------------------------------------
 
+
 if do_plt_src:
 
 	def annotate_rms(data, **kws):
@@ -322,12 +407,12 @@ if do_plt_src:
 			transform=ax.transAxes,
 			fontweight="normal",**kws)
 
-	df_src.reset_index(level=["Author","Coordinate"],inplace=True)
+	df_src.reset_index(level=["Authors","Coordinate"],inplace=True)
 
 	#-------------- Source level----------------------------------------------
 	fg = sns.FacetGrid(data=df_src,
 					col="Coordinate",
-					hue="Author",
+					hue="Authors",
 					sharey=False,
 					sharex=False,
 					margin_titles=True,
@@ -367,7 +452,7 @@ if do_plt_src:
 		fg.map_dataframe(annotate_rms)
 		#-------------------------------
 
-	plt.savefig(file_plot_src,bbox_inches='tight')
+	plt.savefig(file_plot_src,bbox_inches='tight',dpi=300)
 	plt.close()
 	#-------------------------------------------------------------------------
 

@@ -6,33 +6,29 @@ os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
 
-user = "jromero"
-authors = ["GG+2023_core","GG+Lodieu"]
+from groups import *
 
-dir_kalkayotl  = "/home/{0}/Repos/Kalkayotl/".format(user) 
+authors = ["Jadhav+2024"]#,"GG+2023_wtr","Hao+2022_wtr""GG+2023_core","GG+Lodieu"]
 
 #----- Import the module -------------------------------
-sys.path.append(dir_kalkayotl)
+sys.path.append(dir_kal)
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
-
-#----------- Directories and files -------------------------------
-dir_oc = "/home/{0}/Repos/Kalkayotl/article/v2.0/Praesepe/".format(user)
-#---------------------------------------------------------
 
 #=============== Tuning knobs ============================
 dimension = 6
 chains    = 2
 cores     = 2
+init_iters    = int(3e5)
 tuning_iters  = 3000
 sample_iters  = 2000
 target_accept = 0.65
-sky_error_factor = 1e6
+init_refine   = True
 
 sampling_space   = "physical"
 indep_measures   = False
-velocity_model   = "linear"
 nuts_sampler     = "numpyro"
+nuts_sampler     = "pymc"
 
 zero_points = {
 "ra":0.,
@@ -45,47 +41,54 @@ zero_points = {
 rs = "Galactic"
 #--------------------------------
 
-prior = {"type":"Gaussian",
-		"parameters":{"location":None,"scale":None},
-		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
-							"eta":None
-							},
-		"parametrization":"central"}
-
-# prior = {"type":"FGMM",      
-# 		"parameters":{"location":None,
-# 					  "scale":None,
-# 					  "weights":None,
-# 					  "field_scale":[20.,20.,20.,5.,5.,5.]
-# 					  },
+# prior = {"type":"Gaussian",
+# 		"parameters":{"location":None,"scale":None},
 # 		"hyper_parameters":{
-# 							"alpha":None,
-# 							"beta":None, 
-# 							"delta":np.array([8,2]),
+# 							"location":None,
+# 							"scale":None,
 # 							"eta":None,
-# 							"n_components":2
 # 							},
 # 		"parametrization":"central"}
 
+# prior = {"type":"Gaussian",
+# 		"parameters":{"location":None,"scale":None,"kappa":None,"omega":None},
+# 		"hyper_parameters":{
+# 							"location":None,
+# 							"scale":None, 
+# 							"eta":None,
+# 							"kappa":None,
+# 							"omega":None
+# 							},
+# 		"parametrization":"central"
+# 		}
+
+prior = {"type":"FGMM",      
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None,
+					  "field_scale":[20.,20.,20.,5.,5.,5.]
+					  },
+		"hyper_parameters":{
+							"location":None,
+							"scale":None, 
+							"weights":{"a":np.array([8,2])},
+							"eta":None,
+							},
+		"parametrization":"central"}
+
 #======================= Inference and Analysis =====================================================
 for author in authors:
-	dir_base = "{0}{1}/".format(dir_oc,author)
+	dir_base = "{0}Praesepe/{1}/".format(dir_main,author)
 	file_data = "{0}members.csv".format(dir_base)
 
 	#------- Creates directory if it does not exists -------
 	os.makedirs(dir_base,exist_ok=True)
 	#-------------------------------------------------------
 
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0E}".format(
+	dir_prior = dir_base +  "{0}D_{1}_{2}_linear_1E+06".format(
 							dimension,
 							prior["type"],
-							rs,
-							velocity_model,
-							sky_error_factor)
+							rs)
 
 	os.makedirs(dir_prior,exist_ok=True)
 
@@ -94,24 +97,23 @@ for author in authors:
 					zero_points=zero_points,
 					indep_measures=indep_measures,
 					reference_system=rs,
-					sampling_space=sampling_space,
-					velocity_model=velocity_model)
+					sampling_space=sampling_space
+					)
 
-	kal.load_data(file_data,
-					sky_error_factor=sky_error_factor)
+	kal.load_data(file_data)
 
 	kal.setup(prior=prior["type"],
 			  parameters=prior["parameters"],
 			  hyper_parameters=prior["hyper_parameters"],
-			  parametrization=prior["parametrization"])
+			  parameterization=prior["parametrization"])
 
 	kal.run(sample_iters=sample_iters,
 			tuning_iters=tuning_iters,
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e5),
-			init_refine=False,
+			init_iters=init_iters,
+			init_refine=init_refine,
 			step_size=None,
 			nuts_sampler=nuts_sampler,
 			prior_predictive=False)
