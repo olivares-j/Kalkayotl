@@ -6,39 +6,32 @@ os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 import h5py
 
-dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
+
+#----------------- Directories --------------------------
+dir_kal  = "/home/jolivares/Repos/Kalkayotl/"
+dir_main = "/home/jolivares/Projects/Kalkayotl/BetaPic/"
+#--------------------------------------------------------
 
 #----- Import the module -------------------------------
-sys.path.append(dir_kalkayotl)
+sys.path.append(dir_kal)
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
-#----------- Directories and files -------------------------------
-authors = "Crundall+2019"
-# authors = "Couture+2023"
-#authors = "Couture+2023_clean"
-# authors = "Miret-Roig_2020"
-dir_case = "/home/jolivares/Repos/Kalkayotl/article/v2.0/BetaPic/"
-dir_base = "{0}{1}/".format(dir_case,authors)
-file_data = "{0}members.csv".format(dir_base)
-#---------------------------------------------------------
-
-#------- Creates directory if it does not exists -------
-os.makedirs(dir_base,exist_ok=True)
-#-------------------------------------------------------
+authors = ["Crundall+2019"]#,"Couture+2023","Couture+2023_clean","Miret-Roig_2020"
 
 #=============== Tuning knobs ============================
 dimension = 6
 chains    = 2
 cores     = 2
+init_iters    = int(3e5)
 tuning_iters  = 5000
 sample_iters  = 2000
-target_accept = 0.85
+target_accept = 0.65
+init_refine   = True
 sky_error_factor = 1e7
 
 sampling_space   = "physical"
 indep_measures   = False
-velocity_model   = "linear"
 nuts_sampler     = "numpyro"
 
 zero_points = {
@@ -49,21 +42,29 @@ zero_points = {
 "pmdec":0.,
 "radial_velocity":0.}
 
-rss = ["Galactic",]
+rs = "Galactic"
 #--------------------------------
 
+# prior = {"type":"Gaussian",
+# 		"parameters":{"location":None,"scale":None},
+# 		"hyper_parameters":{
+# 							"location":None,
+# 							"scale":None,
+# 							"eta":None
+# 							},
+# 		"parametrization":"central"}
+
 prior = {"type":"Gaussian",
-		"parameters":{"location":None,"scale":None},
+		"parameters":{"location":None,"scale":None,"kappa":None,"omega":None},
 		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
+							"location":None,
+							"scale":None, 
 							"eta":None,
 							"kappa":None,
 							"omega":None
 							},
-		"parametrization":"central"}
+		"parametrization":"central"
+		}
 
 # prior = {"type":"FGMM",      
 # 		"parameters":{"location":None,
@@ -72,32 +73,33 @@ prior = {"type":"Gaussian",
 # 					  "field_scale":[20.,20.,20.,5.,5.,5.]
 # 					  },
 # 		"hyper_parameters":{
-# 							"alpha":None,
-# 							"beta":None, 
-# 							"delta":np.array([8,2]),
+# 							"location":None,
+# 							"scale":None, 
+# 							"weights":{"a":np.array([8,2])},
 # 							"eta":None,
-# 							"n_components":2
 # 							},
 # 		"parametrization":"central"}
-
 #======================= Inference and Analysis =====================================================
-for rs in rss:
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4:1.0E}".format(
+for author in authors:
+	dir_base = "{0}{1}/".format(dir_main,author)
+	file_data = "{0}members.csv".format(dir_base)
+
+	dir_prior = dir_base +  "{0}D_{1}_{2}".format(
 							dimension,
 							prior["type"],
-							rs,
-							velocity_model,
-							sky_error_factor)
+							rs)
 
+	#------- Creates directory if it does not exists -------
+	os.makedirs(dir_base,exist_ok=True)
 	os.makedirs(dir_prior,exist_ok=True)
+	#-------------------------------------------------------
 
 	kal = Inference(dimension=dimension,
 					dir_out=dir_prior,
 					zero_points=zero_points,
 					indep_measures=indep_measures,
 					reference_system=rs,
-					sampling_space=sampling_space,
-					velocity_model=velocity_model)
+					sampling_space=sampling_space)
 
 	kal.load_data(file_data,
 					sky_error_factor=sky_error_factor)
@@ -105,17 +107,17 @@ for rs in rss:
 	kal.setup(prior=prior["type"],
 			  parameters=prior["parameters"],
 			  hyper_parameters=prior["hyper_parameters"],
-			  parametrization=prior["parametrization"])
+			  parameterization=prior["parametrization"])
 
 	kal.run(sample_iters=sample_iters,
 			tuning_iters=tuning_iters,
 			target_accept=target_accept,
 			chains=chains,
 			cores=cores,
-			init_iters=int(1e6),
-			init_refine=False,
+			init_iters=init_iters,
+			init_refine=init_refine,
 			nuts_sampler=nuts_sampler,
-			prior_predictive=True)
+			prior_predictive=False)
 
 	kal.load_trace()
 	kal.convergence()

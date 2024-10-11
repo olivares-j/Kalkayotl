@@ -9,10 +9,12 @@ import h5py
 # from groups import *
 
 
-dir_kal  = "/home/jromero/Repos/Kalkayotl"
-dir_main = dir_kal + "/article/v2.0/"
+# dir_kal  = "/home/jromero/Repos/Kalkayotl"
+# dir_main = dir_kal + "/article/v2.0/"
+dir_kal  = "/home/jolivares/Repos/Kalkayotl"
+dir_main = "/home/jolivares/Projects/Kalkayotl/Praesepe/"
 
-authors = ["Jadhav+2024"]#,"GG+2023_wtr","Hao+2022_wtr""GG+2023_core","GG+Lodieu"]
+authors = ["Jadhav+2024_wtr"]#,"GG+2023_wtr","Hao+2022_wtr""GG+2023_core","GG+Lodieu"]
 
 #----- Import the module -------------------------------
 sys.path.append(dir_kal)
@@ -32,7 +34,7 @@ init_refine   = True
 sampling_space   = "physical"
 indep_measures   = False
 nuts_sampler     = "numpyro"
-nuts_sampler     = "pymc"
+# nuts_sampler     = "pymc"
 
 zero_points = {
 "ra":0.,
@@ -54,47 +56,46 @@ rs = "Galactic"
 # 							},
 # 		"parametrization":"central"}
 
-# prior = {"type":"Gaussian",
-# 		"parameters":{"location":None,"scale":None,"kappa":None,"omega":None},
-# 		"hyper_parameters":{
-# 							"location":None,
-# 							"scale":None, 
-# 							"eta":None,
-# 							"kappa":None,
-# 							"omega":None
-# 							},
-# 		"parametrization":"central"
-# 		}
-
-prior = {"type":"FGMM",      
-		"parameters":{"location":None,
-					  "scale":None,
-					  "weights":None,
-					  "field_scale":[20.,20.,20.,5.,5.,5.]
-					  },
+prior = {"type":"Gaussian",
+		"parameters":{"location":None,"scale":None,"kappa":None,"omega":None},
 		"hyper_parameters":{
 							"location":None,
 							"scale":None, 
-							"weights":{"a":np.array([8,2])},
 							"eta":None,
+							"kappa":None,
+							"omega":None
 							},
-		"parametrization":"central"}
+		"parametrization":"central"
+		}
+
+# prior = {"type":"FGMM",      
+# 		"parameters":{"location":None,
+# 					  "scale":None,
+# 					  "weights":None,
+# 					  "field_scale":[20.,20.,20.,5.,5.,5.]
+# 					  },
+# 		"hyper_parameters":{
+# 							"location":None,
+# 							"scale":None, 
+# 							"weights":{"a":np.array([8,2])},
+# 							"eta":None,
+# 							},
+# 		"parametrization":"central"}
 
 #======================= Inference and Analysis =====================================================
 for author in authors:
-	dir_base = "{0}Praesepe/{1}/".format(dir_main,author)
+	dir_base = "{0}{1}/".format(dir_main,author)
 	file_data = "{0}members.csv".format(dir_base)
-
-	#------- Creates directory if it does not exists -------
-	os.makedirs(dir_base,exist_ok=True)
-	#-------------------------------------------------------
 
 	dir_prior = dir_base +  "{0}D_{1}_{2}_linear_1E+06".format(
 							dimension,
 							prior["type"],
 							rs)
 
+	#------- Creates directory if it does not exists -------
+	os.makedirs(dir_base,exist_ok=True)
 	os.makedirs(dir_prior,exist_ok=True)
+	#-------------------------------------------------------
 
 	kal = Inference(dimension=dimension,
 					dir_out=dir_prior,
