@@ -1233,6 +1233,16 @@ class Inference:
 		#---------Load posterior ---------------------------------------------------
 		try:
 			posterior = az.from_netcdf(file_chains)
+			# print("------------ RENAMING DIMENSION ----------------------------")
+			# print(posterior.posterior["6D::corr"].dims)
+			# posterior.posterior.variables["6D::corr"].dims = ("chain","draw","component","coordinate","coordinates")
+			# print(posterior.posterior["6D::corr"].dims)
+			# print("------------------------------------------------------------")
+			# print("------------ ADDING DIMENSION -----------------------------------")
+			# print(posterior.posterior.dims)
+			# posterior.posterior = posterior.posterior.assign_coords({"coordinates": ["X","Y","Z","U","V","W"]})
+			# print(posterior.posterior.dims)
+			# print("-----------------------------------------------------------------")
 		except ValueError:
 			sys.exit("ERROR at loading {0}".format(file_chains))
 		#------------------------------------------------------------------------
