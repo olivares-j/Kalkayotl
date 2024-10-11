@@ -295,8 +295,9 @@ class Model3D6D(Model):
 		observables=["ra","dec","parallax"]):
 		super().__init__(name="{0}D".format(dimension),model=None)
 		self.add_coord("source_id",values=identifiers)
-		self.add_coord("coordinate",values=coordinates)
 		self.add_coord("observable",values=observables)
+		self.add_coord("coordinate",values=coordinates)
+		self.add_coord("coordinates",values=coordinates) #To avoid duplicated dimension names
 
 		#------------------- Data ------------------------------------------------------
 		if n_sources == 0:
@@ -358,7 +359,7 @@ class Model3D6D(Model):
 					loc  = tt.set_subtensor(loc[i],
 							np.array(parameters["location"][i]))
 				loc = pm.Deterministic("loc",loc,
-					dims=("component","coordinate"))
+						dims=("component","coordinate"))
 				#--------------------------------------------------
 			#----------------------------------------------------------------------------
 
@@ -423,8 +424,10 @@ class Model3D6D(Model):
 					corr = tt.set_subtensor(corr[i],corr_i)
 					stds = tt.set_subtensor(stds[i],stds_i)
 
-			corr = pm.Deterministic("corr", corr,dims=("component","coordinate","coordinate"))
-			stds = pm.Deterministic("std", stds,dims=("component","coordinate"))
+			corr = pm.Deterministic("corr", corr,
+							dims=("component","coordinate","coordinates"))
+			stds = pm.Deterministic("std", stds,
+							dims=("component","coordinate"))
 			#--------------------------------------------------------------------
 		#---------------------------------------------------------------------------------
 
@@ -452,9 +455,7 @@ class Model3D6D(Model):
 									beta=1./hyper["scale"]["loc"]),
 								compute_corr=True,
 								store_in_trace=False)
-				corr = pm.Deterministic("corr", corr)
-				stds = pm.Deterministic("std", stds,
-							dims="coordinate")
+
 			else:
 				#--------- Extract ---------------------------------
 				chol_i = np.linalg.cholesky(parameters["scale"])
@@ -462,13 +463,17 @@ class Model3D6D(Model):
 				stds_i = np.sqrt(np.diag(cov))
 				inv_stds = np.diag(1. / stds_i)
 				corr_i = inv_stds @ cov @ inv_stds
-				#---------------------------------------------------
 				
 				chol = pytensor.shared(chol_i)
-				corr = pm.Deterministic("corr", pytensor.shared(corr_i))
-				stds = pm.Deterministic("std",  pytensor.shared(stds_i),
-												dims="coordinate")
-			#--------------------------------------------------------------
+				corr = pytensor.shared(corr_i)
+				stds = pytensor.shared(stds_i)
+				#---------------------------------------------------
+
+
+			corr = pm.Deterministic("corr", corr,
+							dims=("coordinate","coordinates"))
+			stds = pm.Deterministic("std", stds,
+							dims="coordinate")
 		#----------------------------------------------------------------------------
 		#==============================================================================
 
@@ -574,9 +579,13 @@ class Model6D_linear(Model):
 		observables=["ra","dec","parallax","pmra","pmdec","radial_velocity"]):
 		super().__init__(name="6D", model=None)
 		self.add_coord("source_id",values=identifiers)
-		self.add_coord("coordinate",values=coordinates)
-		self.add_coord("positions",values=["X","Y","Z"])
 		self.add_coord("observable",values=observables)
+		self.add_coord("coordinate",values=coordinates)
+		self.add_coord("coordinates",values=coordinates) #To avoid duplicated dimension names
+		self.add_coord("position",values=["X","Y","Z"])
+		self.add_coord("positions",values=["X","Y","Z"]) #To avoid duplicated dimension names
+		self.add_coord("velocity",values=["U","V","W"])
+		self.add_coord("velocities",values=["U","V","W"]) #To avoid duplicated dimension names
 
 		#------------------- Data ------------------------------------------------------
 		if n_sources == 0:
@@ -703,8 +712,10 @@ class Model6D_linear(Model):
 					corr = tt.set_subtensor(corr[i],corr_i)
 					stds = tt.set_subtensor(stds[i],stds_i)
 
-			corr = pm.Deterministic("corr", corr,dims=("component","coordinate",))
-			stds = pm.Deterministic("std", stds,dims=("component","coordinate"))
+			corr = pm.Deterministic("corr", corr,
+						dims=("component","coordinate","coordinates"))
+			stds = pm.Deterministic("std", stds,
+						dims=("component","coordinate"))
 			#--------------------------------------------------------------------
 		#---------------------------------------------------------------------------------
 
@@ -741,9 +752,6 @@ class Model6D_linear(Model):
 								compute_corr=True,
 								store_in_trace=False)
 
-				corr_pos = pm.Deterministic("corr_pos", corr_pos)
-				corr_vel = pm.Deterministic("corr_vel", corr_vel)
-
 			else:
 				#------------- Extract scale of positions -------------------
 				chol_pos_i = np.linalg.cholesky(parameters["scale"][:3,:3])
@@ -767,10 +775,15 @@ class Model6D_linear(Model):
 				stds_pos = pytensor.shared(stds_pos_i)
 				stds_vel = pytensor.shared(stds_vel_i)
 
-				corr_pos = pm.Deterministic("corr_pos", pytensor.shared(corr_pos_i))
-				corr_vel = pm.Deterministic("corr_vel", pytensor.shared(corr_vel_i))
+				corr_pos = pytensor.shared(corr_pos_i)
+				corr_vel = pytensor.shared(corr_vel_i)
 				
 			#--------------------------------------------------------------
+
+			corr_pos = pm.Deterministic("corr_pos", corr_pos,
+						dims=("position","positions"))
+			corr_vel = pm.Deterministic("corr_vel", corr_vel,
+						dims=("velocity","velocities"))
 
 			stds = pm.Deterministic("std",
 						tt.concatenate([stds_pos,stds_vel],axis=0),
@@ -788,13 +801,13 @@ class Model6D_linear(Model):
 
 			if hyper["kappa"]["parameterization"] == "central":
 				kappa = pm.Normal("kappa",mu=kappa_mu,sigma=kappa_sigma,
-								dims="positions")
+								dims="position")
 			else:
-				offset_kappa = pm.Normal("offset_kappa",mu=0.0,sigma=1.0,dims="positions")
-				kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sigma,dims="positions")
+				offset_kappa = pm.Normal("offset_kappa",mu=0.0,sigma=1.0,dims="position")
+				kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sigma,dims="position")
 		else:
 			kappa = pm.Deterministic("kappa",pytensor.shared(parameters["kappa"]),
-							dims="positions")
+							dims="position")
 		#-------------------------------------------------------------------------
 		
 		if velocity_model == "linear":
@@ -886,9 +899,12 @@ class Model6D_age(Model):
 		observables=["ra","dec","parallax","pmra","pmdec","radial_velocity"]):
 		super().__init__(name="6D", model=None)
 		self.add_coord("source_id",values=identifiers)
-		self.add_coord("coordinate",values=coordinates)
-		self.add_coord("positions",values=["X","Y","Z"])
 		self.add_coord("observable",values=observables)
+		self.add_coord("coordinates",values=coordinates) #To avoid duplicated dimension names
+		self.add_coord("position",values=["X","Y","Z"])
+		self.add_coord("positions",values=["X","Y","Z"]) #To avoid duplicated dimension names
+		self.add_coord("velocity",values=["U","V","W"])
+		self.add_coord("velocities",values=["U","V","W"]) #To avoid duplicated dimension names
 
 		#------------------- Data ------------------------------------------------------
 		if n_sources == 0:
@@ -984,10 +1000,6 @@ class Model6D_age(Model):
 								compute_corr=True,
 								store_in_trace=False)
 
-
-			corr_pos = pm.Deterministic("corr_pos", corr_pos)
-			corr_vel = pm.Deterministic("corr_vel", corr_vel)
-
 		else:
 			#------------- Extract scale of positions -------------------
 			chol_pos_i = np.linalg.cholesky(parameters["scale"][:3,:3])
@@ -1011,10 +1023,16 @@ class Model6D_age(Model):
 			stds_pos = pytensor.shared(stds_pos_i)
 			stds_vel = pytensor.shared(stds_vel_i)
 
-			corr_pos = pm.Deterministic("corr_pos", pytensor.shared(corr_pos_i))
-			corr_vel = pm.Deterministic("corr_vel", pytensor.shared(corr_vel_i))
+			corr_pos = pytensor.shared(corr_pos_i)
+			corr_vel = pytensor.shared(corr_vel_i)
 			
 		#--------------------------------------------------------------
+
+		corr_pos = pm.Deterministic("corr_pos", corr_pos,
+					dims=("position","positions"))
+
+		corr_vel = pm.Deterministic("corr_vel", corr_vel,
+					dims=("velocity","velocities"))
 
 		stds = pm.Deterministic("std",
 					tt.concatenate([stds_pos,stds_vel],axis=0),
@@ -1049,10 +1067,10 @@ class Model6D_age(Model):
 
 		if hyper["kappa"]["parameterization"] == "central":
 			kappa = pm.Normal("kappa",mu=kappa_mu,sigma=kappa_sigma,
-							dims="positions")
+							dims="position")
 		else:
-			offset_kappa = pm.Normal("offset_kappa",mu=0.0,sigma=1.0,dims="positions")
-			kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sigma,dims="positions")
+			offset_kappa = pm.Normal("offset_kappa",mu=0.0,sigma=1.0,dims="position")
+			kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sigma,dims="position")
 		#-------------------------------------------------------------------------
 		
 		if velocity_model == "linear":
