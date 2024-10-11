@@ -22,11 +22,22 @@ You can do this by Anaconda with the following command:
 
 **Linux users**
 ```
-conda create -n kalkayotl -c conda-forge python==3.10 pymc==5.4.1 h5py==3.8.0 arviz==0.15.1 astropy==5.3 pandas==2.0.2
+conda create -n kalkayotl -c conda-forge pymc==5.17 astropy dill
 ```
-The previous line will provide the basic functionality. If you want to accelerate through GPUs and more efficiten HMC samplers do: 
+The previous line will provide the basic installation. Depending on your machine, JAX will need to be installed in CPU or GPU version. 
+
+For CPUs:
+```
+conda install -c conda-forge jaxlib jax
+```
+
+For GPUs: 
 ```
 conda install jaxlib=*=*cuda* jax cuda-nvcc -c conda-forge -c nvidia
+```
+
+Finally, for the use of more efficient sampling methods install blackjax and numpyro:
+```
 
 conda install -c conda-forge blackjax numpyro
 ```
