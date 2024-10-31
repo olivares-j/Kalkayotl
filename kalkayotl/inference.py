@@ -592,9 +592,11 @@ class Inference:
 		#==============================================================================================
 		
 		#============================= Scale ===========================================================
-		scale_loc = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D]
+		age_scale_dst = "Gamma+Exponential"
+		age_scale_loc = np.array([20.0,20.0,20.0,0.5,0.5,0.5])[:self.D]
+		scale_loc = np.array([10.0,10.0,10.0,2.0,2.0,2.0])[:self.D] if "age" not in self.parameters.keys() else age_scale_loc 
 		scale_scl = np.array([5.0,5.0,5.0,1.0,1.0,1.0])[:self.D]
-		scale_dst = "Gamma"
+		scale_dst = "Gamma" if "age" not in self.parameters.keys() else age_scale_dst 
 		if self.parameters["scale"] is None:
 			assert "scale" in self.hyper,msg_scale
 			assert isinstance(self.hyper["scale"],(type(None),dict)),"Error: The scale hyperparameter must be None or a dictionary with loc and scl keys"
@@ -844,28 +846,49 @@ class Inference:
 				self.hyper["kappa"] = self.hyper["kappa"] if isinstance(self.hyper["kappa"],dict) else {}
 				assert isinstance(self.hyper["kappa"],dict),"Error: The kappa hyper_parameter must be a dictionary!"
 
-				self.hyper["kappa"]["loc"] = self.hyper["kappa"]["loc"] if "loc" in self.hyper["kappa"] else 0.0
-				self.hyper["kappa"]["scl"] = self.hyper["kappa"]["scl"] if "scl" in self.hyper["kappa"] else 0.1
+				#------------------- Default Hyper-parameters ---------------------------------------------------------
+				kappa_scl = 0.001 if "age" in self.parameters.keys() else 0.1
+				self.hyper["kappa"]["loc"]  = self.hyper["kappa"]["loc"]  if "loc"  in self.hyper["kappa"] else 0.0
+				self.hyper["kappa"]["scl"]  = self.hyper["kappa"]["scl"]  if "scl"  in self.hyper["kappa"] else kappa_scl
+				self.hyper["kappa"]["beta"] = self.hyper["kappa"]["beta"] if "beta" in self.hyper["kappa"] else 1.
 				self.hyper["kappa"]["parameterization"] = self.hyper["kappa"]["parameterization"] \
 											if "parameterization" in self.hyper["kappa"] else "central"
+				self.hyper["kappa"]["distribution"] = self.hyper["kappa"]["distribution"] \
+											if "distribution" in self.hyper["kappa"] else "Normal"
+				#---------------------------------------------------------------------------------------------------
+
 				assert isinstance(self.hyper["kappa"]["loc"],float), "Error the loc of the kappa hyper_parameter must be a float"
 				assert isinstance(self.hyper["kappa"]["scl"],float), "Error the scl of the kappa hyper_parameter must be a float"
+				assert isinstance(self.hyper["kappa"]["parameterization"],str), "Error: the parameterization of the kappa hyper_parameter must be a string"
+				assert isinstance(self.hyper["kappa"]["distribution"],str), "Error: the distribution of the kappa hyper_parameter must be a string"
+
 				assert self.hyper["kappa"]["parameterization"] in ["central","non-central"],\
 						   "Error: The kappa parameterization must be central or non-central!"
+				assert self.hyper["kappa"]["distribution"] in ["Normal","StudentT"],\
+						   "Error: The kappa distribution must be Normal or StudentT!"
+
+				#---------------------------------------------------------------------------------------------------------------------------------
+				kappa_loc = "{0:1.3f}".format(self.hyper["kappa"]["loc"])
+				kappa_scl = "{0:1.3f}".format(self.hyper["kappa"]["scl"])
+
+				print("The kappa prior has been set to:")
 
 				if "age" in self.parameters.keys():
 					kappa_loc = "{0}".format("1/1.022*age")
 					kappa_scl = "~Exponential(scale={0})".format(self.hyper["kappa"]['scl'])
-				else:
-					kappa_loc = "{0:1.2f}".format(self.hyper["kappa"]["loc"])
-					kappa_scl = "{0:1.2f}".format(self.hyper["kappa"]["scl"])
-
-				print("The kappa prior has been set to:")
-				if self.hyper["kappa"]["parameterization"] == "central":
-					print("kappa ~ Normal(loc={0},scl={1}) [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
-				else:
-					print("offset_kappa ~ Normal(loc=0.0,scl=1.0) [km.s-1.pc-1]")
-					print("kappa = {0} + offset_kappa * {1} [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
+					if self.hyper["kappa"]["distribution"] == "StudentT":
+						kappa_nu  = "~Gamma(alpha=2,beta={0})".format(self.hyper["kappa"]['beta'])
+						if self.hyper["kappa"]["parameterization"] == "central":
+							print("kappa ~ StudentT(nu={0},loc={1},scl={2}) [km.s-1.pc-1]".format(kappa_nu,kappa_loc,kappa_scl))
+						else:
+							print("offset_kappa ~ StudentT(nu={0},loc=0.0,scl=1.0) [km.s-1.pc-1]".format(kappa_nu))
+							print("kappa = {0} + offset_kappa * {1} [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
+					else:
+						if self.hyper["kappa"]["parameterization"] == "central":
+							print("kappa ~ Normal(loc={0},scl={1}) [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
+						else:
+							print("offset_kappa ~ Normal(loc=0.0,scl=1.0) [km.s-1.pc-1]")
+							print("kappa = {0} + offset_kappa * {1} [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
 
 			elif isinstance(self.parameters["kappa"],np.ndarray):
 				print("The kappa parameter has been fixed to:")
@@ -886,10 +909,11 @@ class Inference:
 
 			if "age" in self.parameters.keys():
 				if self.parameters["age"] is None:
+					self.hyper["age"]["distribution"] = "GeneralizedGamma" if "distribution" not in self.hyper["age"].keys() \
+					else self.hyper["age"]["distribution"]
 					assert isinstance(self.hyper["age"]["loc"],float), "Error: The loc hyper_parameter of the age must be set as a float!"
 					assert isinstance(self.hyper["age"]["scl"],float), "Error: The scl hyper_parameter of the age must be set as a float!"
 					assert isinstance(self.hyper["age"]["distribution"],str), "Error: The age distribution must be set as a string!"
-					# assert self.hyper["age"]["loc"]>self.hyper["age"]["scl"], "Error: The scl hyper_parameter must be smaller than loc!"
 					assert self.hyper["age"]["distribution"] in ["GeneralizedGamma","TruncatedNormal","SkewNormal"],\
 					"Error: Incorrect type of age distribution!"
 
@@ -1937,7 +1961,7 @@ class Inference:
 			if nvr.min() < 0 and nvr.max() > 0:
 				vcenter = 0.0
 			else:
-				vcenter = nvr.min() + np.sign(nvr.min())*np.abs(0.5*(nvr.max()-nvr.min()))
+				vcenter = nvr.min() + 0.5*np.abs(nvr.max()-nvr.min())
 
 			norm_pos = TwoSlopeNorm(vcenter=vcenter,
 								vmin=nvr.min(),vmax=nvr.max())

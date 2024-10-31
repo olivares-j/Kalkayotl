@@ -900,7 +900,7 @@ class Model6D_age(Model):
 		super().__init__(name="6D", model=None)
 		self.add_coord("source_id",values=identifiers)
 		self.add_coord("observable",values=observables)
-		self.add_coord("coordinates",values=coordinates) #To avoid duplicated dimension names
+		self.add_coord("coordinate",values=coordinates)
 		self.add_coord("position",values=["X","Y","Z"])
 		self.add_coord("positions",values=["X","Y","Z"]) #To avoid duplicated dimension names
 		self.add_coord("velocity",values=["U","V","W"])
@@ -1065,12 +1065,22 @@ class Model6D_age(Model):
 		kappa_mu    = pm.Deterministic("kappa_mu",1./(1.0227121683768*age))
 		kappa_sigma = pm.Exponential("kappa_sigma",scale=hyper["kappa"]["scl"])
 
-		if hyper["kappa"]["parameterization"] == "central":
-			kappa = pm.Normal("kappa",mu=kappa_mu,sigma=kappa_sigma,
-							dims="position")
+		if hyper["kappa"]["distribution"] == "StudentT":
+			kappa_nu = pm.Gamma("kappa_nu",alpha=2,beta=hyper["kappa"]["beta"])
+			# Check https://github.com/stan-dev/stan/wiki/prior-choice-recommendations
+			if hyper["kappa"]["parameterization"] == "central":
+				kappa = pm.StudentT("kappa",nu=kappa_nu,mu=kappa_mu,sigma=kappa_sigma,
+								dims="position")
+			else:
+				offset_kappa = pm.StudentT("offset_kappa",nu=kappa_nu,mu=0.0,sigma=1.0,dims="position")
+				kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sigma,dims="position")
 		else:
-			offset_kappa = pm.Normal("offset_kappa",mu=0.0,sigma=1.0,dims="position")
-			kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sigma,dims="position")
+			if hyper["kappa"]["parameterization"] == "central":
+				kappa = pm.Normal("kappa",mu=kappa_mu,sigma=kappa_sigma,
+								dims="position")
+			else:
+				offset_kappa = pm.Normal("offset_kappa",mu=0.0,sigma=1.0,dims="position")
+				kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sigma,dims="position")
 		#-------------------------------------------------------------------------
 		
 		if velocity_model == "linear":

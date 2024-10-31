@@ -10,7 +10,7 @@ import h5py
 
 
 # dir_kal  = "/home/jromero/Repos/Kalkayotl"
-# dir_main = dir_kal + "/article/v2.0/"
+# dir_main = dir_kal + "/article/v2.0/Praesepe/"
 dir_kal  = "/home/jolivares/Repos/Kalkayotl"
 dir_main = "/home/jolivares/Projects/Kalkayotl/Praesepe/"
 

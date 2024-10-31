@@ -18,7 +18,7 @@ dir_main  = "/home/jolivares/Projects/Kalkayotl/Praesepe/"
 dir_plots = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Figures/"
 dir_tabs  = "/home/jolivares/Dropbox/MisArticulos/Kalkayotl/Tables/"
 dir_run   = "/6D_Gaussian_Galactic_linear_1E+06/"
-authors = ["Hao+2022","GG+2023","Jadhav+2024","Hao+2022_wtr","GG+2023_wtr"]#,"GG+2023_core","Hao+Lodieu","GG+Lodieu"]
+authors = ["Hao+2022","GG+2023","Jadhav+2024","Hao+2022_wtr","GG+2023_wtr","Jadhav+2024_wtr"]#,"GG+2023_core","Hao+Lodieu","GG+Lodieu"]
 file_data_all = dir_main  + "Data.h5"
 file_plot_cnv = dir_plots + "Praesepe_convergence.png"
 file_plot_grp = dir_plots + "Praesepe_group-level.png"
@@ -130,7 +130,7 @@ if do_all_dta:
 		df_lnr.reset_index(inplace=True)
 		df_grp = pn.concat([df_jnt,df_lnr],ignore_index=True)
 		df_grp["Author"] = author.split("_")[0]
-		df_grp["Case"] = "wtr" if "wtr" in author else "Original"
+		df_grp["Case"] = "Cleaned \& <$R_{tidal}$" if "wtr" in author else "Original"
 		#-------------------------------------------------------------
 
 		dfs_grp.append(df_grp)
@@ -217,13 +217,15 @@ if do_tab_grp:
 	tab.reset_index(inplace=True)
 	tab.set_index(["Parameter","Case","Origin"],inplace=True)
 	# tab = tab.pivot(columns=["Case","Origin"],values="string")
+
+	print(tab)
 	tab = tab.unstack(level=["Case","Origin"])
 	tab = tab.droplevel(0, axis=1) 
 	tab.rename(axis=0,mapper=remove_6D,inplace=True)
 	tab.rename(index=parameters_lnr,inplace=True)
-	tab.rename(columns={"GG+2023_wrt":"Clean GG+2023",
-				'Hao+2022_wtr':'Hao+2022 WTR'},
-				inplace=True)
+	# tab.rename(columns={"GG+2023_wrt":"Clean GG+2023",
+	# 			'Hao+2022_wtr':'Hao+2022 WTR'},
+	# 			inplace=True)
 
 	tab = tab.loc[[col[0] for col in columns_fmt],:]
 	
