@@ -1,5 +1,5 @@
 '''
-Copyright 2019 Javier Olivares Romero
+Copyright 2024 Javier Olivares Romero
 
 This file is part of Kalkayotl.
 
@@ -23,7 +23,6 @@ import os
 os.environ["MKL_NUM_THREADS"] = "1" # Avoids overlapping of processes
 os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
-import h5py
 
 #----- Import the module -------------------------------
 dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
@@ -32,20 +31,24 @@ from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-dir_base = "/home/jolivares/Repos/Kalkayotl/article/v2.0/ComaBer/Core/"
+#---- Diriectory for input and output -------------------------------------------
+dir_base = "/home/jolivares/Kalkayotl/"
+#--------------------------------------------------------------------------------
 
-#----------- Data file -----------------------------------------------------
-file_data = dir_base + "members+rvs.csv"
-file_parameters = dir_base + "6D_Gaussian_Galactic_central_joint_numpyro_0/Cluster_statistics.csv"
+#----------- Input data --------------------------
+file_data = dir_base + "example.csv"
+#-------------------------------------------------
+
+#---------- File with parameters that will be kept fixed (Optional) --------
+#file_parameters = dir_base + "Cluster_statistics.csv"
 #----------------------------------------------------------------------------
-
-#------- Creates directory if it does not exists -------
-os.makedirs(dir_base,exist_ok=True)
-#-------------------------------------------------------
 #============================================================================
 
 #=============== Tuning knobs ============================
-dimension = 6
+#------ Dimensionality of the model: 1, 3 or 6
+dimension = 1
+#----------------------------------------------
+
 #----------------- Chains-----------------------------------------------------
 # The number of parallel chains you want to run. Two are the minimum required
 # to analyse convergence.
@@ -56,43 +59,39 @@ chains = 2
 # I recommend to use 2 cores; this is one per chain.
 cores  = 2
 
-# burining_iters is the number of iterations used to tune the sampler
+# tuning_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
-# If the sampler shows warnings you most probably must increase this value.
-tuning_iters = 10
+# If the sampler shows warnings you probably must increase this value.
+tuning_iters = 1000
 
 # After discarding the burning you will obtain sample_iters*chains samples
 # from the posterior distribution. These are the ones used in the plots and to
 # compute statistics.
-sample_iters = 10
+sample_iters = 1000
 
 
 #----- Target_accept-------
 # This parameter controls the acceptance of the proposed steps in the Hamiltonian
-# Monte Carlo sampler. It should be larger than 0.7-0.8. Increasing it helps in the convergence
-# of the sampler but increases the computing time.
-target_accept = 0.95
+# Monte Carlo sampler. Increasing it helps in the convergence of the sampler 
+# but increases the computing time.
+target_accept = 0.65
 #---------------------------------------------------------------------------
 
 #------------ Statistic -------------------------------------------------------
-# mean, median and mode together with high density interval will be computed
+# mean, sd and high density interval will be computed for the posterior of each parameter.
 # The outputs will be at Source_statistics.csv and Cluster_statistics.csv files
-hdi_prob = 0.95
+hdi_prob = 0.95 # Equivalent to 2sigma
 #------------------------------------------------------------------------------
 
-# --------- Sampling space ------------------------------------
+# --------- Sampling space -----------------------------------------------------------------
 # In which space you want to sample: "physical" or "observed"?
 # "observed" works only in the 1D case where the sampling can be done in the parallax space.
 # IMPORTANT: The units of the parameters and hyper-parameters
 # defined below must coincide with those of the chosen transformation.
 sampling_space = "physical"
+#--------------------------------------------------------------------------------------------
 
-#------------- Reference system -----------
-# Coordinate system in which parameters will be inferred
-# Either "ICRS" or "Galactic"
-reference_system = "Galactic"
-
-#--------- Zero point ------------
+#--------- Zero point -----------------------
 # A dcictionary with zerpoints
 zero_points = {
 "ra":0.,
@@ -101,219 +100,184 @@ zero_points = {
 "pmra":0.,
 "pmdec":0.,
 "radial_velocity":0.}  
-#--------------------------------
+#--------------------------------------------
 
-#------- Independent measurements--------
+#------- Independent measurements------------------------------------------------------------
 # In the Gaia astrometric data the measurements of stars are correlated between sources.
 # By default, Kalkayotl will not assume independence amongst sources.
 # Set it to True if you want to assume independence, 
-# and thus neglect the parallax spatial correlations. 
+# and thus neglect the parallax and proper motions angular correlations. 
 indep_measures = False
+#------------------------------------------------------------------------------------------
+
+#---------- NUTS Sampler ----------------------------------------------
+# This is the type of sampler to use.
+# Check PyMC documentation for valid samplers and their installation
+# By default use the "pymc" sampler.
+nuts_sampler = "numpyro"
+#----------------------------------------------------------------------
+
+#================== Only for 3D or 6D ==================================================================
+#------------- Reference system -----------
+# Coordinate system in which parameters will be inferred
+# Either "ICRS" or "Galactic". Only for 3D and 6D versions.
+reference_system = "Galactic"
 
 #------ Parametrization -----------------
 # The performance of the HMC sampler can be improved by non-central parametrizations.
 # Kalkayotl comes with two options: central and non-central. While the former works better
 # for nearby clusters (<500 pc) the latter does it for faraway clusters (>500 pc).
+parameterization = "central"
 #-----------------------------------------------------------------------------------------
 
-#----------- Velocity model --------------------------
+#----------- Velocity model ---------------------------------------------------------------------
 # Different types of velocity models are implemented:
-# "join": this is the most general which results in a joint model in position+velocity
-# "independent": independently models positions and velocities.
+# "joint": this is the most general which results in a joint model in position+velocity
 # "constant": models the velocity as expanding or contracting field
 # "linear": models the velocity field as a linear function of position.
-velocity_model = "joint"
-#----------------------------------------------------------------------------------------
-
-#---------- NUTS Sampler ------------
-# This is the type of sampler to use.
-# Check PyMC documentation for valid samplers and their installation
-# By default use the "pymc" sampler.
-nuts_sampler = "numpyro"
-
-#=========================================================================================
+# These options are chosen by specifying the parameters within the list of "parameters".
+# For example, to use the joint model then "kappa" and "omega" must NOT be in the dictionary 
+# of parameters. If only the constant model of velocity is wanted, then "kappa" must be included
+# but NOT "omega". If the linear field is wanted, then "kappa" and "omega" must be included
+# Note: use None in each parameter to infer its value. To keep it fixed, pass the desired value.
+#----------------------------------------------------------------------------------------------
+#=======================================================================================================
 
 #========================= PRIORS ===========================================
-list_of_prior = [
-	{"type":"Gaussian",
+priors = {
+"FGMM":{"type":"FGMM",
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None,
+					  "field_scale":[20.,20.,20.,5.,5.,5.]
+					  },
+		"hyper_parameters":{
+							"location":None,
+							"scale":None, 
+							"weights":{"a":np.array([8,2])},
+							"eta":None,
+							},
+		},
+"GMM":{"type":"GMM",
+		"parameters":{"location":None,
+					  "scale":None,
+					  "weights":None
+					  },
+		"hyper_parameters":{
+							"location":None,
+							"scale":None, 
+							"weights":{"n_components":2}, # You can also pass it as in the FGMM case.
+							"eta":None
+							},
+		},
+"Gaussian":{"type":"Gaussian",
 		"parameters":{"location":None,"scale":None},
 		"hyper_parameters":{
-							"alpha":None,
-							"beta":None,
-							"gamma":None,
-							"delta":None,
+							"location":None,
+							"scale":None, # For example, to pass the location of the prior do {"loc":[20.0,20.0,20.0,0.5,0.5,0.5]},
+							"eta":None
+							},
+		},
+"Gaussian_linear":{"type":"Gaussian",
+		"parameters":{"location":None,"scale":None,"kappa":None,"omega":None},
+		"hyper_parameters":{
+							"location":None,
+							"scale":None,
 							"eta":None,
 							"kappa":None,
 							"omega":None
 							},
-		"parametrization":"central"},
-	# {"type":"StudentT",
-	# 	"parameters":{"location":None,"scale":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":None,
-	# 						"nu":None,
-	# 						},
-	# 	"parametrization":"central"},
-	# {"type":"GMM",     
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(1,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"parametrization":"central"},
-	# {"type":"CGMM",     
-	# 	"parameters":{"location":file_parameters,
-	# 				  "scale":file_parameters,
-	# 				  "weights":file_parameters},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"gamma":None,
-	# 						"delta":np.repeat(1,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"parametrization":"central"},
-	# {"type":"FGMM",      
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "weights":None,
-	# 				  "field_scale":[50.,50.,50.,10.,10.,10.][:dimension]
-	# 				  },
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None, 
-	# 						"delta":np.repeat(1,2),
-	# 						"eta":None,
-	# 						"n_components":2
-	# 						},
-	# 	"parametrization":"central"},
-	# {"type":"Uniform",
-	# 	"parameters":{"location":None,
-	# 				  "scale":None
-	# 				  },
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None,
-	# 						"gamma":None,
-	# 						"delta":None,
-	# 						"eta":None,
-	# 						},
-	# 	"parametrization":"central"},
-	# {"type":"King",
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "rt":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None,
-	# 						"gamma":10.,
-	# 						"delta":None,
-	# 						"eta":None,
-	# 						},
-	# 	"parametrization":"central"},
-	# {"type":"EFF",
-	# 	"parameters":{"location":None,
-	# 				  "scale":None,
-	# 				  "gamma":None},
-	# 	"hyper_parameters":{
-	# 						"alpha":None,
-	# 						"beta":None,
-	# 						"gamma":10.,
-	# 						"delta":None,
-	# 						"eta":None,
-	# 						},
-	# 	"parametrization":"central"},
-
-	]
+		},
+"StudentT":{"type":"StudentT",
+		"parameters":{"location":None,"scale":None,"nu":None},
+		"hyper_parameters":{
+							"location":None,
+							"scale":None,
+							"nu":None,
+							"eta":None,
+							"nu":None,
+							},
+		},
+}
 #======================= Inference and Analysis =====================================================
 
-#--------------------- Loop over prior types ------------------------------------
-for prior in list_of_prior:
+prior = priors["Gaussian"]
 
-	#------ Output directories for each prior -------------------
-	dir_prior = dir_base +  "{0}D_{1}_{2}_{3}_{4}_{5}".format(
-		dimension,
-		prior["type"],
-		reference_system,
-		prior["parametrization"],
-		velocity_model,
-		nuts_sampler)
-	#------------------------------------------------------------
+#------ Output directories for each prior ------------------------
+dir_out = dir_base +  "{0}D_{1}".format(dimension,prior["type"])
+#-----------------------------------------------------------------
 
-	#---------- Create prior directory -------------
-	os.makedirs(dir_prior,exist_ok=True)
-	#------------------------------------------------
+#---------- Create prior directory -------------
+os.makedirs(dir_out,exist_ok=True)
+#------------------------------------------------
 
-	#--------- Initialize the inference module -------
-	kal = Inference(dimension=dimension,
-					dir_out=dir_prior,
-					zero_points=zero_points,
-					indep_measures=indep_measures,
-					reference_system=reference_system,
-					sampling_space=sampling_space,
-					velocity_model=velocity_model)
+#--------- Initialize the inference module -------
+kal = Inference(dimension=dimension,
+				dir_out=dir_out,
+				zero_points=zero_points,
+				indep_measures=indep_measures,
+				reference_system=reference_system,
+				sampling_space=sampling_space)
+#---------------------------------------------------
 
-	#-------- Load the data set --------------------
-	# It will use the Gaia column names by default.
-	kal.load_data(file_data)
+#-------- Load the data set --------------------
+# It will use the Gaia column names by default.
+kal.load_data(file_data)
+#------------------------------------------------
 
-	#------ Prepares the model -------------------
-	kal.setup(prior=prior["type"],
-			  parameters=prior["parameters"],
-			  hyper_parameters=prior["hyper_parameters"],
-			  parametrization=prior["parametrization"],
-			  )
-	# sys.exit()
-	#============ Sampling with HMC ======================================
-	#------- Run the sampler ---------------------
-	kal.run(sample_iters=sample_iters,
-			tuning_iters=tuning_iters,
-			target_accept=target_accept,
-			chains=chains,
-			cores=cores,
-			init_iters=int(1e4),
-			nuts_sampler=nuts_sampler,
-			posterior_predictive=True,
-			prior_predictive=True)
-	#-------------------------------------
+#------ Prepares the model ---------------------------
+kal.setup(prior=prior["type"],
+		  parameters=prior["parameters"],
+		  hyper_parameters=prior["hyper_parameters"],
+		  parameterization=parameterization)
+#-----------------------------------------------------
 
-	# -------- Load the chains --------------------------------
-	# This is useful if you have already computed the chains
-	# and want to re-analyse (in that case comment the p1d.run() line)
-	kal.load_trace()
+#------- Run the sampler ---------------------
+kal.run(
+		tuning_iters=tuning_iters,
+		sample_iters=sample_iters,
+		target_accept=target_accept,
+		chains=chains,
+		cores=cores,
+		init_iters=int(1e5),
+		nuts_sampler=nuts_sampler,
+		prior_predictive=True,
+		prior_iters=chains*sample_iters,
+		progressbar=True,)
+#-------------------------------------
 
-	# ------- Re-analyse the convergence of the sampler---
-	kal.convergence()
+# -------- Load the chains --------------------------------
+# This is useful if you have already computed the chains
+# and want to re-analyse
+kal.load_trace()
+#------------------------------------------------------------
 
-	#-------- Plot the trace of the chains ------------------------------------
-	# If you provide the list of IDs (string list) it will plot the traces
-	# of the provided sources. If IDs keyword removed only plots the population parameters.
-	kal.plot_chains()
+# ------- Convergence statistics ---
+kal.convergence()
+#------------------------------------
 
-	#--- Check Prior and Posterior ----
-	kal.plot_prior_check()
-	#--------------------------------
+#-------- Plot the trace of the chains ---------------------------------------------------------
+# If you provide the list of IDs (string list) it will plot the traces of the provided sources. 
+# If IDs keyword is set to None (default), it only plots the population parameters.
+kal.plot_chains()
+#-----------------------------------------------------------------------------------------------
 
-	#--- Plot model -- 
-	kal.plot_model(n_samples=10)
-	# -----------------
+#--- Check Prior and Posterior ----
+kal.plot_prior_check()
+# Note: to plot the prior the prior_predictive=True in run()
+#----------------------------------
 
-	#----- Compute and save the posterior statistics ---------
-	kal.save_statistics(hdi_prob=hdi_prob)
+#--- Plot model --------------------------------------------------------------------------------
+kal.plot_model()
+# Pass n_samples to draw the disered number of lines (must be <= than total number of samples)
+# To control the plotting options see the function where you can pass names and colors.
+# ----------------------------------------------------------------------------------------------
 
-	kal.save_posterior_predictive()
+#----- Compute and save the posterior statistics ---------
+kal.save_statistics(hdi_prob=hdi_prob)
+#---------------------------------------------------
 
-	#------- Save the samples into HDF5 file --------------
-	kal.save_samples()
+#------- Save the samples --------------
+#if you need the samples for future use you can save them in an h5 file
+# kal.save_samples()
 #=======================================================================================
