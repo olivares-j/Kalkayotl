@@ -158,7 +158,7 @@ class Inference:
 		self.names_coords = coordinates[:dimension]
 
 		self.id_name = id_name
-		self.gaia_observables = sum([[id_name],gaia_observables],[]) 
+		self.dim_observables = sum([[id_name],self.names_obs],[]) 
 
 		#============= Transformations ====================================
 		if reference_system == "ICRS":
@@ -221,35 +221,38 @@ class Inference:
 		"""
 
 		#------- Reads the data ---------------------------------------------------
-		data  = pn.read_csv(file_data,usecols=self.gaia_observables,*args,**kwargs) 
+		data  = pn.read_csv(file_data,usecols=self.dim_observables,*args,**kwargs) 
 
 		#---------- Order ----------------------------------
-		data  = data.reindex(columns=self.gaia_observables)
+		data  = data.reindex(columns=self.dim_observables)
 
 		#------- ID as string ----------------------------
 		data[self.id_name] = data[self.id_name].astype('str')
 
 		#----- ID as index ----------------------
-		data.set_index(self.id_name,inplace=True)
+		data.set_index(self.id_name,inplace=True,verify_integrity=True)
 
 		#-------- Drop NaNs ----------------------------
 		data.dropna(subset=self.names_nan,inplace=True,
 						thresh=len(self.names_nan))
 		#----------------------------------------------
 
-		#--- Sky uncertainty from mas to degrees ------
-		data["ra_error"]  *= self.mas2deg
-		data["dec_error"] *= self.mas2deg
-		#------------------------------------------
+		if self.D in [3,6]:
+			#--- Sky uncertainty from mas to degrees ------
+			data["ra_error"]  *= self.mas2deg
+			data["dec_error"] *= self.mas2deg
+			#------------------------------------------
 
-		#--- Increase uncertainty ------------------------
-		data["ra_error"]  *= sky_error_factor
-		data["dec_error"] *= sky_error_factor
-		#-------------------------------------------------
+			#--- Increase uncertainty ------------------------
+			data["ra_error"]  *= sky_error_factor
+			data["dec_error"] *= sky_error_factor
+			#-------------------------------------------------
 
 		#---------- Zero-points --------------------
 		for key,val in self.zero_points.items():
-			data[key] -= val
+			if key in data.columns:
+				print("Adding zero-pint to: ",key)
+				data[key] -= val
 		#-------------------------------------------
 
 		#--------- Mean values -----------------------------
