@@ -1419,6 +1419,7 @@ class Inference:
 		lines=None, 
 		combined=False,
 		compact=False,
+		legend=False,
 		plot_kwargs=None, 
 		hist_kwargs=None, 
 		trace_kwargs=None,
@@ -1485,6 +1486,7 @@ class Inference:
 					plot_kwargs=plot_kwargs, 
 					hist_kwargs=hist_kwargs, 
 					trace_kwargs=trace_kwargs,
+					legend=legend,
 					labeller=az.labels.NoVarLabeller())
 
 			for ax in axes:
@@ -1531,7 +1533,7 @@ class Inference:
 			plt.close(0)
 		pdf.close()
 
-	def _extract(self,group="posterior",n_samples=None,chain=None):
+	def _extract(self,group="posterior",n_samples=None,chains=None):
 		if group == "posterior":
 			data = self.ds_posterior.data_vars
 		elif group == "prior":
@@ -1553,16 +1555,17 @@ class Inference:
 		n,nc,ns,nd = srcs.shape
 		#-----------------------
 
-		#--- One or multiple chains -----------
-		if chain is None:
-			#-------- Merge chains ----------
-			srcs = srcs.reshape((n,nc*ns,nd))
-			#--------------------------------
-
-		else:
-			#--- Extract chain --------------------
-			srcs = srcs[:,chain].reshape((n,ns,nd))
+		#--- Extract selected chains -----------
+		if chains is not None:
+			nc = len(chains)
+			#--- Extract chains --------------------
+			srcs = srcs[:,chains]
 			#--------------------------------------
+
+		#-------- Merge chains ----------
+		srcs = srcs.reshape((n,nc*ns,nd))
+		#--------------------------------
+		
 		#--------------------------------------
 
 		#------------------ Sample --------------------------------
@@ -1655,22 +1658,25 @@ class Inference:
 		
 		#---------- One or multiple chains -------
 		ng,nc,ns,nd = locs.shape
-		if chain is None:
-			#-------- Merge chains --------------
-			amps = amps.reshape((ng,nc*ns))
-			locs = locs.reshape((ng,nc*ns,nd))
-			stds = stds.reshape((ng,nc*ns,nd))
-			cors = cors.reshape((ng,nc*ns,nd,nd))
-			#------------------------------------
+		if chains is not None:
+			nc = len(chains)
 
-		else:
-			#--- Extract chain --------------------------
-			amps = amps[:,chain].reshape((ng,ns))
-			locs = locs[:,chain].reshape((ng,ns,nd))
-			stds = stds[:,chain].reshape((ng,ns,nd))
-			cors = cors[:,chain].reshape((ng,ns,nd,nd))
-			#--------------------------------------------
+			#--- Extract chain ----
+			amps = amps[:,chains]
+			locs = locs[:,chains]
+			stds = stds[:,chains]
+			cors = cors[:,chains]
+			#----------------------
 		#-------------------------------------------
+
+		#-------- Merge chains --------------
+		amps = amps.reshape((ng,nc*ns))
+		locs = locs.reshape((ng,nc*ns,nd))
+		stds = stds.reshape((ng,nc*ns,nd))
+		cors = cors.reshape((ng,nc*ns,nd,nd))
+		#------------------------------------
+
+		
 
 		#--------------- Take sample the last n_samplpes ------------
 		if n_samples is not None:
@@ -1729,14 +1735,14 @@ class Inference:
 
 		self.df_groups = pn.DataFrame(data={"group":idx,"label":grps},index=self.ID)
 
-	def _kinematic_indices(self,group="posterior",chain=None,n_samples=None):
+	def _kinematic_indices(self,group="posterior",chains=None,n_samples=None):
 		'''
 		Compute the kinematic indicators of expansion and rotation
 		'''
 		#---- Get parameters -------
 		srcs,_,locs,_ = self._extract(group=group,
 										n_samples=n_samples,
-										chain=chain)
+										chains=chains)
 
 		if "GMM" in self.prior:
 			sys.exit("Kinematic indices are not available for mixture models!")
@@ -1789,20 +1795,18 @@ class Inference:
 			#-----------------------------------------
 
 			#----------------- Merge --------------------
-			if chain is None:
-				nc,ns,nd = kappa.shape
-				kappa = kappa.reshape((nc*ns,nd))
+			nc,ns,nd = kappa.shape
+			nc,ns,nv,nd = omega.shape
 
+			if chains is not None:
+				nc = len(chains)
+				kappa = kappa[chains]
 				if self.velocity_model == "linear":
-					nc,ns,nv,nd = omega.shape
-					omega = omega.reshape((nc*ns,nv,nd))
-			else:
-				nc,ns,nd = kappa.shape
-				kappa = kappa[chain].reshape((ns,nd))
-
-				if self.velocity_model == "linear":
-					nc,ns,nv,nd = omega.shape
-					omega = omega[chain].reshape((ns,nv,nd))
+					omega = omega[chains]
+			
+			kappa = kappa.reshape((nc*ns,nd))
+			if self.velocity_model == "linear":
+				omega = omega.reshape((nc*ns,nv,nd))	
 			#--------------------------------------------
 
 			#----------- Tensor----------------
@@ -1846,7 +1850,7 @@ class Inference:
 		file_plots=None,
 		figsize=None,
 		n_samples=100,
-		chain=None,
+		chains=None,
 		fontsize_title=16,
 		labels=["X [pc]","Y [pc]","Z [pc]",
 				"U [km/s]","V [km/s]","W [km/s]"],
@@ -1899,7 +1903,7 @@ class Inference:
 
 		#------------ Chain ----------------------
 		if "GMM" in self.prior:
-			chain = 0 if chain is None else chain
+			chains = 0 if chains is None else chains
 			names_groups = self.ds_posterior.coords["component"].values
 		else:
 			names_groups = ["A"]
@@ -1910,7 +1914,7 @@ class Inference:
 		#---------- Extract prior and posterior --------------------------------------------
 		pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
 													n_samples=n_samples,
-													chain=chain)
+													chains=chains)
 		if self.ds_prior is not None:
 			_,_,pri_locs,pri_covs = self._extract(group="prior",n_samples=n_samples)
 		#-----------------------------------------------------------------------------------
@@ -2233,7 +2237,7 @@ class Inference:
 
 		return summary_df
 
-	def save_statistics(self,hdi_prob=0.95,chain=None,n_samples=None,stat_focus="mean"):
+	def save_statistics(self,hdi_prob=0.95,chains=None,n_samples=None,stat_focus="mean"):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -2250,20 +2254,24 @@ class Inference:
 
 		# assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
 		
-		#--------- Coordinates -------------------------
+		#--------- Coordinates ------------------------------------------
+		names_groups = ["A"]
 		# In GMM use only one chain
 		if "GMM" in self.prior:
-			chain = [0] if chain is None else chain
+			chains = [0] if chains is None else chains
 			print("WARNING: In mixture models only one "\
 				+"chain is used to compute statistics.\n"\
-				+"Set chain=[0,1,..,n_chains] to override.")
-			data = az.utils.get_coords(self.ds_posterior,{"chain":chain})
+				+"Set chains=[0,1,..,n_chains] to override.")
 			names_groups = self.ds_posterior.coords["component"].values
-			print("Computing statistics with chain =",chain)
-		else:
+			print("Computing statistics with chains =",chains)
+		#----------------------------------------------------------------
+		
+		#------------ Extract data ----------------------------------------
+		if chains is None:
 			data = self.ds_posterior
-			names_groups = ["A"]
-		#------------------------------------------------------------
+		else:
+			data = az.utils.get_coords(self.ds_posterior,{"chain":chains})
+		#-------------------------------------------------------------------
 		
 		#--------- Get MAP ------------------------------------------
 		df_map_grp = self._get_map(var_names=self.stats_variables)
@@ -2293,7 +2301,7 @@ class Inference:
 			#------- Extract GMM parameters ----------------------------------
 			pos_srcs,pos_amps,pos_locs,pos_covs = self._extract(group="posterior",
 										n_samples=n_samples,
-										chain=chain)
+										chains=chains)
 			#-----------------------------------------------------------------
 
 			#---------- Classify sources ------------------------------------
