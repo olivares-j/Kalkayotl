@@ -32,7 +32,6 @@ from scipy.linalg import inv as inverse
 from string import ascii_uppercase
 from astropy.stats import circmean
 from astropy import units as u
-# import pymc.sampling_jax
 import pytensor.tensor as at
 from typing import cast
 import string
@@ -1097,7 +1096,7 @@ class Inference:
 				# # TO BE REMOVED once pymc5 solves this issue
 				# #----------------------------------------------------------------------------
 
-				random_seed_list = pymc.util._get_seeds_per_chain(random_seed, chains)
+				random_seed_list = pm.util._get_seeds_per_chain(random_seed, chains)
 				cb = [pm.callbacks.CheckParametersConvergence(
 						tolerance=init_absolute_tol, diff="absolute",ord=None),
 					  pm.callbacks.CheckParametersConvergence(
@@ -1173,7 +1172,7 @@ class Inference:
 				#--------------- Prepare step ---------------------------------------------
 				# Only valid for nuts_sampler == "pymc". 
 				# The other samplers adapt steps independently.
-				potential = pymc.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
+				potential = pm.step_methods.hmc.quadpotential.QuadPotentialDiagAdapt(
 							n=len(mu_point),
 							initial_mean=mu_point,
 							initial_diag=sd_point**2, 
