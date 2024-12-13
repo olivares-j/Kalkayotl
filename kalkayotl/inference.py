@@ -32,7 +32,7 @@ from scipy.linalg import inv as inverse
 from string import ascii_uppercase
 from astropy.stats import circmean
 from astropy import units as u
-import pymc.sampling_jax
+# import pymc.sampling_jax
 import pytensor.tensor as at
 from typing import cast
 import string
