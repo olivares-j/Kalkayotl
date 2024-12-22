@@ -1902,7 +1902,7 @@ class Inference:
 
 		#------------ Chain ----------------------
 		if "GMM" in self.prior:
-			chains = 0 if chains is None else chains
+			chains = [0] if chains is None else chains
 			names_groups = self.ds_posterior.coords["component"].values
 		else:
 			names_groups = ["A"]
