@@ -1902,8 +1902,10 @@ class Inference:
 
 		#------------ Chain ----------------------
 		if "GMM" in self.prior:
-			chains = [0] if chains is None else chains
+			print("WARNING: In mixture models there could be label exchange between chains.\n"\
+				+"If that is the case, use specific chains with parameter, e.g. chains=[0].")
 			names_groups = self.ds_posterior.coords["component"].values
+			print("Computing statistics with chains =",chains)
 		else:
 			names_groups = ["A"]
 		#-----------------------------------------
@@ -2257,10 +2259,8 @@ class Inference:
 		names_groups = ["A"]
 		# In GMM use only one chain
 		if "GMM" in self.prior:
-			chains = [0] if chains is None else chains
-			print("WARNING: In mixture models only one "\
-				+"chain is used to compute statistics.\n"\
-				+"Set chains=[0,1,..,n_chains] to override.")
+			print("WARNING: In mixture models there could be label exchange between chains.\n"\
+				+"If that is the case, use specific chains with parameter, e.g. chains=[0].")
 			names_groups = self.ds_posterior.coords["component"].values
 			print("Computing statistics with chains =",chains)
 		#----------------------------------------------------------------
