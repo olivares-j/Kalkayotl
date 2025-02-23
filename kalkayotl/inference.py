@@ -482,62 +482,37 @@ class Inference:
 			assert "location" in self.hyper,msg_location
 			print("The location prior  has been set to:")
 
-			if self.hyper["location"] is None:
-				xyz_fc = 0.2
-				uvw_sd = 5.0
-				loc_scl = None
-			elif isinstance(self.hyper["location"],dict):
-				assert "scl" in self.hyper["location"],"Error: scl not supplied"
-				loc_scl = self.hyper["location"]["scl"]
-				assert len(loc_scl) == self.D,"Error: scl does not have correct dimension"
-			else:
-				sys.exit("Error: location hyperparameter must be None or dict with 'scl' key")
+			xyz_fc = 0.2
+			uvw_sd = 5.0
 
 			if self.D == 1:
-				#---------- Mean distance ------------
-				d = self.backward(self.mean_observed[0])
-				#------------------------------------
-
-				#---------- Dispersion -----------------
-				if loc_scl is None:
-					loc_scl = np.array(xyz_fc*d)
-				#---------------------------------------
-
-				self.hyper["location"] = {
-					"loc":[d],
-					"scl":loc_scl}
-			
+				loc_loc = self.backward(self.mean_observed[0])
+				loc_scl = xyz_fc*np.abs(np.array(loc_loc))
 			elif self.D == 3:
-				#------------ Cluster mean coordinates -------------------
-				x,y,z = self.backward(self.mean_observed[np.newaxis,:]).flatten()
-				#----------------------------------------------------------
+				loc_loc = self.backward(self.mean_observed[np.newaxis,:]).flatten()
+				loc_scl = xyz_fc*np.abs(np.array(loc_loc))
+			else:
+				loc_loc = self.backward(self.mean_observed[np.newaxis,:]).flatten()
+				loc_scl = xyz_fc*np.abs(np.array(loc_loc))
+				loc_scl[3:] = uvw_sd
+			
+			if self.hyper["location"] is None:
+				self.hyper["location"] = {"loc":loc_loc,"scl":loc_scl}
+			elif isinstance(self.hyper["location"],dict):
+				assert "loc" in self.hyper["location"],"Error: loc not supplied"
+				assert "scl" in self.hyper["location"],"Error: scl not supplied"
 
-				#---------- Dispersion -----------------
-				if loc_scl is None:
-					loc_scl = xyz_fc*np.abs(np.array([x,y,z]))
-					# loc_scl = xyz_fc*np.sqrt(x**2 + y**2 + z**2),3)
-				#---------------------------------------
+				if self.hyper["location"]["loc"] is None:
+					self.hyper["location"]["loc"] = loc_loc
+				else:
+					assert len(self.hyper["location"]["loc"]) == self.D,"Error: loc does not have correct dimension"
 
-				self.hyper["location"] = {
-					"loc":[x,y,z],
-					"scl":loc_scl}
-
-			elif self.D == 6:
-				#------------ Cluster mean coordinates -------------------
-				x,y,z,u,v,w = self.backward(self.mean_observed[np.newaxis,:]).flatten()
-				#----------------------------------------------------------
-
-				#---------- Dispersion -----------------
-				if loc_scl is None:
-					loc_scl = xyz_fc*np.abs(np.array([x,y,z,u,v,w]))
-					# xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
-					# loc_scl = np.array([xyz_sd,xyz_sd,xyz_sd,uvw_sd,uvw_sd,uvw_sd])
-				#---------------------------------------
-
-				self.hyper["location"] = {
-				"loc":[x,y,z,u,v,w],
-				"scl":loc_scl}
-
+				if self.hyper["location"]["scl"] is None:
+					self.hyper["location"]["scl"] = loc_scl
+				else:
+					assert len(self.hyper["location"]["scl"]) == self.D,"Error: scl does not have correct dimension"
+			else:
+				sys.exit("Error: location hyperparameter must be None or dict with loc and scl")
 
 			for name,loc,scl,unit in zip(
 				self.names_coords,
