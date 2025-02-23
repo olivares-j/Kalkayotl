@@ -481,50 +481,61 @@ class Inference:
 		if self.parameters["location"] is None:
 			assert "location" in self.hyper,msg_location
 			print("The location prior  has been set to:")
+
 			if self.hyper["location"] is None:
-				#-- Cluster dispersion ----
-				uvw_sd = 5.
 				xyz_fc = 0.2
-				#-------------------------
+				uvw_sd = 5.0
+				loc_scl = None
+			elif isinstance(self.hyper["location"],dict):
+				assert "scl" in self.hyper["location"],"Error: scl not supplied"
+				loc_scl = self.hyper["location"]["scl"]
+				assert len(loc_scl) == self.D,"Error: scl does not have correct dimension"
 
-				if self.D == 1:
-					#---------- Mean distance ------------
-					d = self.backward(self.mean_observed[0])
-					#------------------------------------
+			if self.D == 1:
+				#---------- Mean distance ------------
+				d = self.backward(self.mean_observed[0])
+				#------------------------------------
 
-					#---------- Dispersion -----------------
-					d_sd = xyz_fc*d
-					#---------------------------------------
+				#---------- Dispersion -----------------
+				if loc_scl is None:
+					loc_scl = np.array(xyz_fc*d)
+				#---------------------------------------
 
-					self.hyper["location"] = {
-						"loc":[d],
-						"scl":[d_sd]}
-				
-				elif self.D == 3:
-					#------------ Cluster mean coordinates -------------------
-					x,y,z = self.backward(self.mean_observed[np.newaxis,:]).flatten()
-					#----------------------------------------------------------
+				self.hyper["location"] = {
+					"loc":[d],
+					"scl":loc_scl}
+			
+			elif self.D == 3:
+				#------------ Cluster mean coordinates -------------------
+				x,y,z = self.backward(self.mean_observed[np.newaxis,:]).flatten()
+				#----------------------------------------------------------
 
-					#---------- Dispersion -----------------
-					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
-					#---------------------------------------
+				#---------- Dispersion -----------------
+				if loc_scl is None:
+					loc_scl = xyz_fc*np.abs(np.array([x,y,z]))
+					# loc_scl = xyz_fc*np.sqrt(x**2 + y**2 + z**2),3)
+				#---------------------------------------
 
-					self.hyper["location"] = {
-						"loc":[x,y,z],
-						"scl":[xyz_sd,xyz_sd,xyz_sd]}
+				self.hyper["location"] = {
+					"loc":[x,y,z],
+					"scl":loc_scl}
 
-				elif self.D == 6:
-					#------------ Cluster mean coordinates -------------------
-					x,y,z,u,v,w = self.backward(self.mean_observed[np.newaxis,:]).flatten()
-					#----------------------------------------------------------
+			elif self.D == 6:
+				#------------ Cluster mean coordinates -------------------
+				x,y,z,u,v,w = self.backward(self.mean_observed[np.newaxis,:]).flatten()
+				#----------------------------------------------------------
 
-					#---------- Dispersion -----------------
-					xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
-					#---------------------------------------
+				#---------- Dispersion -----------------
+				if loc_scl is None:
+					loc_scl = xyz_fc*np.abs(np.array([x,y,z,u,v,w]))
+					# xyz_sd = xyz_fc*np.sqrt(x**2 + y**2 + z**2)
+					# loc_scl = np.array([xyz_sd,xyz_sd,xyz_sd,uvw_sd,uvw_sd,uvw_sd])
+				#---------------------------------------
 
-					self.hyper["location"] = {
-					"loc":[x,y,z,u,v,w],
-					"scl":[xyz_sd,xyz_sd,xyz_sd,uvw_sd,uvw_sd,uvw_sd]}
+				self.hyper["location"] = {
+				"loc":[x,y,z,u,v,w],
+				"scl":loc_scl}
+
 
 			for name,loc,scl,unit in zip(
 				self.names_coords,
