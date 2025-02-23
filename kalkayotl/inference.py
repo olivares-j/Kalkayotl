@@ -490,6 +490,8 @@ class Inference:
 				assert "scl" in self.hyper["location"],"Error: scl not supplied"
 				loc_scl = self.hyper["location"]["scl"]
 				assert len(loc_scl) == self.D,"Error: scl does not have correct dimension"
+			else:
+				sys.exit("Error: location hyperparameter must be None or dict with 'scl' key")
 
 			if self.D == 1:
 				#---------- Mean distance ------------
