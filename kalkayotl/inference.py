@@ -1504,6 +1504,7 @@ class Inference:
 	def plot_prior_check(self,
 		file_plots=None,
 		figsize=None,
+		chains=None
 		):
 		"""
 		This function plots the prior and posterior distributions.
@@ -1512,10 +1513,15 @@ class Inference:
 		print("Plotting checks ...")
 		file_plots = self.dir_out+"/Prior_check.pdf" if (file_plots is None) else file_plots
 
+		if chains is None:
+			data = self.trace
+		else:
+			data = az.utils.get_coords(self.trace,{"chain":chains})
+
 		pdf = PdfPages(filename=file_plots)
 		for var in self.chk_variables:
 			plt.figure(0,figsize=figsize)
-			az.plot_dist_comparison(self.trace,var_names=var)
+			az.plot_dist_comparison(data,var_names=var)
 			pdf.savefig(bbox_inches='tight')
 			plt.close(0)
 		pdf.close()
