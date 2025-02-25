@@ -483,18 +483,20 @@ class Inference:
 			print("The location prior  has been set to:")
 
 			xyz_fc = 0.2
-			uvw_sd = 5.0
+			# uvw_sd = 5.0
 
 			if self.D == 1:
 				loc_loc = self.backward(self.mean_observed[0])
 				loc_scl = xyz_fc*np.abs(np.array(loc_loc))
 			elif self.D == 3:
 				loc_loc = self.backward(self.mean_observed[np.newaxis,:]).flatten()
-				loc_scl = xyz_fc*np.abs(np.array(loc_loc))
+				# loc_scl = xyz_fc*np.abs(np.array(loc_loc))
+				loc_scl = np.array([20.,20.,20.])
 			else:
 				loc_loc = self.backward(self.mean_observed[np.newaxis,:]).flatten()
-				loc_scl = xyz_fc*np.abs(np.array(loc_loc))
-				loc_scl[3:] = uvw_sd
+				# loc_scl = xyz_fc*np.abs(np.array(loc_loc))
+				# loc_scl[3:] = uvw_sd
+				loc_scl = np.array([20.,20.,20.,5.,5.,5.,])
 			
 			if self.hyper["location"] is None:
 				self.hyper["location"] = {"loc":loc_loc,"scl":loc_scl}
