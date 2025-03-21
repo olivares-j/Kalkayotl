@@ -1949,7 +1949,8 @@ class Inference:
 
 		else:
 			#--------- Kinematic indices ------------------------------
-			nrs,nvr,exp,rot,tensor = self._kinematic_indices(group="posterior")
+			nrs,nvr,exp,rot,tensor = self._kinematic_indices(
+					group="posterior",chains=chains)
 			print("Expansion: {0:2.2f} +/- {1:2.2f} m.s-1.pc-1".format(
 											np.mean(exp),np.std(exp)))
 			print("Rotation:  {0:2.2f} +/- {1:2.2f} m.s-1.pc-1".format(
@@ -2351,7 +2352,8 @@ class Inference:
 		#--------------- Velocity field ----------------------------------
 		if "6D::kappa" in self.cluster_variables:
 			
-			_,_,exp,rot,T = self._kinematic_indices(group="posterior")
+			_,_,exp,rot,T = self._kinematic_indices(
+					group="posterior",chains=chains)
 
 			# df_field = az.summary(data={
 			# 	"Exp [m.s-1.pc-1]":exp,
