@@ -1872,8 +1872,9 @@ class Inference:
 								"B":"tab:orange",
 								"C":"tab:green",
 								"D":"tab:brown",
+								"E":"tab:olive",
 								"Field":"tab:gray"},
-						"mapper":{"A":"A","B":"B","C":"C","D":"D","Field":"Field"}
+						"mapper":{"A":"A","B":"B","C":"C","D":"D","E":"E","Field":"Field"}
 						},
 		ticks={"minor":16,"major":8},
 		legend_bbox_to_anchor=(0.25, 0., 0.5, 0.5)
