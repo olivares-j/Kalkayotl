@@ -881,6 +881,8 @@ class Inference:
 						else:
 							print("offset_kappa ~ Normal(loc=0.0,scl=1.0) [km.s-1.pc-1]")
 							print("kappa = {0} + offset_kappa * {1} [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
+				else:
+					print("kappa ~ Normal(loc={0},scl={1}) [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
 
 			elif isinstance(self.parameters["kappa"],np.ndarray):
 				print("The kappa parameter has been fixed to:")
