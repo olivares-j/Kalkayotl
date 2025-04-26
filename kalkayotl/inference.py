@@ -486,7 +486,7 @@ class Inference:
 			# uvw_sd = 5.0
 
 			if self.D == 1:
-				loc_loc = self.backward(self.mean_observed[0])
+				loc_loc = self.backward(self.mean_observed)
 				loc_scl = xyz_fc*np.abs(np.array(loc_loc))
 			elif self.D == 3:
 				loc_loc = self.backward(self.mean_observed[np.newaxis,:]).flatten()
@@ -1873,10 +1873,25 @@ class Inference:
 		groups_kwargs={"color":{"A":"tab:blue",
 								"B":"tab:orange",
 								"C":"tab:green",
-								"D":"tab:brown",
-								"E":"tab:olive",
-								"Field":"tab:gray"},
-						"mapper":{"A":"A","B":"B","C":"C","D":"D","E":"E","Field":"Field"}
+								"D":"tab:red",
+								"E":"tab:purple",
+								"F":'tab:brown',
+								"G":'tab:pink',
+								"H":'tab:gray',
+								"I":'tab:olive',
+								"J":'tab:cyan',
+								"Field":"black"},
+						"mapper":{"A":"A",
+								"B":"B",
+								"C":"C",
+								"D":"D",
+								"E":"E",
+								"F":"F",
+								"G":"G",
+								"H":"H",
+								"I":"I",
+								"J":"J",
+								"Field":"Field"}
 						},
 		ticks={"minor":16,"major":8},
 		legend_bbox_to_anchor=(0.25, 0., 0.5, 0.5)
