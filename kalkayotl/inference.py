@@ -2391,8 +2391,9 @@ class Inference:
 
 			if self.D > 1:
 				#------ Add distance ---------------------------------------------------------
-				df_source["MAP_distance"] = df_source[["MAP_X","MAP_Y","MAP_Z"]].apply(
-					lambda x: distance(*x),axis=1)
+				if compute_map:
+					df_source["MAP_distance"] = df_source[["MAP_X","MAP_Y","MAP_Z"]].apply(
+						lambda x: distance(*x),axis=1)
 
 				df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
 					lambda x: distance(*x),axis=1)
