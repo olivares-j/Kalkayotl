@@ -2293,7 +2293,11 @@ class Inference:
 
 		return summary_df
 
-	def save_statistics(self,hdi_prob=0.95,chains=None,n_samples=None,stat_focus="mean"):
+	def save_statistics(self,hdi_prob=0.95,
+		chains=None,
+		n_samples=None,
+		stat_focus="mean",
+		compute_map=False):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -2327,10 +2331,11 @@ class Inference:
 			data = az.utils.get_coords(self.ds_posterior,{"chain":chains})
 		#-------------------------------------------------------------------
 		
-		#--------- Get MAP ------------------------------------------
-		df_map_grp = self._get_map(var_names=self.stats_variables)
-		df_map_src = self._get_map(var_names=[self.source_variables])
-		#-------------------------------------------------------------
+		if compute_map:
+			#--------- Get MAP ------------------------------------------
+			df_map_grp = self._get_map(var_names=self.stats_variables)
+			df_map_src = self._get_map(var_names=[self.source_variables])
+			#-------------------------------------------------------------
 
 		#-------------- Source statistics ----------------------------
 		source_csv = self.dir_out +"/Sources_statistics.csv"
@@ -2338,7 +2343,8 @@ class Inference:
 						stat_focus = stat_focus,
 						hdi_prob=hdi_prob,
 						extend=True)
-		df_source = df_map_src.join(df_source)
+		if compute_map:
+			df_source = df_map_src.join(df_source)
 		#--------------------------------------------------------------
 
 		#------------- Replace parameter id by source ID----------------
@@ -2403,7 +2409,8 @@ class Inference:
 							hdi_prob=hdi_prob,
 							round_to=5,
 							extend=True)
-			df_grp = df_map_grp.join(df_grp)
+			if compute_map:
+				df_grp = df_map_grp.join(df_grp)
 
 			df_grp.to_csv(path_or_buf=grp_csv,index_label="Parameter")
 		#-------------------------------------------------------------------
