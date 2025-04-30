@@ -35,7 +35,7 @@ from astropy import units as u
 import pytensor.tensor as at
 from typing import cast
 import string
-from scipy.special import gamma
+from scipy.special import gamma,logsumexp
 from copy import deepcopy
 
 #---------------- Matplotlib -------------------------------------
@@ -1195,6 +1195,27 @@ class Inference:
 					model=self.Model
 					)
 				#--------------------------------
+
+			elif nuts_sampler == "advi":
+				print("WARNING: Sampling posterior with ADVI")
+				traces = []
+				for chain in np.arange(chains):
+					print("sampling chain: {0}".format(chain))
+					approx = pm.fit(
+						start=initial_points[chain],
+						random_seed=chain,
+						n=sample_iters,
+						method="advi",
+						model=self.Model,
+						progressbar=True
+						)
+					tr = approx.sample(
+						draws=sample_iters, 
+						random_seed=None,
+						return_inferencedata=True)
+					traces.append(tr)
+				trace = az.concat(traces,dim="chain")
+
 			else:
 				#---------- Posterior -----------
 				trace = pm.sample(
@@ -1219,7 +1240,6 @@ class Inference:
 			#-------------------------------------
 			del trace
 			#================================================================================
-
 		
 		if prior_predictive and not os.path.exists(self.file_prior):
 			#-------- Prior predictive -------------------
@@ -1696,7 +1716,9 @@ class Inference:
 
 		return srcs,amps,locs,covs
 
-	def _classify(self,srcs,amps,locs,covs,names_groups):
+	def _classify(self,srcs,amps,locs,covs,names_groups,
+		save_probabilities=False,
+		use_prior=False):
 		'''
 		Obtain the class of each source at each chain step
 		'''
@@ -1709,19 +1731,37 @@ class Inference:
 			pos_covs = np.swapaxes(covs,0,1)
 			#-----------------------------------
 
+			pos_amps = pos_amps if use_prior else np.ones_like(pos_amps)
+
 			#------ Loop over sources ----------------------------------
 			log_lk = np.zeros((srcs.shape[0],pos_amps.shape[0],pos_amps.shape[1]))
 			if self.D == 1:
 				for i,src in enumerate(srcs):
 					for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
 						for k,(amp,loc,scl) in enumerate(zip(amps,locs,np.sqrt(covs))):
-							log_lk[i,j,k] = st.norm.logpdf(dt,loc=loc,scale=scl)
+							log_lk[i,j,k] = st.norm.logpdf(dt,loc=loc,scale=scl) + np.log(amp)
 			else:
 				for i,src in enumerate(srcs):
 					for j,(dt,amps,locs,covs) in enumerate(zip(src,pos_amps,pos_locs,pos_covs)):
 						for k,(amp,loc,cov) in enumerate(zip(amps,locs,covs)):
 							log_lk[i,j,k] = st.multivariate_normal(mean=loc,cov=cov,
-												allow_singular=True).logpdf(dt)
+												allow_singular=True).logpdf(dt) + np.log(amp)
+			
+			#------------- Compute membership probabilities and save them ---------------------------------------
+			if save_probabilities:
+				df_probs = pn.DataFrame(
+					data=log_lk.reshape((-1,pos_amps.shape[1])),
+					index=pn.MultiIndex.from_product([self.ID,np.arange(pos_amps.shape[0],dtype=int)],
+							names=["source_id","sample"]),
+					columns=names_groups)
+				df_probs["logsumexp"] = logsumexp(df_probs.to_numpy(),axis=1)
+				for name in names_groups:
+					df_probs["prob_"+name] = df_probs.apply(lambda x: np.exp(x[name]-x["logsumexp"]),axis=1)
+				
+				df_probs["group"] = df_probs[["prob_"+name for name in names_groups]].apply(np.argmax,axis=1)
+				df_probs["label"] = df_probs["group"].map({i:val for i,val in enumerate(names_groups)})
+				df_probs.to_csv(self.dir_out +"/Sources_probabilities.csv")
+			#-----------------------------------------------------------------------------------------------------
 
 			idx = st.mode(log_lk.argmax(axis=2),axis=1,keepdims=True)[0].flatten()
 
@@ -2319,7 +2359,8 @@ class Inference:
 			#-----------------------------------------------------------------
 
 			#---------- Classify sources ------------------------------------
-			self._classify(pos_srcs,pos_amps,pos_locs,pos_covs,names_groups)
+			self._classify(pos_srcs,pos_amps,pos_locs,pos_covs,names_groups,
+				save_probabilities=True)
 			#----------------------------------------------------------------
 
 		
