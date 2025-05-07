@@ -64,7 +64,7 @@ from kalkayotl.Transformations import np_astrometry_and_rv_to_icrs_xyzuvw #6D
 from kalkayotl.Transformations import np_astrometry_and_rv_to_galactic_xyzuvw #6D
 #------------------------------------------------------------------------
 
-plt.rcParams.max_subplots = 30
+az.rcParams["plot.max_subplots"] = 200
 
 class Inference:
 	"""
