@@ -1051,11 +1051,11 @@ class Model6D_age(Model):
 										scale=hyper["age"]["scl"],
 										d=hyper["age"]["d"],
 										p=hyper["age"]["p"]),
-									lower=0.0,
+									lower=0.01,
 									initval=hyper["age"]["loc"])
 			else:
 				age = pm.TruncatedNormal("age",
-									lower=0.0,
+									lower=0.01,
 									mu=hyper["age"]["loc"],
 									sigma=hyper["age"]["scl"])
 
