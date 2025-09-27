@@ -502,8 +502,8 @@ class Inference:
 			if self.hyper["location"] is None:
 				self.hyper["location"] = {"loc":loc_loc,"scl":loc_scl}
 			elif isinstance(self.hyper["location"],dict):
-				assert "loc" in self.hyper["location"],"Error: loc not supplied"
-				assert "scl" in self.hyper["location"],"Error: scl not supplied"
+				assert "loc" in self.hyper["location"],"Error: loc not supplied, use 'loc':None"
+				assert "scl" in self.hyper["location"],"Error: scl not supplied, use 'scl':None"
 
 				if self.hyper["location"]["loc"] is None:
 					self.hyper["location"]["loc"] = loc_loc
@@ -1546,7 +1546,11 @@ class Inference:
 		pdf = PdfPages(filename=file_plots)
 		for var in self.chk_variables:
 			plt.figure(0,figsize=figsize)
-			az.plot_dist_comparison(data,var_names=var)
+			az.plot_dist_comparison(data,
+				var_names=var,
+				figsize=figsize,
+				textsize=2,
+				backend_kwargs={"tight_layout":True})
 			pdf.savefig(bbox_inches='tight')
 			plt.close(0)
 		pdf.close()
