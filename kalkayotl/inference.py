@@ -251,7 +251,7 @@ class Inference:
 		#---------- Zero-points --------------------
 		for key,val in self.zero_points.items():
 			if key in data.columns:
-				print("Adding zero-pint to: ",key)
+				print("Subtracting zero-point value of {0:2.3f} to {1}.".format(val,key))
 				data[key] -= val
 		#-------------------------------------------
 
@@ -522,7 +522,7 @@ class Inference:
 				self.hyper["location"]["loc"],
 				self.hyper["location"]["scl"],
 				np.array(["pc","pc","pc","km.s-1","km.s-1","km.s-1"])[:self.D]):
-				print("loc {0} ~ Normal(loc={1:2.1f},scale={2:2.1f}) [{3}]".format(name,loc,scl,unit))	
+				print("loc [{0}] ~ Normal(loc={1:2.1f},scale={2:2.1f}) [{3}]".format(name,loc,scl,unit))	
 			#---------------------------------------------------------------------------------
 
 		else:
@@ -825,6 +825,7 @@ class Inference:
 			assert "field_scale" in self.parameters, "Model FGMM needs the 'field_scale' parameter"
 			assert isinstance(self.parameters["field_scale"],list), "Error. The field_scale must be a list of floats!"
 			assert len(self.parameters["field_scale"]) == self.D, "Error: the length of field_scale must match model dimension"
+			print("The field_scale has been fixed to: ",self.parameters["field_scale"])
 
 		if self.prior in ["King","EFF"]:
 			if self.prior == "KING" and self.parameters["rt"] is None:
