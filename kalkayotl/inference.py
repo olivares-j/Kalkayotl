@@ -1206,7 +1206,7 @@ class Inference:
 					approx = pm.fit(
 						start=initial_points[chain],
 						random_seed=chain,
-						n=sample_iters,
+						n=tuning_iters,
 						method="advi",
 						model=self.Model,
 						progressbar=True
@@ -2303,7 +2303,8 @@ class Inference:
 		chains=None,
 		n_samples=None,
 		stat_focus="mean",
-		compute_map=False):
+		compute_map=False,
+		save_probabilities=False):
 		'''
 		Saves the statistics to a csv file.
 		Arguments:
@@ -2372,7 +2373,7 @@ class Inference:
 
 			#---------- Classify sources ------------------------------------
 			self._classify(pos_srcs,pos_amps,pos_locs,pos_covs,names_groups,
-				save_probabilities=True)
+				save_probabilities=save_probabilities)
 			#----------------------------------------------------------------
 
 		
