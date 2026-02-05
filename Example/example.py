@@ -1,5 +1,5 @@
 '''
-Copyright 2024 Javier Olivares Romero
+Copyright 2026 Javier Olivares Romero
 
 This file is part of Kalkayotl.
 
@@ -25,18 +25,16 @@ os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 
 #----- Import the module -------------------------------
-dir_kalkayotl  = "/home/jolivares/Repos/Kalkayotl/" 
-sys.path.append(dir_kalkayotl)
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
 #============ Directory and data ===========================================
-#---- Diriectory for input and output -------------------------------------------
-dir_base = "/home/jolivares/Kalkayotl/"
+#---- Directory for input and output -------------------------------------------
+dir_base = os.getcwd() + "/"
 #--------------------------------------------------------------------------------
 
 #----------- Input data --------------------------
-file_data = dir_base + "example.csv"
+file_data = dir_base + "BetaPic_Miret-Roig+2020_GaiaDR3.csv"
 #-------------------------------------------------
 
 #---------- File with parameters that will be kept fixed (Optional) --------
@@ -46,7 +44,7 @@ file_data = dir_base + "example.csv"
 
 #=============== Tuning knobs ============================
 #------ Dimensionality of the model: 1, 3 or 6
-dimension = 1
+dimension = 6
 #----------------------------------------------
 
 #----------------- Chains-----------------------------------------------------
@@ -239,7 +237,7 @@ kal.run(
 		target_accept=target_accept,
 		chains=chains,
 		cores=cores,
-		init_iters=int(1e5),
+		init_iters=int(1e6),
 		nuts_sampler=nuts_sampler,
 		prior_predictive=True,
 		prior_iters=chains*sample_iters,
@@ -279,5 +277,5 @@ kal.save_statistics(hdi_prob=hdi_prob)
 
 #------- Save the samples --------------
 #if you need the samples for future use you can save them in an h5 file
-# kal.save_samples()
+kal.save_samples()
 #=======================================================================================

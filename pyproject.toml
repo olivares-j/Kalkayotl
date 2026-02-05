@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools", "wheel","pymc","pytensor","arviz","numpy","pandas","scipy","matplotlib","h5py","astropy","dill"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Kalkayotl"
+version = "2.1.0"
+description = "This python code infers 1D, 3D, and 6D models of stellar systems based on Gaia data"
+readme = "README.md"
+license = {text = "GNU GPL 3"}
+authors = [
+    {name = "Javier Olivares", email = "jolivares@dia.uned.es"}
+]
+requires-python = ">=3.14"
+
+[project.urls]
+Homepage = "https://github.com/olivares-j/Kalkayotl"

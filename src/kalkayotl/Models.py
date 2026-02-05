@@ -480,25 +480,25 @@ class Model3D6D(Model):
 		#===================== True values ============================================		
 		if prior == "Gaussian":
 			if parameterization == "central":
-				pm.MvNormal("source",mu=loc,chol=chol,
+				source = pm.MvNormal("source",mu=loc,chol=chol,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
 			else:
 				offset = pm.Normal("offset",mu=0,sigma=1,
 					shape=(n_sources,dimension))
-				pm.Deterministic("source",loc + chol.dot(offset.T).T,
+				source = pm.Deterministic("source",loc + chol.dot(offset.T).T,
 					dims=("source_id","coordinate"))
 
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper["nu"]["alpha"],beta=hyper["nu"]["beta"])
 			if parameterization == "central":
-				pm.MvStudentT("source",nu=nu,mu=loc,chol=chol,
+				source = pm.MvStudentT("source",nu=nu,mu=loc,chol=chol,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
 			else:
 				offset = pm.StudentT("offset",nu=nu,mu=0,sigma=1,
 					shape=(n_sources,dimension))
-				pm.Deterministic("source",loc + chol.dot(offset.T).T,
+				source = pm.Deterministic("source",loc + chol.dot(offset.T).T,
 					dims=("source_id","coordinate"))
 
 		# elif prior == "King":
@@ -541,7 +541,7 @@ class Model3D6D(Model):
 			comps = [ pm.MvNormal.dist(mu=loc[i],chol=chol[i]) for i in range(n_components)]
 
 			#---- Sample from the mixture ----------------------------------
-			pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,dimension),
+			source = pm.Mixture("source",w=weights,comp_dists=comps,shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
 		
 		else:
@@ -549,7 +549,7 @@ class Model3D6D(Model):
 		#=================================================================================
 
 		#----------------------- Transformation-----------------------
-		true = pm.Deterministic("true",transformation(self.source),
+		true = pm.Deterministic("true",transformation(source),
 					dims=("source_id","observable"))
 		#-------------------------------------------------------------
 
@@ -561,6 +561,12 @@ class Model3D6D(Model):
 			pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
 						chol=tau_data,observed=mu_data)
 		#-------------------------------------------------------------------------
+
+		#------------ Generated quantities ------------------------------------
+		distance = pm.Deterministic("distance",
+					var=tt.sqrt(tt.math.sum(tt.sqr(source[:,:3]),axis=1)),
+					dims="source_id")
+		#----------------------------------------------------------------------
 
 class Model6D_linear(Model):
 	'''
@@ -882,6 +888,12 @@ class Model6D_linear(Model):
 						chol=tau_data,observed=mu_data)
 		#-------------------------------------------------------------------------
 
+		#------------ Generated quantities ------------------------------------
+		distance = pm.Deterministic("distance",
+					var=tt.sqrt(tt.math.sum(tt.sqr(source[:,:3]),axis=1)),
+					dims="source_id")
+		#----------------------------------------------------------------------
+
 class Model6D_age(Model):
 	'''
 	Model to infer the 6-dimensional parameter vector of a cluster and its age
@@ -1154,3 +1166,9 @@ class Model6D_age(Model):
 			pm.MvNormal('obs', mu=pm.math.flatten(true)[idx_data], 
 						chol=tau_data,observed=mu_data)
 		#-------------------------------------------------------------------------
+
+		#------------ Generated quantities ------------------------------------
+		distance = pm.Deterministic("distance",
+					var=tt.sqrt(tt.math.sum(tt.sqr(source[:,:3]),axis=1)),
+					dims="source_id")
+		#----------------------------------------------------------------------

@@ -1309,7 +1309,10 @@ class Inference:
 		#------------------------------------------------------------------------
 
 		#------- Variable names -----------------------------------------------------------
-		source_variables = list(filter(lambda x: "source" in x, self.ds_posterior.data_vars))
+		source_variables = list(filter(lambda x: ( ("source" in x)
+											 or ("distance" in x)
+											),
+											self.ds_posterior.data_vars))
 		cluster_variables = list(filter(lambda x: ( ("loc" in x) 
 											or ("corr" in x)
 											or ("std" in x)
@@ -1325,35 +1328,42 @@ class Inference:
 											),
 											self.ds_posterior.data_vars))
 	
+		distance_var    = source_variables.copy()
+		cluster_sts_var = cluster_variables.copy()
 		trace_variables = cluster_variables.copy()
-		stats_variables = cluster_variables.copy()
-		tensor_variables= cluster_variables.copy()
 		cluster_loc_var = cluster_variables.copy()
 		cluster_std_var = cluster_variables.copy()
 		cluster_cor_var = cluster_variables.copy()
 		cluster_ppc_var = cluster_variables.copy()
 
 		#----------- Case specific variables -------------
-		tmp_srces = source_variables.copy()
-		tmp_plots = cluster_variables.copy()
-		tmp_stats = cluster_variables.copy()
+		tmp_dst   = source_variables.copy()
+		tmp_sts   = cluster_variables.copy()
+		tmp_srcs  = source_variables.copy()
+		tmp_plts  = cluster_variables.copy()
 		tmp_loc   = cluster_variables.copy()
 		tmp_stds  = cluster_variables.copy()
 		tmp_corr  = cluster_variables.copy()
 		tmp_ppc   = cluster_variables.copy()
 
-		for var in tmp_srces:
-			if "_pos" in var or "_vel" in var:
+		for var in tmp_srcs:
+			if (("_pos" in var) or 
+			("_vel" in var) or 
+			("distance" in var)):
 				source_variables.remove(var)
 
-		for var in tmp_plots:
+		for var in tmp_dst:
+			if not "distance" in var:
+				distance_var.remove(var)
+
+		for var in tmp_plts:
 			if self.D in [3,6]:
 				if "corr" in var:
 					trace_variables.remove(var)
 				if "lnv" in var and "std" not in var:
 					trace_variables.remove(var)
 
-		for var in tmp_stats:
+		for var in tmp_sts:
 			if self.D in [3,6]:
 				if not ("loc" in var 
 					or "std" in var
@@ -1365,7 +1375,7 @@ class Inference:
 					or "tau" in var
 					or "age" in var
 					):
-					stats_variables.remove(var)
+					cluster_sts_var.remove(var)
 
 		for var in tmp_loc:
 			if "loc" not in var:
@@ -1388,7 +1398,8 @@ class Inference:
 		self.source_variables  = source_variables
 		self.cluster_variables = cluster_variables
 		self.trace_variables   = trace_variables
-		self.stats_variables   = stats_variables
+		self.cluster_sts_var   = cluster_sts_var
+		self.distance_var      = distance_var
 		self.loc_variables     = cluster_loc_var
 		self.std_variables     = cluster_std_var
 		self.cor_variables     = cluster_cor_var
@@ -1396,11 +1407,12 @@ class Inference:
 
 		# print(self.source_variables)
 		# print(self.cluster_variables)
-		# print(self.trace_variables )
-		# print(self.stats_variables  )
-		# print(self.loc_variables    )
-		# print(self.std_variables     )
-		# print(self.cor_variables     )
+		# print(self.trace_variables)
+		# print(self.distance_var)
+		# print(self.cluster_sts_var)
+		# print(self.loc_variables)
+		# print(self.std_variables)
+		# print(self.cor_variables)
 		# print(self.chk_variables)
 		# sys.exit()
 
@@ -1699,8 +1711,6 @@ class Inference:
 		cors = cors.reshape((ng,nc*ns,nd,nd))
 		#------------------------------------
 
-		
-
 		#--------------- Take sample the last n_samplpes ------------
 		if n_samples is not None:
 			idx = np.arange(locs.shape[1]-n_samples,locs.shape[1])
@@ -1777,6 +1787,7 @@ class Inference:
 		grps = [names_groups[i] for i in idx]
 
 		self.df_groups = pn.DataFrame(data={"group":idx,"label":grps},index=self.ID)
+		self.df_groups.index.set_names(self.id_name,inplace=True)
 
 	def _kinematic_indices(self,group="posterior",chains=None,n_samples=None):
 		'''
@@ -2303,7 +2314,6 @@ class Inference:
 		chains=None,
 		n_samples=None,
 		stat_focus="mean",
-		compute_map=False,
 		save_probabilities=False):
 		'''
 		Saves the statistics to a csv file.
@@ -2311,15 +2321,6 @@ class Inference:
 		
 		'''
 		print("Computing statistics ...")
-
-		#----------------------- Functions ---------------------------------
-		def distance(x,y,z):
-			return np.sqrt(x**2 + y**2 + z**2)
-		#---------------------------------------------------------------------
-
-		# msg_n = "The required n_samples {0} is larger than those in the posterior.".format(n_samples)
-
-		# assert n_samples <= self.ds_posterior.sizes["draw"], msg_n
 		
 		#--------- Coordinates ------------------------------------------
 		names_groups = ["A"]
@@ -2338,29 +2339,37 @@ class Inference:
 			data = az.utils.get_coords(self.ds_posterior,{"chain":chains})
 		#-------------------------------------------------------------------
 		
-		if compute_map:
-			#--------- Get MAP ------------------------------------------
-			df_map_grp = self._get_map(var_names=self.stats_variables)
-			df_map_src = self._get_map(var_names=[self.source_variables])
-			#-------------------------------------------------------------
 
 		#-------------- Source statistics ----------------------------
 		source_csv = self.dir_out +"/Sources_statistics.csv"
-		df_source  = az.summary(data,var_names=self.source_variables,
+
+		tmps = []
+		for coord in data.coords["coordinates"]:
+			df_tmp  = az.summary(data,var_names=self.source_variables,
+							coords={"coordinate":coord},
+							stat_focus = stat_focus,
+							hdi_prob=hdi_prob,
+							extend=True)
+			df_tmp.set_index(data.coords["source_id"].values,inplace=True)
+			df_tmp.columns = pn.MultiIndex.from_product(
+				[[coord.values.tolist()], df_tmp.columns])
+			df_tmp = df_tmp.stack(sort=False,future_stack=False)
+			tmps.append(df_tmp)
+
+
+		df_tmp = az.summary(data,var_names=self.distance_var,
 						stat_focus = stat_focus,
 						hdi_prob=hdi_prob,
 						extend=True)
-		if compute_map:
-			df_source = df_map_src.join(df_source)
-		#--------------------------------------------------------------
+		df_tmp.set_index(data.coords["source_id"].values,inplace=True)
+		df_tmp.columns = pn.MultiIndex.from_product(
+			[["distance"], df_tmp.columns])
+		df_tmp = df_tmp.stack(sort=False,future_stack=False)
+		tmps.append(df_tmp)
 
-		#------------- Replace parameter id by source ID----------------
-		n_sources = len(self.ID)
-		ID  = np.repeat(self.ID,self.D,axis=0)
-		idx = np.tile(np.arange(self.D),n_sources)
-
-		df_source.set_index(ID,inplace=True)
-		df_source.insert(loc=0,column="parameter",value=idx)
+		df_source = pn.concat(tmps,axis=1,ignore_index=False)
+		df_source.index.set_names([self.id_name,"statistic"],inplace=True)
+		
 		#---------------------------------------------------------------
 
 		if self.D in [1,3,6] :
@@ -2376,50 +2385,21 @@ class Inference:
 				save_probabilities=save_probabilities)
 			#----------------------------------------------------------------
 
-		
-			# ------ Parameters into columns ------------------------
-			dfs = []
-			for i in range(self.D):
-				idx = np.where(df_source["parameter"] == i)[0]
-				tmp = df_source.drop(columns="parameter").add_suffix(
-								"_"+self.names_coords[i])
-				dfs.append(tmp.iloc[idx])
-
-			#-------- Join on index --------------------
-			df_source = dfs[0]
-			for i in range(1,self.D) :
-				df_source = df_source.join(dfs[i],
-					how="inner",lsuffix="",rsuffix="_"+self.names_coords[i])
-			#---------------------------------------------------------------------
-
 			#---------- Add group -----------------------------------
 			df_source = df_source.join(self.df_groups)
 			#----------------------------------------------
 
-			if self.D > 1:
-				#------ Add distance ---------------------------------------------------------
-				if compute_map:
-					df_source["MAP_distance"] = df_source[["MAP_X","MAP_Y","MAP_Z"]].apply(
-						lambda x: distance(*x),axis=1)
-
-				df_source["mean_distance"] = df_source[["mean_X","mean_Y","mean_Z"]].apply(
-					lambda x: distance(*x),axis=1)
-				#----------------------------------------------------------------------------
-
 		#---------- Save source data frame ----------------------
-		df_source.to_csv(path_or_buf=source_csv,index_label=self.id_name)
+		df_source.to_csv(path_or_buf=source_csv)
 
 		#-------------- Global statistics ----------------------------------
 		if len(self.cluster_variables) > 0:
 			grp_csv = self.dir_out +"/Cluster_statistics.csv"
-			df_grp = az.summary(data,var_names=self.stats_variables,
+			df_grp = az.summary(data,var_names=self.cluster_sts_var,
 							stat_focus=stat_focus,
 							hdi_prob=hdi_prob,
 							round_to=5,
 							extend=True)
-			if compute_map:
-				df_grp = df_map_grp.join(df_grp)
-
 			df_grp.to_csv(path_or_buf=grp_csv,index_label="Parameter")
 		#-------------------------------------------------------------------
 
