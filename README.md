@@ -21,11 +21,14 @@ https://www.aanda.org/articles/aa/pdf/2020/12/aa37846-20.pdf) and [paperII](http
 2. I strongly recommend creating an independent conda environment (see for example: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html, this will avoid mixing python packages). This new environment must have python 3.11.
 You can do this by Anaconda with the following command:
 
-**Linux users**
 ```
 conda create -n kalkayotl -c conda-forge pymc arviz numpy scipy astropy pandas h5py dill
 ```
 The previous line will provide the basic installation. Depending on your machine and demands, accelerators like JAX will need to be installed in CPU or GPU version. 
+
+3. Move into the newly created `kalkayotl` environment
+
+```conda activate kalkayotl```
 
 For CPUs:
 ```
@@ -42,14 +45,6 @@ Finally, for the use of more efficient sampling methods install blackjax and num
 
 conda install -c conda-forge blackjax numpyro
 ```
-**Mac OS users**
-
-In the past, Mac OS users experienced issues while installing pymc due to different gcc compilers. So I do recommend to first install pymc in the new conda environment test it and proceed to install the rest of the packages. 
-
-3. Move into the newly created `kalkayotl` environment
-
-```conda activate kalkayotl```
-
 
 4. Test pymc installation:
 
@@ -73,6 +68,10 @@ python example.py
 ```
 
 It will infer the source-level and cluster-level parameters of the Beta Pictoris stellar association using the provided data. You must get the outputs (chains, statistics, and plots) within the same Example folder. If you have no errors then you are ready to move to the next section. If errors appear, identify if they are related to Kalkayotl, PyMC, or the dependencies. If they are related to PyMC or the dependencies follow the specific instructions in their web pages. If it is related to the installation of Kalkayotl, then submit an issue explaining the error. 
+
+**Mac OS users**
+
+In the past, Mac OS users experienced issues while installing pymc due to different gcc compilers. So I do recommend to first install pymc in the new conda environment test it and proceed to install the rest of the packages. 
 
 **NOTE on PyMC error**
 If you get the following error:
