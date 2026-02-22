@@ -2344,7 +2344,7 @@ class Inference:
 		source_csv = self.dir_out +"/Sources_statistics.csv"
 
 		tmps = []
-		for coord in data.coords["coordinates"]:
+		for coord in data.coords["coordinate"]:
 			df_tmp  = az.summary(data,var_names=self.source_variables,
 							coords={"coordinate":coord},
 							stat_focus = stat_focus,
