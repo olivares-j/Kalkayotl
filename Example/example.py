@@ -25,6 +25,7 @@ os.environ["OMP_NUM_THREADS"] = "1" # Avoids overlapping of processes
 import numpy as np
 
 #----- Import the module -------------------------------
+# sys.path.append('/home/jolivares/Repos/Kalkayotl/src/')
 from kalkayotl.inference import Inference
 #-------------------------------------------------------
 
@@ -56,6 +57,10 @@ chains = 2
 # IMPORTANT. Depending on your computer configuration you may have different performances.
 # I recommend to use 2 cores; this is one per chain.
 cores  = 2
+
+# init_iters is the number of iterations done with ADVI (or init_method) to optimize
+# the initial solution. Reduced number may prevent the sampler to converge.
+init_iters = int(1e6)
 
 # tuning_iters is the number of iterations used to tune the sampler
 # These will not be used for the statistics nor the plots. 
@@ -237,7 +242,7 @@ kal.run(
 		target_accept=target_accept,
 		chains=chains,
 		cores=cores,
-		init_iters=int(1e6),
+		init_iters=init_iters,
 		nuts_sampler=nuts_sampler,
 		prior_predictive=True,
 		prior_iters=chains*sample_iters,
