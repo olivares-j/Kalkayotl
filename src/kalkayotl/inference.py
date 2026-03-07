@@ -113,6 +113,7 @@ class Inference:
 		self.file_chains      = self.dir_out+"/Chains.nc"
 		self.file_start       = self.dir_out+"/Initialization.pkl"
 		self.file_prior       = self.dir_out+"/Prior.nc"
+		self.file_vi_loss     = self.dir_out+"/Initialization.png"
 
 		self.mas2deg  = 1.0/(60.*60.*1000.)
 
@@ -1040,7 +1041,7 @@ class Inference:
 		cores=2,
 		step=None,
 		step_size=None,
-		init_method="advi+adapt_diag",
+		init_method="fullrank_advi",
 		init_iters=int(1e5),
 		init_absolute_tol=5e-3,
 		init_relative_tol=1e-5,
@@ -1050,6 +1051,7 @@ class Inference:
 		prior_iters=2000,
 		progressbar=True,
 		nuts_sampler="numpyro",
+		nuts_sampler_kwargs: Optional[Dict] = None,
 		random_seed=None):
 		"""
 		Performs the MCMC run.
@@ -1070,99 +1072,214 @@ class Inference:
 
 		if not os.path.exists(self.file_chains):
 			#================== Optimization =============================================
-			if os.path.exists(self.file_start):
-				print("Reading initial positions ...")
-				in_file = open(self.file_start, "rb")
-				approx = dill.load(in_file)
-				in_file.close()
-				start = approx["initial_points"][0]
-			else:
-				approx = None
-				start = self.starting_points
-				print("Finding initial positions ...")
+			# if os.path.exists(self.file_start):
+			# 	print("Reading initial positions ...")
+			# 	in_file = open(self.file_start, "rb")
+			# 	approx = dill.load(in_file)
+			# 	in_file.close()
+			# 	start = approx["initial_points"][0]
+			# else:
+			# 	approx = None
+			# 	start = self.starting_points
+			# 	print("Finding initial positions ...")
 
-			if approx is None or (approx is not None and init_refine):
-				# # -------- Fix problem with initial solution of cholesky cov-packed ----------
-				# name_ccp = "_cholesky-cov-packed__" 
-				# for key,value in start.copy().items():
-				# 	if name_ccp in key:
-				# 		del start[key]
-				# # TO BE REMOVED once pymc5 solves this issue
-				# #----------------------------------------------------------------------------
+			# if approx is None or (approx is not None and init_refine):
+			# 	# # -------- Fix problem with initial solution of cholesky cov-packed ----------
+			# 	# name_ccp = "_cholesky-cov-packed__" 
+			# 	# for key,value in start.copy().items():
+			# 	# 	if name_ccp in key:
+			# 	# 		del start[key]
+			# 	# # TO BE REMOVED once pymc5 solves this issue
+			# 	# #----------------------------------------------------------------------------
 
-				random_seed_list = pm.util._get_seeds_per_chain(random_seed, chains)
-				cb = [pm.callbacks.CheckParametersConvergence(
-						tolerance=init_absolute_tol, diff="absolute",ord=None),
-					  pm.callbacks.CheckParametersConvergence(
-						tolerance=init_relative_tol, diff="relative",ord=None)]
+			# 	random_seed_list = pm.util._get_seeds_per_chain(random_seed, chains)
+			# 	cb = [pm.callbacks.CheckParametersConvergence(
+			# 			tolerance=init_absolute_tol, diff="absolute",ord=None),
+			# 		  pm.callbacks.CheckParametersConvergence(
+			# 			tolerance=init_relative_tol, diff="relative",ord=None)]
 
-				approx = pm.fit(
-					start=start,
-					random_seed=random_seed_list[0],
+			# 	approx = pm.fit(
+			# 		start=start,
+			# 		random_seed=random_seed_list[0],
+			# 		n=init_iters,
+			# 		method="advi",
+			# 		model=self.Model,
+			# 		callbacks=cb,
+			# 		progressbar=True,
+			# 		#test_optimizer=pm.adagrad#_window
+			# 		)
+
+			# 	#------------- Plot Loss ----------------------------------
+			# 	plt.figure()
+			# 	plt.plot(approx.hist[-init_plot_iters:])
+			# 	plt.xlabel("Last {0} iterations".format(init_plot_iters))
+			# 	plt.ylabel("Average Loss")
+			# 	plt.savefig(self.dir_out+"/Initializations.png")
+			# 	plt.close()
+			# 	#-----------------------------------------------------------
+
+			# 	approx_sample = approx.sample(
+			# 		draws=chains, 
+			# 		random_seed=random_seed_list[0],
+			# 		return_inferencedata=False
+			# 		)
+
+			# 	initial_points = [approx_sample[i] for i in range(chains)]
+			# 	sd_point = approx.std.eval()
+			# 	mu_point = approx.mean.get_value()
+			# 	approx = {
+			# 		"initial_points":initial_points,
+			# 		"mu_point":mu_point,
+			# 		"sd_point":sd_point
+			# 		}
+
+			# 	out_file = open(self.file_start, "wb")
+			# 	dill.dump(approx, out_file)
+			# 	out_file.close()
+
+			# 	#------------------ Save initial point ------------------------------
+			# 	df = pn.DataFrame(data=initial_points[0]["{0}D::true".format(self.D)],
+			# 		columns=self.names_mu)
+			# 	df.to_csv(self.dir_out+"/initial_true.csv",index=False)
+			# 	df = pn.DataFrame(data=initial_points[0]["{0}D::source".format(self.D)],
+			# 		columns=self.names_coords)
+			# 	df.to_csv(self.dir_out+"/initial_source.csv",index=False)
+			# 	#---------------------------------------------------------------------
+
+			# #----------- Extract ---------------------
+			# mu_point = approx["mu_point"]
+			# sd_point = approx["sd_point"]
+			# initial_points = approx["initial_points"]
+			# #----------------------------------------
+			if not os.path.exists(self.file_start):
+				#================== Optimization with variational inference ============================================
+				if init_method.lower() == "advi":
+					print("Finding initial positions with ADVI method")
+					vi = pm.ADVI(model=self.Model)
+				elif init_method.lower() == "fullrank_advi":
+					print("Finding initial positions with FullRankADVI method")
+					vi = pm.FullRankADVI(model=self.Model)
+				elif init_method.lower() == "svgd":
+					print("Finding initial positions with SVGD method")
+					vi = pm.SVGD(
+						n_particles=100,
+						jitter=1,
+						# obj_optimizer=pm.sgd(learning_rate=0.01),
+						model=self.Model)
+				else:
+					sys.exit("Unrecognized VI method")
+
+				
+				# Convergence callbacks used to stop ADVI when parameter changes are small.
+				cnv_abs = pm.callbacks.CheckParametersConvergence(
+						tolerance=init_absolute_tol,
+						diff="absolute",ord=None)
+				tracker = pm.callbacks.Tracker(
+					  	mean=vi.approx.mean.eval,
+						std=vi.approx.std.eval)
+
+				approx = vi.fit(
 					n=init_iters,
-					method="advi",
-					model=self.Model,
-					callbacks=cb,
-					progressbar=True,
-					#test_optimizer=pm.adagrad#_window
-					)
+					callbacks=[cnv_abs,tracker],
+					progressbar=True)
 
-				#------------- Plot Loss ----------------------------------
-				plt.figure()
-				plt.plot(approx.hist[-init_plot_iters:])
-				plt.xlabel("Last {0} iterations".format(init_plot_iters))
-				plt.ylabel("Average Loss")
-				plt.savefig(self.dir_out+"/Initializations.png")
+				#------------- Plot the ADVI loss (last init_plot_iters iterations) ----------------
+				fig = plt.figure(figsize=(16, 9))
+				mu_ax = fig.add_subplot(221)
+				std_ax = fig.add_subplot(222)
+				hist_ax = fig.add_subplot(212)
+				mu_ax.plot(tracker["mean"])
+				mu_ax.set_title("Mean track")
+				std_ax.plot(tracker["std"])
+				std_ax.set_title("Std track")
+				hist_ax.plot(vi.hist)
+				hist_ax.set_yscale("log")
+				hist_ax.set_title("Negative ELBO track")
+				plt.savefig(self.file_vi_loss)
 				plt.close()
 				#-----------------------------------------------------------
 
-				approx_sample = approx.sample(
-					draws=chains, 
-					random_seed=random_seed_list[0],
-					return_inferencedata=False
-					)
+				# Save initialization to disk so future runs can reuse it.
+				with open(self.file_start, "wb") as out_file:
+					dill.dump(approx, out_file)
+			else:
+				assert nuts_sampler.lower() != init_method.lower(),("Error: "+
+				"To sample with the same method as the initialization "+
+				"please remove file:\n {0}".format(self.file_start))
 
-				initial_points = [approx_sample[i] for i in range(chains)]
-				sd_point = approx.std.eval()
-				mu_point = approx.mean.get_value()
-				approx = {
-					"initial_points":initial_points,
-					"mu_point":mu_point,
-					"sd_point":sd_point
-					}
+				with open(self.file_start, 'rb') as in_strm:
+					approx = dill.load(in_strm)
 
-				out_file = open(self.file_start, "wb")
-				dill.dump(approx, out_file)
-				out_file.close()
+			#----------- Extract values needed for sampler ---------------------
+			mu_point = approx.mean.eval()
+			sd_point = approx.std.eval()
 
-				#------------------ Save initial point ------------------------------
-				df = pn.DataFrame(data=initial_points[0]["{0}D::true".format(self.D)],
-					columns=self.names_mu)
-				df.to_csv(self.dir_out+"/initial_true.csv",index=False)
-				df = pn.DataFrame(data=initial_points[0]["{0}D::source".format(self.D)],
-					columns=self.names_coords)
-				df.to_csv(self.dir_out+"/initial_source.csv",index=False)
-				#---------------------------------------------------------------------
-
-			#----------- Extract ---------------------
-			mu_point = approx["mu_point"]
-			sd_point = approx["sd_point"]
-			initial_points = approx["initial_points"]
-			#-----------------------------------------
-
-			# # -------- Fix problem with initial solution of cholesky cov-packed ----------
-			# name_ccp = "_cholesky-cov-packed__" 
-			# for vals in initial_points:
-			# 	for key,value in vals.copy().items():
-			# 		if name_ccp in key:
-			# 			del vals[key]
-			# # TO BE REMOVED once pymc5 solves this issue
-			# #----------------------------------------------------------------------------
-
+			random_seed_list = pm.util._get_seeds_per_chain(random_seed, chains)
+			approx_sample = approx.sample(
+				draws=chains, 
+				random_seed=random_seed_list[0],
+				return_inferencedata=False
+				)
+			initial_points = [approx_sample[i] for i in range(chains)]
+			#--------------------------------------------------------------------
 			#================================================================================
 
 			#=================== Sampling ==================================================
-			if nuts_sampler == "pymc":
+			# elif nuts_sampler == "advi":
+			# 	print("WARNING: Sampling posterior with ADVI")
+			# 	traces = []
+			# 	for chain in np.arange(chains):
+			# 		print("sampling chain: {0}".format(chain))
+			# 		approx = pm.fit(
+			# 			start=initial_points[chain],
+			# 			random_seed=chain,
+			# 			n=tuning_iters,
+			# 			method="advi",
+			# 			model=self.Model,
+			# 			progressbar=True
+			# 			)
+			# 		tr = approx.sample(
+			# 			draws=sample_iters, 
+			# 			random_seed=None,
+			# 			return_inferencedata=True)
+			# 		traces.append(tr)
+			# 	trace = az.concat(traces,dim="chain")
+
+			if nuts_sampler.lower() == init_method.lower():
+				print("WARNING: Sampling posterior with {0}".format(nuts_sampler.upper()))
+				traces = []
+				for chain in np.arange(chains):
+					print("sampling chain: {0}".format(chain))
+					vi.refine(
+						n=tuning_iters,
+						progressbar=True)
+					vi.approx.hist = vi.hist
+					approx = vi.approx
+					tr = approx.sample(
+						draws=sample_iters, 
+						random_seed=None,
+						return_inferencedata=True)
+					traces.append(tr)
+				trace = az.concat(traces,dim="chain")
+
+			elif nuts_sampler == "numpyro":
+				#---------- Posterior sampling using default sampler backend (e.g., numpyro) -----------
+				trace = pm.sample(
+					draws=sample_iters,
+					initvals=initial_points,
+					nuts_sampler=nuts_sampler,
+					tune=tuning_iters,
+					chains=chains, 
+					progressbar=progressbar,
+					target_accept=target_accept,
+					discard_tuned_samples=True,
+					return_inferencedata=True,
+					nuts_sampler_kwargs=nuts_sampler_kwargs,
+					model=self.Model
+					)
+
+
+			elif nuts_sampler.lower() == "pymc":
 				#--------------- Prepare step ---------------------------------------------
 				# Only valid for nuts_sampler == "pymc". 
 				# The other samplers adapt steps independently.
@@ -1197,27 +1314,6 @@ class Inference:
 					model=self.Model
 					)
 				#--------------------------------
-
-			elif nuts_sampler == "advi":
-				print("WARNING: Sampling posterior with ADVI")
-				traces = []
-				for chain in np.arange(chains):
-					print("sampling chain: {0}".format(chain))
-					approx = pm.fit(
-						start=initial_points[chain],
-						random_seed=chain,
-						n=tuning_iters,
-						method="advi",
-						model=self.Model,
-						progressbar=True
-						)
-					tr = approx.sample(
-						draws=sample_iters, 
-						random_seed=None,
-						return_inferencedata=True)
-					traces.append(tr)
-				trace = az.concat(traces,dim="chain")
-
 			else:
 				#---------- Posterior -----------
 				trace = pm.sample(
@@ -1231,7 +1327,6 @@ class Inference:
 					target_accept=target_accept,
 					discard_tuned_samples=True,
 					return_inferencedata=True,
-					#nuts_sampler_kwargs={"step_size":step_size},
 					model=self.Model
 					)
 				#--------------------------------
