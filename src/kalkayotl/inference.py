@@ -1041,7 +1041,7 @@ class Inference:
 		cores=2,
 		step=None,
 		step_size=None,
-		init_method="fullrank_advi",
+		init_method="advi",
 		init_iters=int(1e5),
 		init_absolute_tol=5e-3,
 		init_relative_tol=1e-5,

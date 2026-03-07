@@ -58,6 +58,9 @@ chains = 2
 # I recommend to use 2 cores; this is one per chain.
 cores  = 2
 
+# init_method indicates the method chosen to optimize the initial solution 
+init_method = "advi"
+
 # init_iters is the number of iterations done with ADVI (or init_method) to optimize
 # the initial solution. Reduced number may prevent the sampler to converge.
 init_iters = int(1e6)
@@ -242,6 +245,7 @@ kal.run(
 		target_accept=target_accept,
 		chains=chains,
 		cores=cores,
+		init_method = init_method,
 		init_iters=init_iters,
 		nuts_sampler=nuts_sampler,
 		prior_predictive=True,
