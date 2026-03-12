@@ -58,7 +58,10 @@ chains = 2
 # I recommend to use 2 cores; this is one per chain.
 cores  = 2
 
-# init_method indicates the method chosen to optimize the initial solution 
+# init_method indicates the method chosen to optimize the initial solution
+# other options include fullrank_advi and SVGD but notice that these may be
+# computationally more expensive. fullrank_advi may cause memory overheads when 
+# running with many parameters
 init_method = "advi"
 
 # init_iters is the number of iterations done with ADVI (or init_method) to optimize
@@ -133,7 +136,7 @@ reference_system = "Galactic"
 # The performance of the HMC sampler can be improved by non-central parametrizations.
 # Kalkayotl comes with two options: central and non-central. While the former works better
 # for nearby clusters (<500 pc) the latter does it for faraway clusters (>500 pc).
-parameterization = "central"
+parametrization = "central"
 #-----------------------------------------------------------------------------------------
 
 #----------- Velocity model ---------------------------------------------------------------------
@@ -235,7 +238,7 @@ kal.load_data(file_data)
 kal.setup(prior=prior["type"],
 		  parameters=prior["parameters"],
 		  hyper_parameters=prior["hyper_parameters"],
-		  parameterization=parameterization)
+		  parametrization=parametrization)
 #-----------------------------------------------------
 
 #------- Run the sampler ---------------------

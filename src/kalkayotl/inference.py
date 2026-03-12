@@ -398,7 +398,7 @@ class Inference:
 	def setup(self,prior,
 				parameters,
 				hyper_parameters,
-				parameterization,
+				parametrization,
 				):
 		'''
 		Set-up the model with the corresponding dimensions and data
@@ -407,7 +407,7 @@ class Inference:
 		self.prior            = prior
 		self.parameters       = deepcopy(parameters)
 		self.hyper            = deepcopy(hyper_parameters)
-		self.parameterization = parameterization
+		self.parametrization = parametrization
 		self.velocity_model   = "joint"
 		
 
@@ -420,15 +420,15 @@ class Inference:
 		msg_gamma = "The gamma hyper_parameter must be specified."
 		msg_weights = "The weights hyper_parameter must be specified as a dictionary!"
 		msg_nu    = "The nu hyper_parameter must be specified."
-		msg_central = "Error: Only the central parameterization is valid for the GMM prior."
-		msg_non_central = "Only the non-central parameterization is valid for this configuration."
+		msg_central = "Error: Only the central parametrization is valid for the GMM prior."
+		msg_non_central = "Only the non-central parametrization is valid for this configuration."
 		msg_weights = "weights must be greater than 5%."
 
-		assert self.parameterization in ["central","non-central"], "Error in parameterization"
+		assert self.parametrization in ["central","non-central"], "Error in parametrization"
 
 		#============== Mixtures =====================================================
 		if "GMM" in self.prior:
-			assert self.parameterization == "central", msg_central
+			assert self.parametrization == "central", msg_central
 			assert isinstance(self.hyper["weights"],dict), msg_weights
 
 			test_a = "a" in self.hyper["weights"].keys()
@@ -846,19 +846,19 @@ class Inference:
 				self.hyper["kappa"]["loc"]  = self.hyper["kappa"]["loc"]  if "loc"  in self.hyper["kappa"] else 0.0
 				self.hyper["kappa"]["scl"]  = self.hyper["kappa"]["scl"]  if "scl"  in self.hyper["kappa"] else kappa_scl
 				self.hyper["kappa"]["beta"] = self.hyper["kappa"]["beta"] if "beta" in self.hyper["kappa"] else 1.
-				self.hyper["kappa"]["parameterization"] = self.hyper["kappa"]["parameterization"] \
-											if "parameterization" in self.hyper["kappa"] else "central"
+				self.hyper["kappa"]["parametrization"] = self.hyper["kappa"]["parametrization"] \
+											if "parametrization" in self.hyper["kappa"] else "central"
 				self.hyper["kappa"]["distribution"] = self.hyper["kappa"]["distribution"] \
 											if "distribution" in self.hyper["kappa"] else "Normal"
 				#---------------------------------------------------------------------------------------------------
 
 				assert isinstance(self.hyper["kappa"]["loc"],float), "Error the loc of the kappa hyper_parameter must be a float"
 				assert isinstance(self.hyper["kappa"]["scl"],float), "Error the scl of the kappa hyper_parameter must be a float"
-				assert isinstance(self.hyper["kappa"]["parameterization"],str), "Error: the parameterization of the kappa hyper_parameter must be a string"
+				assert isinstance(self.hyper["kappa"]["parametrization"],str), "Error: the parametrization of the kappa hyper_parameter must be a string"
 				assert isinstance(self.hyper["kappa"]["distribution"],str), "Error: the distribution of the kappa hyper_parameter must be a string"
 
-				assert self.hyper["kappa"]["parameterization"] in ["central","non-central"],\
-						   "Error: The kappa parameterization must be central or non-central!"
+				assert self.hyper["kappa"]["parametrization"] in ["central","non-central"],\
+						   "Error: The kappa parametrization must be central or non-central!"
 				assert self.hyper["kappa"]["distribution"] in ["Normal","StudentT"],\
 						   "Error: The kappa distribution must be Normal or StudentT!"
 
@@ -873,13 +873,13 @@ class Inference:
 					kappa_scl = "~Exponential(scale={0})".format(self.hyper["kappa"]['scl'])
 					if self.hyper["kappa"]["distribution"] == "StudentT":
 						kappa_nu  = "~Gamma(alpha=2,beta={0})".format(self.hyper["kappa"]['beta'])
-						if self.hyper["kappa"]["parameterization"] == "central":
+						if self.hyper["kappa"]["parametrization"] == "central":
 							print("kappa ~ StudentT(nu={0},loc={1},scl={2}) [km.s-1.pc-1]".format(kappa_nu,kappa_loc,kappa_scl))
 						else:
 							print("offset_kappa ~ StudentT(nu={0},loc=0.0,scl=1.0) [km.s-1.pc-1]".format(kappa_nu))
 							print("kappa = {0} + offset_kappa * {1} [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
 					else:
-						if self.hyper["kappa"]["parameterization"] == "central":
+						if self.hyper["kappa"]["parametrization"] == "central":
 							print("kappa ~ Normal(loc={0},scl={1}) [km.s-1.pc-1]".format(kappa_loc,kappa_scl))
 						else:
 							print("offset_kappa ~ Normal(loc=0.0,scl=1.0) [km.s-1.pc-1]")
@@ -969,7 +969,7 @@ class Inference:
 								parameters=self.parameters,
 								hyper=self.hyper,
 								transformation=self.forward,
-								parameterization=self.parameterization,
+								parametrization=self.parametrization,
 								identifiers=self.ID,
 								coordinates=self.names_coords,
 								observables=self.names_mu)
@@ -986,7 +986,7 @@ class Inference:
 								parameters=self.parameters,
 								hyper=self.hyper,
 								transformation=self.forward,
-								parameterization=self.parameterization,
+								parametrization=self.parametrization,
 								identifiers=self.ID,
 								coordinates=self.names_coords,
 								observables=self.names_mu)
@@ -1002,7 +1002,7 @@ class Inference:
 									parameters=self.parameters,
 									hyper=self.hyper,
 									transformation=self.forward,
-									parameterization=self.parameterization,
+									parametrization=self.parametrization,
 									velocity_model=self.velocity_model,
 									identifiers=self.ID,
 									coordinates=self.names_coords,
@@ -1017,7 +1017,7 @@ class Inference:
 									parameters=self.parameters,
 									hyper=self.hyper,
 									transformation=self.forward,
-									parameterization=self.parameterization,
+									parametrization=self.parametrization,
 									velocity_model=self.velocity_model,
 									identifiers=self.ID,
 									coordinates=self.names_coords,
@@ -1044,7 +1044,8 @@ class Inference:
 		init_iters=int(1e5),
 		init_absolute_tol=5e-3,
 		init_relative_tol=1e-5,
-		# init_refine=False,
+		init_refine=True,
+		init_tracker=True,
 		prior_predictive=False,
 		prior_iters=2000,
 		progressbar=True,
@@ -1068,157 +1069,80 @@ class Inference:
 				step_size = 1.e-3
 		#---------------------------
 
+		#============================== Optimization =============================================
 		if not os.path.exists(self.file_chains):
-			#================== Optimization =============================================
-			# if os.path.exists(self.file_start):
-			# 	print("Reading initial positions ...")
-			# 	in_file = open(self.file_start, "rb")
-			# 	approx = dill.load(in_file)
-			# 	in_file.close()
-			# 	start = approx["initial_points"][0]
-			# else:
-			# 	approx = None
-			# 	start = self.starting_points
-			# 	print("Finding initial positions ...")
-
-			# if approx is None or (approx is not None and init_refine):
-			# 	# # -------- Fix problem with initial solution of cholesky cov-packed ----------
-			# 	# name_ccp = "_cholesky-cov-packed__" 
-			# 	# for key,value in start.copy().items():
-			# 	# 	if name_ccp in key:
-			# 	# 		del start[key]
-			# 	# # TO BE REMOVED once pymc5 solves this issue
-			# 	# #----------------------------------------------------------------------------
-
-			# 	random_seed_list = pm.util._get_seeds_per_chain(random_seed, chains)
-			# 	cb = [pm.callbacks.CheckParametersConvergence(
-			# 			tolerance=init_absolute_tol, diff="absolute",ord=None),
-			# 		  pm.callbacks.CheckParametersConvergence(
-			# 			tolerance=init_relative_tol, diff="relative",ord=None)]
-
-			# 	approx = pm.fit(
-			# 		start=start,
-			# 		random_seed=random_seed_list[0],
-			# 		n=init_iters,
-			# 		method="advi",
-			# 		model=self.Model,
-			# 		callbacks=cb,
-			# 		progressbar=True,
-			# 		#test_optimizer=pm.adagrad#_window
-			# 		)
-
-			# 	#------------- Plot Loss ----------------------------------
-			# 	plt.figure()
-			# 	plt.plot(approx.hist[-init_plot_iters:])
-			# 	plt.xlabel("Last {0} iterations".format(init_plot_iters))
-			# 	plt.ylabel("Average Loss")
-			# 	plt.savefig(self.dir_out+"/Initializations.png")
-			# 	plt.close()
-			# 	#-----------------------------------------------------------
-
-			# 	approx_sample = approx.sample(
-			# 		draws=chains, 
-			# 		random_seed=random_seed_list[0],
-			# 		return_inferencedata=False
-			# 		)
-
-			# 	initial_points = [approx_sample[i] for i in range(chains)]
-			# 	sd_point = approx.std.eval()
-			# 	mu_point = approx.mean.get_value()
-			# 	approx = {
-			# 		"initial_points":initial_points,
-			# 		"mu_point":mu_point,
-			# 		"sd_point":sd_point
-			# 		}
-
-			# 	out_file = open(self.file_start, "wb")
-			# 	dill.dump(approx, out_file)
-			# 	out_file.close()
-
-			# 	#------------------ Save initial point ------------------------------
-			# 	df = pn.DataFrame(data=initial_points[0]["{0}D::true".format(self.D)],
-			# 		columns=self.names_mu)
-			# 	df.to_csv(self.dir_out+"/initial_true.csv",index=False)
-			# 	df = pn.DataFrame(data=initial_points[0]["{0}D::source".format(self.D)],
-			# 		columns=self.names_coords)
-			# 	df.to_csv(self.dir_out+"/initial_source.csv",index=False)
-			# 	#---------------------------------------------------------------------
-
-			# #----------- Extract ---------------------
-			# mu_point = approx["mu_point"]
-			# sd_point = approx["sd_point"]
-			# initial_points = approx["initial_points"]
-			# #----------------------------------------
+			#============= Create or read VI instance =====================================
 			if not os.path.exists(self.file_start):
-				#================== Optimization with variational inference ============================================
-				if init_method.lower() == "advi":
-					print("Finding initial positions with ADVI method")
-					vi = pm.ADVI(model=self.Model)
-				elif init_method.lower() == "fullrank_advi":
-					print("Finding initial positions with FullRankADVI method")
-					vi = pm.FullRankADVI(model=self.Model)
-				elif init_method.lower() == "svgd":
-					print("Finding initial positions with SVGD method")
-					vi = pm.SVGD(
-						n_particles=100,
-						jitter=1,
-						# obj_optimizer=pm.sgd(learning_rate=0.01),
-						model=self.Model)
-				else:
-					sys.exit("Unrecognized VI method")
+				match init_method.lower():
+					case "advi":
+						print("Finding initial positions with ADVI method")
+						vi = pm.ADVI(model=self.Model)
+					case "fullrank_advi":
+						print("Finding initial positions with FullRankADVI method")
+						vi = pm.FullRankADVI(model=self.Model)
+					case "svgd":
+						print("Finding initial positions with SVGD method")
+						vi = pm.SVGD(
+							n_particles=100,
+							jitter=1,
+							model=self.Model)
+					case _:
+						sys.exit("Unrecognized init_method")
 
-				
-				# Convergence callbacks used to stop ADVI when parameter changes are small.
-				cnv_abs = pm.callbacks.CheckParametersConvergence(
-						tolerance=init_absolute_tol,
-						diff="absolute",ord=None)
-				cnv_rel = pm.callbacks.CheckParametersConvergence(
-						tolerance=init_relative_tol,
-						diff="relative",ord=None)
-				# tracker = pm.callbacks.Tracker(
-				# 	  	mean=vi.approx.mean.eval,
-				# 		std=vi.approx.std.eval)
-
-				approx = vi.fit(
-					n=init_iters,
-					callbacks=[cnv_abs,cnv_rel],
-					progressbar=True)
-
-				#------------- Plot the ADVI loss (last init_plot_iters iterations) ----------------
-				# fig = plt.figure(figsize=(16, 9))
-				# mu_ax = fig.add_subplot(221)
-				# std_ax = fig.add_subplot(222)
-				# hist_ax = fig.add_subplot(212)
-				# # mu_ax.plot(tracker["mean"])
-				# mu_ax.plot(approx.mean.eval())
-				# mu_ax.set_title("Mean track")
-				# # std_ax.plot(tracker["std"])
-				# std_ax.plot(approx.std.eval())
-				# std_ax.set_title("Std track")
-				# hist_ax.plot(approx.hist)
-				# hist_ax.set_yscale("log")
-				# hist_ax.set_title("Negative ELBO track")
-				# plt.savefig(self.file_vi_loss)
-				# plt.close()
-				plt.figure()
-				plt.plot(approx.hist)
-				plt.xlabel("Iterations")
-				plt.ylabel("Loss")
-				plt.yscale("log")
-				plt.savefig(self.file_vi_loss)
-				plt.close()
-				#-----------------------------------------------------------
-
-				# Save initialization to disk so future runs can reuse it.
-				with open(self.file_start, "wb") as out_file:
-					dill.dump(approx, out_file)
 			else:
-				assert nuts_sampler.lower() != init_method.lower(),("Error: "+
-				"To sample with the same method as the initialization "+
-				"please remove file:\n {0}".format(self.file_start))
-
 				with open(self.file_start, 'rb') as in_strm:
-					approx = dill.load(in_strm)
+					vi = dill.load(in_strm)
+			#============================================================================
+
+			#================== Callbacks =========================	
+			cnv_abs = pm.callbacks.CheckParametersConvergence(
+					tolerance=init_absolute_tol,
+					diff="absolute",ord=None)
+			cnv_rel = pm.callbacks.CheckParametersConvergence(
+					tolerance=init_relative_tol,
+					diff="relative",ord=None)
+			if init_tracker:
+				tracker = pm.callbacks.Tracker(
+						mean=vi.approx.mean.eval,
+						std=vi.approx.std.eval)
+
+				callbacks = [cnv_abs,cnv_rel,tracker]
+			else:
+				callbacks = [cnv_abs,cnv_rel]
+			#=======================================================
+
+			#============ Sample with VI ==============================
+			if init_refine:
+				vi.fit(
+					n=init_iters,
+					callbacks=callbacks,
+					progressbar=True)
+			else:
+				vi.approx.hist = vi.hist
+			assert len(vi.approx.hist)>0, "The VI approximation is empty!\n Set init_refine=True"
+			approx = vi.approx
+
+			# Save initialization to disk so future runs can reuse it.
+			with open(self.file_start, "wb") as out_file:
+				dill.dump(vi, out_file)
+			#===========================================================
+
+			#------------- Plot the ADVI loss ----------------
+			fig = plt.figure(figsize=(16, 9))
+			mu_ax = fig.add_subplot(221)
+			std_ax = fig.add_subplot(222)
+			hist_ax = fig.add_subplot(212)
+			mu_ax.set_title("Mean track")
+			std_ax.set_title("Std track")
+			hist_ax.set_title("Negative ELBO track")
+			hist_ax.set_yscale("log")
+			hist_ax.plot(approx.hist)
+			if init_tracker:
+				mu_ax.plot(tracker["mean"])
+				std_ax.plot(tracker["std"])
+			plt.savefig(self.file_vi_loss)
+			plt.close()
+			#--------------------------------------------------
 
 			#----------- Extract values needed for sampler ---------------------
 			mu_point = approx.mean.eval()
@@ -1233,34 +1157,15 @@ class Inference:
 			initial_points = [approx_sample[i] for i in range(chains)]
 			#--------------------------------------------------------------------
 			#================================================================================
+			
 
 			#=================== Sampling ==================================================
-			# elif nuts_sampler == "advi":
-			# 	print("WARNING: Sampling posterior with ADVI")
-			# 	traces = []
-			# 	for chain in np.arange(chains):
-			# 		print("sampling chain: {0}".format(chain))
-			# 		approx = pm.fit(
-			# 			start=initial_points[chain],
-			# 			random_seed=chain,
-			# 			n=tuning_iters,
-			# 			method="advi",
-			# 			model=self.Model,
-			# 			progressbar=True
-			# 			)
-			# 		tr = approx.sample(
-			# 			draws=sample_iters, 
-			# 			random_seed=None,
-			# 			return_inferencedata=True)
-			# 		traces.append(tr)
-			# 	trace = az.concat(traces,dim="chain")
-
-			if nuts_sampler.lower() == init_method.lower():
-				print("WARNING: Sampling posterior with {0}".format(nuts_sampler.upper()))
+			if nuts_sampler.lower() in ["advi","fullrank_advi","svgd"]:
+				print("WARNING: Sampling posterior with the existing method in Initialization.pkl file!")
 				traces = []
 				for chain in np.arange(chains):
 					print("sampling chain: {0}".format(chain))
-					vi.refine(
+					vi.fit(
 						n=tuning_iters,
 						progressbar=True)
 					vi.approx.hist = vi.hist
@@ -1287,7 +1192,6 @@ class Inference:
 					nuts_sampler_kwargs=nuts_sampler_kwargs,
 					model=self.Model
 					)
-
 
 			elif nuts_sampler.lower() == "pymc":
 				#--------------- Prepare step ---------------------------------------------

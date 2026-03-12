@@ -39,7 +39,7 @@ class Model1D(Model):
 		parameters={"location":None,"scale": None},
 		hyper=None,
 		transformation=None,
-		parameterization="central",
+		parametrization="central",
 		identifiers=None,
 		coordinates=["distance"],
 		observables=["parallax"]
@@ -49,7 +49,7 @@ class Model1D(Model):
 		self.add_coord("coordinate",values=coordinates)
 		self.add_coord("observable",values=observables)
 
-		print("Using {0} parameterization".format(parameterization))
+		print("Using {0} parametrization".format(parametrization))
 		assert dimension == 1, "This class is only for 1D models!"
 
 		#================ Hyper-parameters =====================================
@@ -179,7 +179,7 @@ class Model1D(Model):
 		#================= True values ========================================================
 		#--------- Cluster oriented prior-----------------------------------------------
 		if prior == "Uniform":
-			if parameterization == "central":
+			if parametrization == "central":
 				source = pm.Uniform("source",lower=loc-std,upper=loc+std,
 									shape=(n_sources,dimension),
 									dims=("source_id","coordinate"))
@@ -189,7 +189,7 @@ class Model1D(Model):
 									dims=("source_id","coordinate"))
 
 		elif prior == "Gaussian":
-			if parameterization == "central":
+			if parametrization == "central":
 				source = pm.Normal("source",mu=loc,sigma=std,shape=(n_sources,dimension),
 									dims=("source_id","coordinate"))
 			else:
@@ -200,7 +200,7 @@ class Model1D(Model):
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper["nu"]["alpha"],beta=hyper["nu"]["beta"])
 
-			if parameterization == "central":
+			if parametrization == "central":
 				source = pm.StudentT("source",nu=nu,mu=loc,sigma=std,shape=(n_sources,dimension),
 									dims=("source_id","coordinate"))
 			else:
@@ -215,7 +215,7 @@ class Model1D(Model):
 		# 	else:
 		# 		gamma = pytensor.shared(np.array(parameters["gamma"]))
 
-		# 	if parameterization == "central":
+		# 	if parametrization == "central":
 		# 		source = EFF("source",location=loc,scale=std,gamma=gamma,
 		# 							shape=(n_sources,dimension),
 		# 							dims=("source_id","coordinate"))
@@ -232,7 +232,7 @@ class Model1D(Model):
 		# 	else:
 		# 		rt = pytensor.shared(np.array(parameters["rt"]))
 
-		# 	if parameterization == "central":
+		# 	if parametrization == "central":
 		# 		source = King("source",location=loc,scale=scl,rt=rt,
 		# 							shape=(n_sources,dimension),
 		# 							dims=("source_id","coordinate"))
@@ -289,7 +289,7 @@ class Model3D6D(Model):
 		parameters={"location":None,"scale":None},
 		hyper=None,
 		transformation=None,
-		parameterization="non-central",
+		parametrization="non-central",
 		identifiers=None,
 		coordinates=["X","Y","Z"],
 		observables=["ra","dec","parallax"]):
@@ -304,7 +304,7 @@ class Model3D6D(Model):
 			sys.exit("Data has length zero! You must provide at least one data point.")
 		#-------------------------------------------------------------------------------
 
-		print("Using {0} parameterization".format(parameterization))
+		print("Using {0} parametrization".format(parametrization))
 
 		#================ Hyper-parameters =====================================
 		#----------------- Mixture prior families ----------------------------
@@ -479,7 +479,7 @@ class Model3D6D(Model):
 
 		#===================== True values ============================================		
 		if prior == "Gaussian":
-			if parameterization == "central":
+			if parametrization == "central":
 				source = pm.MvNormal("source",mu=loc,chol=chol,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
@@ -491,7 +491,7 @@ class Model3D6D(Model):
 
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper["nu"]["alpha"],beta=hyper["nu"]["beta"])
-			if parameterization == "central":
+			if parametrization == "central":
 				source = pm.MvStudentT("source",nu=nu,mu=loc,chol=chol,
 					shape=(n_sources,dimension),
 					dims=("source_id","coordinate"))
@@ -508,7 +508,7 @@ class Model3D6D(Model):
 		# 	else:
 		# 		self.rt = parameters["rt"]
 
-		# 	if parameterization == "central":
+		# 	if parametrization == "central":
 		# 		MvKing("source",location=loc,chol=chol,rt=self.rt,
 		# 			shape=(n_sources,dimension),
 		# 			dims=("source_id","coordinate"))
@@ -526,7 +526,7 @@ class Model3D6D(Model):
 		# 	else:
 		# 		self.gamma = parameters["gamma"]
 
-		# 	if parameterization == "central":
+		# 	if parametrization == "central":
 		# 		MvEFF("source",location=loc,chol=chol,gamma=self.gamma,
 		# 			shape=(n_sources,dimension),
 		# 			dims=("source_id","coordinate"))
@@ -578,7 +578,7 @@ class Model6D_linear(Model):
 		parameters={"location":None,"scale":None,"kappa":None,"omega":None},
 		hyper=None,
 		transformation=None,
-		parameterization="central",
+		parametrization="central",
 		velocity_model="linear",
 		identifiers=None,
 		coordinates=["X","Y","Z","U","V","W"],
@@ -598,7 +598,7 @@ class Model6D_linear(Model):
 			sys.exit("Data has length zero! You must provide at least one data point.")
 		#-------------------------------------------------------------------------------
 
-		print("Using {0} parameterization".format(parameterization))
+		print("Using {0} parametrization".format(parametrization))
 
 		#================ Hyper-parameters =====================================
 		#----------------- Mixture prior families ----------------------------
@@ -805,7 +805,7 @@ class Model6D_linear(Model):
 			kappa_mu    = pm.Deterministic("kappa_mu",pytensor.shared(hyper["kappa"]["loc"]))
 			kappa_sigma = pm.Deterministic("kappa_sigma",pytensor.shared(hyper["kappa"]["scl"]))
 
-			if hyper["kappa"]["parameterization"] == "central":
+			if hyper["kappa"]["parametrization"] == "central":
 				kappa = pm.Normal("kappa",mu=kappa_mu,sigma=kappa_sigma,
 								dims="position")
 			else:
@@ -836,7 +836,7 @@ class Model6D_linear(Model):
 
 		#===================== True values =========================================================================	
 		if prior == "Gaussian":
-			if parameterization == "central":
+			if parametrization == "central":
 				source_pos = pm.MvNormal("source_pos",mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
 				jitter_vel = pm.MvNormal("jitter_vel",mu=loc[3:],chol=chol_vel,shape=(n_sources,3))
 
@@ -852,7 +852,7 @@ class Model6D_linear(Model):
 
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper["nu"]["alpha"],beta=hyper["nu"]["beta"],shape=2)
-			if parameterization == "central":
+			if parametrization == "central":
 				source_pos = pm.MvStudentT("source_pos",nu=nu[0],mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
 				jitter_vel = pm.MvStudentT("jitter_vel",nu=nu[1],mu=loc[3:],chol=chol_vel,shape=(n_sources,3))
 
@@ -904,7 +904,7 @@ class Model6D_age(Model):
 		parameters={"location":None,"scale":None,"kappa":None,"omega":None,"age":None},
 		hyper=None,
 		transformation=None,
-		parameterization="central",
+		parametrization="central",
 		velocity_model="linear",
 		identifiers=None,
 		coordinates=["X","Y","Z","U","V","W"],
@@ -925,7 +925,7 @@ class Model6D_age(Model):
 
 		assert prior in ["Gaussian","StudentT"], "Error: age model is only valid for Gaussian and StudentT"
 
-		print("Using {0} parameterization".format(parameterization))
+		print("Using {0} parametrization".format(parametrization))
 
 		
 		#--------- Location ----------------------------------
@@ -1080,14 +1080,14 @@ class Model6D_age(Model):
 		if hyper["kappa"]["distribution"] == "StudentT":
 			kappa_nu = pm.Gamma("kappa_nu",alpha=2,beta=hyper["kappa"]["beta"])
 			# Check https://github.com/stan-dev/stan/wiki/prior-choice-recommendations
-			if hyper["kappa"]["parameterization"] == "central":
+			if hyper["kappa"]["parametrization"] == "central":
 				kappa = pm.StudentT("kappa",nu=kappa_nu,mu=kappa_mu,sigma=kappa_sigma,
 								dims="position")
 			else:
 				offset_kappa = pm.StudentT("offset_kappa",nu=kappa_nu,mu=0.0,sigma=1.0,dims="position")
 				kappa = pm.Deterministic("kappa",kappa_mu + offset_kappa*kappa_sigma,dims="position")
 		else:
-			if hyper["kappa"]["parameterization"] == "central":
+			if hyper["kappa"]["parametrization"] == "central":
 				kappa = pm.Normal("kappa",mu=kappa_mu,sigma=kappa_sigma,
 								dims="position")
 			else:
@@ -1115,7 +1115,7 @@ class Model6D_age(Model):
 
 		#===================== True values =========================================================================	
 		if prior == "Gaussian":
-			if parameterization == "central":
+			if parametrization == "central":
 				source_pos = pm.MvNormal("source_pos",mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
 				jitter_vel = pm.MvNormal("jitter_vel",mu=loc[3:],chol=chol_vel,shape=(n_sources,3))
 
@@ -1131,7 +1131,7 @@ class Model6D_age(Model):
 
 		elif prior == "StudentT":
 			nu = pm.Gamma("nu",alpha=hyper["nu"]["alpha"],beta=hyper["nu"]["beta"],shape=2)
-			if parameterization == "central":
+			if parametrization == "central":
 				source_pos = pm.MvStudentT("source_pos",nu=nu[0],mu=loc[:3],chol=chol_pos,shape=(n_sources,3))
 				jitter_vel = pm.MvStudentT("jitter_vel",nu=nu[1],mu=loc[3:],chol=chol_vel,shape=(n_sources,3))
 
