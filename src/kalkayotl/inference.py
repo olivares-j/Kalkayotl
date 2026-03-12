@@ -1039,14 +1039,12 @@ class Inference:
 		target_accept=0.6,
 		chains=2,
 		cores=2,
-		step=None,
 		step_size=None,
 		init_method="advi",
 		init_iters=int(1e5),
 		init_absolute_tol=5e-3,
 		init_relative_tol=1e-5,
-		init_plot_iters=int(1e4),
-		init_refine=False,
+		# init_refine=False,
 		prior_predictive=False,
 		prior_iters=2000,
 		progressbar=True,
@@ -1187,19 +1185,26 @@ class Inference:
 					progressbar=True)
 
 				#------------- Plot the ADVI loss (last init_plot_iters iterations) ----------------
-				fig = plt.figure(figsize=(16, 9))
-				mu_ax = fig.add_subplot(221)
-				std_ax = fig.add_subplot(222)
-				hist_ax = fig.add_subplot(212)
-				# mu_ax.plot(tracker["mean"])
-				mu_ax.plot(approx.mean.eval())
-				mu_ax.set_title("Mean track")
-				# std_ax.plot(tracker["std"])
-				std_ax.plot(approx.std.eval())
-				std_ax.set_title("Std track")
-				hist_ax.plot(approx.hist)
-				hist_ax.set_yscale("log")
-				hist_ax.set_title("Negative ELBO track")
+				# fig = plt.figure(figsize=(16, 9))
+				# mu_ax = fig.add_subplot(221)
+				# std_ax = fig.add_subplot(222)
+				# hist_ax = fig.add_subplot(212)
+				# # mu_ax.plot(tracker["mean"])
+				# mu_ax.plot(approx.mean.eval())
+				# mu_ax.set_title("Mean track")
+				# # std_ax.plot(tracker["std"])
+				# std_ax.plot(approx.std.eval())
+				# std_ax.set_title("Std track")
+				# hist_ax.plot(approx.hist)
+				# hist_ax.set_yscale("log")
+				# hist_ax.set_title("Negative ELBO track")
+				# plt.savefig(self.file_vi_loss)
+				# plt.close()
+				plt.figure()
+				plt.plot(approx.hist)
+				plt.xlabel("Iterations")
+				plt.ylabel("Loss")
+				plt.yscale("log")
 				plt.savefig(self.file_vi_loss)
 				plt.close()
 				#-----------------------------------------------------------
