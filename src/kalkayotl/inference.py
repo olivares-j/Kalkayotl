@@ -1174,13 +1174,16 @@ class Inference:
 				cnv_abs = pm.callbacks.CheckParametersConvergence(
 						tolerance=init_absolute_tol,
 						diff="absolute",ord=None)
-				tracker = pm.callbacks.Tracker(
-					  	mean=vi.approx.mean.eval,
-						std=vi.approx.std.eval)
+				cnv_rel = pm.callbacks.CheckParametersConvergence(
+						tolerance=init_relative_tol,
+						diff="relative",ord=None)
+				# tracker = pm.callbacks.Tracker(
+				# 	  	mean=vi.approx.mean.eval,
+				# 		std=vi.approx.std.eval)
 
 				approx = vi.fit(
 					n=init_iters,
-					callbacks=[cnv_abs,tracker],
+					callbacks=[cnv_abs,cnv_rel],
 					progressbar=True)
 
 				#------------- Plot the ADVI loss (last init_plot_iters iterations) ----------------
@@ -1188,11 +1191,13 @@ class Inference:
 				mu_ax = fig.add_subplot(221)
 				std_ax = fig.add_subplot(222)
 				hist_ax = fig.add_subplot(212)
-				mu_ax.plot(tracker["mean"])
+				# mu_ax.plot(tracker["mean"])
+				mu_ax.plot(approx.mean.eval())
 				mu_ax.set_title("Mean track")
-				std_ax.plot(tracker["std"])
+				# std_ax.plot(tracker["std"])
+				std_ax.plot(approx.std.eval())
 				std_ax.set_title("Std track")
-				hist_ax.plot(vi.hist)
+				hist_ax.plot(approx.hist)
 				hist_ax.set_yscale("log")
 				hist_ax.set_title("Negative ELBO track")
 				plt.savefig(self.file_vi_loss)
