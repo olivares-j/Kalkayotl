@@ -1050,7 +1050,7 @@ class Inference:
 		prior_iters=2000,
 		progressbar=True,
 		nuts_sampler="numpyro",
-		nuts_sampler_kwargs: Optional[Dict] = None,
+		nuts_sampler_kwargs=None,
 		random_seed=None):
 		"""
 		Performs the MCMC run.
