@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 import pytensor
-from pytensor import tensor as tt
+from pytensor import tensor as pt
 
 '''
 The following transformation have been taken from pygaia (https://github.com/agabrown/PyGaia)
@@ -156,16 +156,16 @@ def normalTriad(phi, theta):
 	-------
 	The normal triad as the vectors p, q, r
 	"""
-	zeros  = tt.zeros_like(phi)
-	sphi   = tt.sin(phi)
-	stheta = tt.sin(theta)
-	cphi   = tt.cos(phi)
-	ctheta = tt.cos(theta)
+	zeros  = pt.zeros_like(phi)
+	sphi   = pt.sin(phi)
+	stheta = pt.sin(theta)
+	cphi   = pt.cos(phi)
+	ctheta = pt.cos(theta)
 
 	
-	q = tt.stack([-stheta*cphi, -stheta*sphi, ctheta],axis=1)
-	r = tt.stack([ctheta*cphi, ctheta*sphi, stheta],axis=1)
-	p = tt.stack([-sphi, cphi, zeros],axis=1)
+	q = pt.stack([-stheta*cphi, -stheta*sphi, ctheta],axis=1)
+	r = pt.stack([ctheta*cphi, ctheta*sphi, stheta],axis=1)
+	p = pt.stack([-sphi, cphi, zeros],axis=1)
 
 	return p, q, r
 
@@ -253,21 +253,22 @@ def icrs_xyz_to_radecplx(a):
 	z = a[:,2]
 
 	rCylSq=x*x+y*y
-	r=tt.sqrt(rCylSq+z*z)
+	r=pt.sqrt(rCylSq+z*z)
 
 	# if np.any(r==0.0):
 	#   raise Exception("Error: one or more of the points is at distance zero.")
-	phi   = tt.arctan2(y,x)
-	phi   = tt.where(phi<0.0, phi+2*np.pi, phi)
-	theta = tt.arctan2(z,tt.sqrt(rCylSq))
+	phi   = pt.arctan2(y,x)
+	# phi   = pt.where(phi<0.0, phi+2*np.pi, phi)
+	alpha = pt.mod(phi, 2 * pt.pi)
+	theta = pt.arctan2(z,pt.sqrt(rCylSq))
 
 	#-------- Units----------
-	ra  = tt.rad2deg(phi)   # Degrees
-	dec = tt.rad2deg(theta) # Degrees
+	ra  = pt.rad2deg(phi)   # Degrees
+	dec = pt.rad2deg(theta) # Degrees
 	plx = _auMasParsec/r    # mas
 
 	#------- Join ------
-	radecplx = tt.stack([ra,dec,plx],axis=1)
+	radecplx = pt.stack([ra,dec,plx],axis=1)
 	return radecplx
 
 def galactic_xyz_to_radecplx(xyz):
@@ -288,7 +289,7 @@ def galactic_xyz_to_radecplx(xyz):
 
 	NOTE THAT THE LONGITUDE ANGLE IS BETWEEN 0 AND +2PI.
 	"""
-	icrs_xyz = tt.dot(_rotationMatrixGalacticToIcrs, xyz.T).T
+	icrs_xyz = pt.dot(_rotationMatrixGalacticToIcrs, xyz.T).T
 
 	radecplx = icrs_xyz_to_radecplx(icrs_xyz)
 
@@ -516,16 +517,16 @@ def icrs_xyzuvw_to_astrometry_and_rv(a):
 	dec = b[:,1]
 	plx = b[:,2]
 
-	p, q, r = normalTriad(tt.deg2rad(ra), tt.deg2rad(dec))
+	p, q, r = normalTriad(pt.deg2rad(ra), pt.deg2rad(dec))
 
 	velocities= a[:,3:]
 
-	murastar = tt.sum(p*velocities,axis=1)*plx/_auKmYearPerSec
-	mudec    = tt.sum(q*velocities,axis=1)*plx/_auKmYearPerSec
-	vrad     = tt.sum(r*velocities,axis=1)
+	murastar = pt.sum(p*velocities,axis=1)*plx/_auKmYearPerSec
+	mudec    = pt.sum(q*velocities,axis=1)*plx/_auKmYearPerSec
+	vrad     = pt.sum(r*velocities,axis=1)
 
 	#------- Join ----------------------------------------------------------
-	as_and_rv = tt.stack([ra, dec, plx, murastar, mudec, vrad],axis=1)
+	as_and_rv = pt.stack([ra, dec, plx, murastar, mudec, vrad],axis=1)
 	#-----------------------------------------------------------------------
 
 	return as_and_rv
@@ -547,10 +548,10 @@ def galactic_xyzuvw_to_astrometry_and_rv(v):
 	    mu_ra (mas/yr), mu_dec (mas/yr), and radial vel (km/s)
 	"""
 
-	xyz = tt.dot(_rotationMatrixGalacticToIcrs, v[:,:3].T).T
-	uvw = tt.dot(_rotationMatrixGalacticToIcrs, v[:,3:].T).T
+	xyz = pt.dot(_rotationMatrixGalacticToIcrs, v[:,:3].T).T
+	uvw = pt.dot(_rotationMatrixGalacticToIcrs, v[:,3:].T).T
 
-	icrs_xyzuvw = tt.concatenate([xyz,uvw],axis=1)
+	icrs_xyzuvw = pt.concatenate([xyz,uvw],axis=1)
 
 	as_and_rv = icrs_xyzuvw_to_astrometry_and_rv(icrs_xyzuvw)
 	return as_and_rv
