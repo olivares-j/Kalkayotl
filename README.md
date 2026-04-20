@@ -140,6 +140,11 @@ The most common errors that you may face while running Kalkayotl are:
  * Testing the two types of parameterization: "central" and "non-central". The former works better for constraining data sets (i.e. populous and nearby clusters at less than 500 pc).
  * Fix some parameters, like gamma= 5 in the EFF, which will produce a Plummer profile.
 
+ 3. Execution killed by the system manager.
+ In stellar systems with a few hundreds of stars, the fullrank_advi initialization method may result in excessive use of RAM memory, which then triggers the killing.
+ In such cases, use the ``init_tracker=False`` parameter of the kalkayotl.run method. This avoids saving in memory the tracker of the mean and std of the parameter's history.
+ In case the previous trick still fails, change the initialization method to "ADVI". 
+
  Advice: Whenever possible use simpler models.
 
  As noted in the article, the Gaussian Mixture Model is problematic due to its complexity. If you absolutely need it, I strongly recommend computing statistics with only one chain . Due to the lack of identifiability, the Gaussian components can be interchanged. For example component A and B are first and second in one chain and second and first in the other chain. Given that statistics are computed with the mixed chains the results are no longer correct.
