@@ -239,6 +239,15 @@ class Inference:
 		#----------------------------------------------
 
 		if self.D in [3,6]:
+			if (np.any(data["ra"]> 350.0) and 
+				np.any(data["ra"] < 10.0) and 
+				self.reference_system == "Galactic"):
+				print("Error: There are sources at both sides of the singular point 360.0 deg.")
+				print("This will cause sampling errors.")
+				print("Convert Right Ascension to the interval [-180,180] deg.")
+				print("Make sure there are no sources close to -180 or 180 deg.")
+				sys.exit()
+
 			#--- Sky uncertainty from mas to degrees ------
 			data["ra_error"]  *= self.mas2deg
 			data["dec_error"] *= self.mas2deg
