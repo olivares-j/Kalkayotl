@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Kalkayotl"
-version = "2.1.3"
+version = "2.1.4"
 description = "This python code infers 1D, 3D, and 6D models of stellar systems based on Gaia data"
 readme = "README.md"
 license = {text = "GNU GPL 3"}

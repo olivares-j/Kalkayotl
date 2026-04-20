@@ -92,7 +92,7 @@ class Inference:
 					"parallax_pmra_corr","parallax_pmdec_corr",
 					"pmra_pmdec_corr"]
 
-		coordinates = ["X","Y","Z","U","V","W"]
+		
 
 		assert dimension in [1,3,6], "Dimension must be 1, 3 or 6"
 		assert isinstance(zero_points,dict), "zero_points must be a dictionary"
@@ -129,12 +129,16 @@ class Inference:
 			self.idx_plx = 0
 			index_nan   = index_obs.copy()
 
+			coordinates = ["distance"]
+
 		elif self.D == 3:
 			index_obs  = [0,1,2,6,7,8,12,13,16]
 			index_mu   = [0,1,2]
 			index_sd   = [6,7,8]
 			index_corr = [12,13,16]
 			index_nan  = index_obs.copy()
+
+			coordinates = ["X","Y","Z"]
 
 		elif self.D == 6:
 			index_obs  = list(range(22))
@@ -146,7 +150,8 @@ class Inference:
 			index_nan  = index_obs.copy()
 			index_nan.remove(5)
 			index_nan.remove(11)
-			#-----------------------------------------
+
+			coordinates = ["X","Y","Z","U","V","W"]
 
 		else:
 			sys.exit("Dimension not valid!")
@@ -156,7 +161,7 @@ class Inference:
 		self.names_sd   = [gaia_observables[i] for i in index_sd]
 		self.names_corr = [gaia_observables[i] for i in index_corr]
 		self.names_nan  = [gaia_observables[i] for i in index_nan]
-		self.names_coords = coordinates[:dimension]
+		self.names_coords = coordinates
 
 		self.id_name = id_name
 		self.dim_observables = sum([[id_name],self.names_obs],[]) 
