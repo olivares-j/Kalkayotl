@@ -259,7 +259,7 @@ def icrs_xyz_to_radecplx(a):
 	#   raise Exception("Error: one or more of the points is at distance zero.")
 	phi   = pt.arctan2(y,x)
 	# phi   = pt.where(phi<0.0, phi+2*np.pi, phi)
-	alpha = pt.mod(phi, 2 * pt.pi)
+	phi   = pt.mod(phi, 2 * pt.pi)
 	theta = pt.arctan2(z,pt.sqrt(rCylSq))
 
 	#-------- Units----------
