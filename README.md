@@ -133,12 +133,12 @@ The most common errors that you may face while running Kalkayotl are:
 2. Low effective sample size and/or divergences.
  The first is caused by poor sampling while divergences are related to numerical issues. Few effective samples will result in low parameter precision. Several divergences indicate that the posterior is hard to sample, usually because the data is not informative enough to constrain the parameters of a complex model. However, a few divergences are generally not an issue, but still, take a look at the chains.
 
- Possible solutions:
- * Increase the number of tuning iterations. 
- * Increase the ``target_accept`` parameter of the sampler: from 0.65 to 0.9 or 0.95. 
- * Constrain the model by adding prior information in the hyper-parameters (e.g. set hyper_beta to 10 or 20 pc).
- * Testing the two types of parameterization: "central" and "non-central". The former works better for constraining data sets (i.e. populous and nearby clusters at less than 500 pc).
- * Fix some parameters, like gamma= 5 in the EFF, which will produce a Plummer profile.
+     Possible solutions:
+     * Increase the number of tuning iterations. 
+     * Increase the ``target_accept`` parameter of the sampler: from 0.65 to 0.9 or 0.95. 
+     * Constrain the model by adding prior information in the hyper-parameters (e.g. set hyper_beta to 10 or 20 pc).
+     * Testing the two types of parameterization: "central" and "non-central". The former works better for constraining data sets (i.e. populous and nearby clusters at less than 500 pc).
+     * Fix some parameters, like gamma= 5 in the EFF, which will produce a Plummer profile.
 
  3. Execution killed by the system manager.
  In stellar systems with a few hundreds of stars, the fullrank_advi initialization method may result in excessive use of RAM memory, which then triggers the killing.
