@@ -207,6 +207,28 @@ priors = {
 							"nu":None,
 							},
 		},
+"Gaussian_age_iso":{"type":"Gaussian",
+		"parameters":{"location":None,"scale":None,"kappa":None,"omega":None,"age":None},
+		"hyper_parameters":{
+							"location":{"loc":None,"scl":[20.,20.,20.,5.,5.,5.]},
+							"scale":None,
+							"eta":None,
+							"kappa":None,
+							"omega":None,
+							"age":{"loc":0.0,"scl":1.0}, # Set here the age prior
+							},
+		"parametrization":"central"},
+"Gaussian_age_noiso":{"type":"Gaussian",
+		"parameters":{"location":None,"scale":None,"kappa":None,"omega":None,"age":None},
+		"hyper_parameters":{
+							"location":{"loc":None,"scl":[20.,20.,20.,5.,5.,5.]},
+							"scale":None,
+							"eta":None,
+							"kappa":{"distribution":"StudentT","scl":0.5},
+							"omega":None,
+							"age":{"loc":0.0,"scl":1.0}, # Set here the age prior
+							},
+		"parametrization":"central"},
 }
 #======================= Inference and Analysis =====================================================
 

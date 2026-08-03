@@ -22,7 +22,7 @@ import pymc as pm
 import string
 from pymc import Model
 import pytensor
-from pytensor import tensor as tt, function,printing,pp
+from pytensor import tensor as tt, function
 
 from kalkayotl.GGD import GeneralizedGamma
 
